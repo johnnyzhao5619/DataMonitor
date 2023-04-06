@@ -13,7 +13,6 @@ def read_monitor_list():
     totalNumber = config.get('MonitorNum', 'total')
     for i in range(int(totalNumber)):
         monitordir = {}
-
         monitordir['name'] = config.get(f'Monitor{i+1}', 'name')
         monitordir['url'] = config.get(f'Monitor{i+1}', 'url')
         monitordir['type'] = config.get(f'Monitor{i+1}', 'type')
@@ -37,3 +36,8 @@ def read_mail_configuration():
     mailconfig['to_addrs'] = config.get('Mail', 'to_addrs')
     print("mailconfig:", mailconfig)
     return mailconfig
+
+def get_timezone():
+    config = configparser.RawConfigParser()
+    config.read('config.ini')
+    return config.get('TimeZone', 'timezone')

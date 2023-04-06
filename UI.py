@@ -6,126 +6,63 @@
 
 
 import sys
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QGroupBox, QPushButton, QLabel
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QGroupBox, QPushButton, QLabel, QApplication, \
+    QInputDialog
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import QTimer
-import datetime
-
-class DynamicComponent(QWidget):
-    def __init__(self):
-        super().__init__()
-        self.componentLayout = QVBoxLayout()
-        self.setLayout(self.componentLayout)
-
-        font = QtGui.QFont()
-        font.setBold(True)
-        font.setWeight(75)
-        self.monitorGroupBox = QGroupBox('API Monitor')
-        self.monitorGroupBox.setFont(font)
-        self.monitorGroupBox.setMinimumSize(QtCore.QSize(680, 120))
-        self.monitorGroupBox.setMaximumSize(QtCore.QSize(680, 120))
-
-        self.componentLayout.addWidget(self.monitorGroupBox)
+# import datetime
+import configuration
+# import mainFrame
+#
+# switch = True
+# time_zone = 8
+time_zone = configuration.get_timezone()
 
 
-        self.monitorLayout = QVBoxLayout()
-        self.monitorGroupBox.setLayout(self.monitorLayout)
-
-
-        self.intervalTittleLabel = QLabel('频率(s) Interval:')
-
-        self.typeTittleLabel = QLabel('监控类型 Type:')
-        self.urlTittleLabel = QLabel('地址 URL:')
-        self.intervalLabel = QLabel('xxx')
-        self.typeLabel = QLabel('xxx')
-        self.urlLabel = QLabel('www.google.com')
-
-        self.intervalTittleLabel.setMinimumSize(QtCore.QSize(100, 20))
-        self.typeTittleLabel.setMinimumSize(QtCore.QSize(100, 20))
-        self.urlTittleLabel.setMinimumSize(QtCore.QSize(100, 20))
-        self.intervalLabel.setMinimumSize(QtCore.QSize(200, 20))
-        self.typeLabel.setMinimumSize(QtCore.QSize(200, 20))
-        self.urlLabel.setMinimumSize(QtCore.QSize(200, 20))
-
-        self.intervalTittleLabel.setMaximumSize(QtCore.QSize(100, 20))
-        self.typeTittleLabel.setMaximumSize(QtCore.QSize(100, 20))
-        self.urlTittleLabel.setMaximumSize(QtCore.QSize(100, 20))
-        self.intervalLabel.setMaximumSize(QtCore.QSize(200, 20))
-        self.typeLabel.setMaximumSize(QtCore.QSize(200, 20))
-        self.urlLabel.setMaximumSize(QtCore.QSize(200, 20))
-
-        self.testTimeLabel = QLabel('2023-04-01 00:00:00')
-        self.resultLabel = QLabel('通过')
-        self.notesLabel = QLabel('xxx')
-        self.testTimeLabel.setMinimumSize(QtCore.QSize(200, 20))
-        self.resultLabel.setMinimumSize(QtCore.QSize(100, 20))
-        self.notesLabel.setMinimumSize(QtCore.QSize(200, 20))
-
-        self.testTimeLabel.setMaximumSize(QtCore.QSize(200, 20))
-        self.resultLabel.setMaximumSize(QtCore.QSize(100, 20))
-        self.notesLabel.setMaximumSize(QtCore.QSize(200, 20))
-
-
-
-        self.iconLabel = QLabel('')
-        self.iconLabel.setMinimumSize(QtCore.QSize(20, 20))
-        self.iconLabel.setMaximumSize(QtCore.QSize(20, 20))
-        self.iconLabel.setStyleSheet("background-color: Gray")
-
-
-        # 第一行
-        self.line1Layout = QHBoxLayout()
-        self.line1Layout.addWidget(self.typeTittleLabel)
-        self.line1Layout.addWidget(self.typeLabel)
-        self.line1Layout.addStretch(1)
-        self.monitorLayout.addLayout(self.line1Layout)
-
-
-        # 第二行
-        self.line2Layout = QHBoxLayout()
-        self.line2Layout.addWidget(self.intervalTittleLabel)
-        self.line2Layout.addWidget(self.intervalLabel)
-        self.line2Layout.addStretch(1)
-        self.monitorLayout.addLayout(self.line2Layout)
-
-        # 第三行
-        self.line3Layout = QHBoxLayout()
-        self.line3Layout.addWidget(self.urlTittleLabel)
-        self.line3Layout.addWidget(self.urlLabel)
-        self.line3Layout.addStretch(1)
-        self.monitorLayout.addLayout(self.line3Layout)
-
-        #第四行
-        self.line4Layout = QHBoxLayout()
-        self.line4Layout.addWidget(self.iconLabel)
-        self.line4Layout.addWidget(self.testTimeLabel)
-        self.line4Layout.addWidget(self.resultLabel)
-        self.line4Layout.addWidget(self.notesLabel)
-        self.line4Layout.addStretch(1)
-        self.monitorLayout.addLayout(self.line4Layout)
-
-        # self.label = QLabel('This is a dynamic component')
-        # self.componentLayout.addWidget(self.label)
-        #
-        # self.button = QPushButton('Click me!')
-        # self.button.clicked.connect(self.on_button_click)
-        # self.componentLayout.addWidget(self.button)
-
-    def on_button_click(self):
-        self.label.setText('You clicked the button!')
 
 # 主窗口类
-class MainWindow(QWidget):
-    def __init__(self):
-        super().__init__()
-        self.mainLayout = QVBoxLayout()
-        self.setLayout(self.mainLayout)
-        MainWindow.setMinimumSize(self, 720, 600)
-        MainWindow.setMaximumSize(self, 720, 1000)
+class MainWindow(object):
+    def setupUi(self, Monitor):
+    # def __init__(self):
+        global switch
+        global time_zone
+
+        Monitor.setMinimumSize(QtCore.QSize(720, 500))
+        Monitor.setMaximumSize(QtCore.QSize(720, 1000))
+
+        self.MonitorLayout = QtWidgets.QWidget(Monitor)
+        self.MonitorLayout.setGeometry(QtCore.QRect(0, 0, 720, 500))
+        self.mainLayout = QtWidgets.QVBoxLayout(self.MonitorLayout)
+
+
+        # 创建按钮
+        self.buttonLayout = QHBoxLayout(Monitor)
+
+        self.switchButton = QPushButton('监控 Monitor')
+        self.switchButton.setMaximumSize(QtCore.QSize(120, 35))
+        self.switchButton.setMinimumSize(QtCore.QSize(120, 35))
+
+        self.configButton = QPushButton('配置 Configuration')
+        self.configButton.setMaximumSize(QtCore.QSize(150, 35))
+        self.configButton.setMinimumSize(QtCore.QSize(150, 35))
+
+        self.locationButton = QPushButton('时区 Time Zone')
+        self.locationButton.setMaximumSize(QtCore.QSize(150, 35))
+        self.locationButton.setMinimumSize(QtCore.QSize(150, 35))
+
+        # 将按钮添加至buttonlayout当中
+        self.buttonLayout.addWidget(self.switchButton)
+        self.buttonLayout.addStretch(1)
+        self.buttonLayout.addWidget(self.configButton)
+        self.buttonLayout.addWidget(self.locationButton)
+
+
 
         # 创建时钟
         # 创建localTimeGroupBox
-        self.localTimeGroupBox = QtWidgets.QGroupBox('本地时间 Local Time')
+        self.localTimeGroupBox = QtWidgets.QGroupBox(f'本地时间 Local Time(时区 Time Zone: {time_zone})')
+        # self.localTimeGroupBox.setGeometry(QtCore.QRect(10, 70, 340, 80))
+
         # 为GroupBox创建设置布局
         self.localTimeLayout = QVBoxLayout()
         self.localTimeGroupBox.setLayout(self.localTimeLayout)
@@ -149,7 +86,9 @@ class MainWindow(QWidget):
         self.localTimeLayout.addWidget(self.localTimeLabel)
 
         # 创建UTCTimeGroupBox
-        self.utcTimeGroupBox = QtWidgets.QGroupBox('本地时间 Local Time')
+        self.utcTimeGroupBox = QtWidgets.QGroupBox('UTC时间 UTC Time')
+        self.utcTimeGroupBox.setGeometry(QtCore.QRect(350, 70, 340, 80))
+
         # 为GroupBox创建设置布局
         self.utcTimeLayout = QVBoxLayout()
         self.utcTimeGroupBox.setLayout(self.utcTimeLayout)
@@ -160,6 +99,7 @@ class MainWindow(QWidget):
         font.setBold(True)
         font.setWeight(75)
         self.utcTimeGroupBox.setFont(font)
+
         # 创建utcTimeLabel
         self.utcTimeLabel = QtWidgets.QLabel(self.utcTimeGroupBox)
         self.utcTimeLabel.setMaximumSize(QtCore.QSize(320, 50))
@@ -177,31 +117,70 @@ class MainWindow(QWidget):
         self.timer.timeout.connect(self.update_clock)
         self.timer.start(100)
 
+        # 创建监控窗口
+        self.logLine = QtWidgets.QFrame()
+        self.logLine.setFrameShape(QtWidgets.QFrame.HLine)
+        self.logLine.setFrameShadow(QtWidgets.QFrame.Sunken)
+        self.monitorBrowser = QtWidgets.QTextBrowser()
+        self.monitorBrowser.setGeometry(QtCore.QRect(10, 10, 700, 300))
+
+        self.monitorBrowser.setMinimumSize(QtCore.QSize(700, 300))
+        self.monitorBrowser.setMaximumSize(QtCore.QSize(700, 300))
+
+        self.mainLayout.addLayout(self.buttonLayout)
+
         # 将时钟添加至窗口当中
         self.timeLayout = QHBoxLayout()
         self.timeLayout.addWidget(self.localTimeGroupBox)
         self.timeLayout.addWidget(self.utcTimeGroupBox)
         self.mainLayout.addLayout(self.timeLayout)
 
+        # 添加监控窗口
+        self.mainLayout.addWidget(self.logLine)
+        self.mainLayout.addWidget(self.monitorBrowser)
 
-        # # 创建按钮
-        # self.button = QPushButton('Load dynamic component')
-        # self.button.clicked.connect(self.load_dynamic_component)
-        # self.mainLayout.addWidget(self.button)
-
-
-        # 保证在最上面
-        spacerItem = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
-        self.mainLayout.addItem(spacerItem)
+        self.mainLayout.addStretch(1)
 
 
-    def load_dynamic_component(self):
-        self.dynamic_component = DynamicComponent()
-        self.mainLayout.addWidget(self.dynamic_component)
 
-    def update_clock(self):
-        # current_time = QTime.currentTime().toString("Y-M-D hh:mm:ss")
-        utc_time = datetime.datetime.utcnow()
-        current_time = datetime.datetime.utcnow() + datetime.timedelta(hours=8)
-        self.localTimeLabel.setText(current_time.strftime('%Y-%m-%d %H:%M:%S'))
-        self.utcTimeLabel.setText(utc_time.strftime('%Y-%m-%d %H:%M:%S'))
+    # def start_monitor(self, status):
+    #     global switch
+    #     if status == True:
+    #         monitorList = configuration.read_monitor_list()
+    #         for i in range(len(monitorList)):
+    #             name = monitorList[i]['name']
+    #             print("name:", name)
+    #         mainFrame.run_with_threads(len(monitorList), monitorList)
+    #         self.button.setText('关闭 Close')
+    #         switch = False
+    #     elif status == False:
+    #         sys.exit()
+    #
+    # def configuration(self):
+    #     return
+    #
+    # def set_location(self):
+    #     global time_zone
+    #     # 后面四个数字的作用依次是 初始值 最小值 最大值 步幅
+    #     time_zone, ok = QInputDialog.getInt(self, "输入时区", "请输入所在时区\n\n请输入整数:", time_zone, -12, 14, 1)
+    #     self.localTimeGroupBox.setTitle(f'本地时间 Local Time(时区 Time Zone: {time_zone})')
+    #     # self.echo(time_zone)
+    #
+    #
+    # def update_clock(self):
+    #     global time_zone
+    #     # current_time = QTime.currentTime().toString("Y-M-D hh:mm:ss")
+    #     utc_time = datetime.datetime.utcnow()
+    #     current_time = datetime.datetime.utcnow() + datetime.timedelta(hours=time_zone)
+    #     self.localTimeLabel.setText(current_time.strftime('%Y-%m-%d %H:%M:%S'))
+    #     self.utcTimeLabel.setText(utc_time.strftime('%Y-%m-%d %H:%M:%S'))
+
+
+
+
+# if __name__ == '__main__':
+#     app = QApplication(sys.argv)
+#     window = MainWindow()
+#     window.setGeometry(100, 100, 720, 600)  # set default window size to 200x200
+#     window.show()
+#     sys.exit(app.exec_())
