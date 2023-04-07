@@ -20,12 +20,10 @@ import logRecorder
 
 
 switch_status = True
-time_zone = int(configuration.get_timezone())
 printf = []
 
 class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
     global switch_status
-    global time_zone
     global printf
     def __init__(self):
         super().__init__()
@@ -35,7 +33,7 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
         # 将提示信息显示在状态栏中showMessage（‘提示信息’，显示时间（单位毫秒））
         self.status.showMessage('>>初始化...', 4000)
         # 创建窗口标题
-        self.setWindowTitle('API Monitor v0.1')
+        self.setWindowTitle('Monitor Everything v0.1')
         self.switchButton.clicked.connect(self.start_monitor)
         self.configButton.clicked.connect(self.configuration)
         self.locationButton.clicked.connect(self.set_location)
@@ -71,15 +69,16 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
         return
 
     def set_location(self):
-        global time_zone
+        time_zone = int(configuration.get_timezone())
         # 后面四个数字的作用依次是 初始值 最小值 最大值 步幅
         time_zone, ok = QInputDialog.getInt(self, "输入时区", "请输入所在时区(整数):", time_zone, -12, 14, 1)
         self.localTimeGroupBox.setTitle(f'本地时间 Local Time(时区 Time Zone: {time_zone})')
+        configuration.set_timezone(time_zone)
         # self.echo(time_zone)
 
     def update_clock(self):
-        global time_zone
         global printf
+        time_zone = int(configuration.get_timezone())
         # current_time = QTime.currentTime().toString("Y-M-D hh:mm:ss")
         utc_time = datetime.datetime.utcnow()
         current_time = datetime.datetime.utcnow() + datetime.timedelta(hours=time_zone)
@@ -137,8 +136,7 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
 
     # 周期性运行
     def run_periodically(self, monitorInfo):
-        global time_zone
-        global printf
+        time_zone = int(configuration.get_timezone())
         i = 1
         lastStatus = True
         while True:
@@ -209,7 +207,7 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
 
             if responseCode == 1 or responseCode == 2:
                 # 将提示信息显示在状态栏中showMessage（‘提示信息’，显示时间（单位毫秒））
-                self.status.showMessage('运行中...')
+                self.status.showMessage('>>>运行中...')
             else:
                 # 将提示信息显示在状态栏中showMessage（‘提示信息’，显示时间（单位毫秒））
                 self.status.showMessage(f'{name}服务异常')
@@ -226,29 +224,17 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
             # t = threading.Thread(target=super().run_periodically, args=(monitorInfo,))
             t.start()
 
-            # threadList.append(t)
-        # for t in threadList:
-        #     t.setDaemon(True)
-        #     t.start()
-
-    # 写入文件
-    def saveToFile(dataString, type):
-        # 根据UTC时间，换算成中国区域时间
-
-        folder = os.path.expanduser("~/Downloads/Toolset_Log")
-        if not os.path.exists(folder):  # 判断是否存在文件夹如果不存在则创建为文件夹
-            os.makedirs(folder)  # makedirs 创建文件时如果路径不存在会创建这个路径
-
-        nowDateTime = datetime.datetime.utcnow() + datetime.timedelta(hours=8)
-        nowDate = nowDateTime.strftime("%Y%m%d")
-        # 单独存储至文件
-        csv = open(f'{folder}/BSMRelay_{type}_{nowDate}.txt', 'w', encoding='utf-8')
-        csv.write(dataString)
-        csv.close()
-
-
 
 if __name__ == '__main__':
+    folder = os.path.expanduser(str(configuration.get_logdir()+'Log'))
+    configDir = os.path.expanduser(str(configuration.get_logdir()+"Config"))
+    if not os.path.exists(folder):  # 判断是否存在文件夹如果不存在则创建为文件夹
+        os.makedirs(folder)  # makedirs 创建文件时如果路径不存在会创建这个路径
+    if not os.path.exists(configDir):
+        os.makedirs(configDir)
+        configuration.writeconfig(configDir)
+    elif not os.path.exists(configDir + "/Config.ini"):
+        configuration.writeconfig(configDir)
     app = QtWidgets.QApplication(sys.argv)
     mainWindow = toolsetWindow()
     mainWindow.show()

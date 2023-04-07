@@ -7,21 +7,17 @@
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from email.mime.application import MIMEApplication
-from typing import List
 import configuration
 
 def send_email(subject: str, body: str):
     # Get Mail info
     mailconfig = configuration.read_mail_configuration()
-
     smtp_server = mailconfig['smtp_server']
     smtp_port = mailconfig['smtp_port']
     username = mailconfig['username']
     password = mailconfig['password']
     from_addr = mailconfig['from_addr']
     to_addrs = mailconfig['to_addrs']
-    print("to_addrs:", to_addrs)
 
     # Create the message
     message = MIMEMultipart()
@@ -42,7 +38,7 @@ def send_email(subject: str, body: str):
         with smtplib.SMTP(smtp_server, smtp_port) as server:
             server.starttls()
             server.login(username, password)
-            server.sendmail(from_addr, to_addrs, message.as_string())
+            server.sendmail(from_addr, to_addrs.split(','), message.as_string())
     except smtplib.SMTPAuthenticationError as e:
         print("SMTP authentication error: ", e)
     except smtplib.SMTPException as e:

@@ -21,6 +21,8 @@ def monitor_get(url):
         print(f"GET request to {url} failed")
         return False
 
+
+
 def monitor_post(url, payload):
     try:
         response = requests.post(url, data=payload)
@@ -51,6 +53,8 @@ def monitor_post(url, payload):
 #     except Exception as e:
 #         print(f"An error occurred: {e}")
 #         return False, f"An error occurred: {e}"
+
+
 
 def monitor_server(address):
     host = address[0]

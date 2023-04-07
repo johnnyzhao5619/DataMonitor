@@ -6,11 +6,13 @@
 import datetime
 import csv
 import os
+import configuration
+
 
 def record(action: str, log):
     chinaDateTime = datetime.datetime.utcnow() + datetime.timedelta(hours=8)
 
-    folder = os.path.expanduser("~/Downloads/APIMonitor_Log")
+    folder = os.path.expanduser(str(configuration.get_logdir()+'Log'))
     if not os.path.exists(folder):  # 判断是否存在文件夹如果不存在则创建为文件夹
         os.makedirs(folder)  # makedirs 创建文件时如果路径不存在会创建这个路径
 
@@ -25,7 +27,7 @@ def record(action: str, log):
 def saveToFile(dataString, API):
     # 根据UTC时间，换算成中国区域时间
 
-    folder = os.path.expanduser("~/Downloads/APIMonitor_Log")
+    folder = os.path.expanduser(str(configuration.get_logdir()+'Log'))
     if not os.path.exists(folder):  # 判断是否存在文件夹如果不存在则创建为文件夹
         os.makedirs(folder)  # makedirs 创建文件时如果路径不存在会创建这个路径
 

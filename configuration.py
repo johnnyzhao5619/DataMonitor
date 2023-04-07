@@ -17,7 +17,6 @@ def read_monitor_list():
         monitordir['url'] = config.get(f'Monitor{i+1}', 'url')
         monitordir['type'] = config.get(f'Monitor{i+1}', 'type')
         monitordir['interval'] = config.get(f'Monitor{i+1}', 'interval')
-        monitordir['threshold'] = config.get(f'Monitor{i+1}', 'threshold')
         monitordir['email'] = config.get(f'Monitor{i+1}', 'email')
         monitorlist.append(monitordir)
         del monitordir
@@ -41,3 +40,76 @@ def get_timezone():
     config = configparser.RawConfigParser()
     config.read('config.ini')
     return config.get('TimeZone', 'timezone')
+
+def set_timezone(timezone):
+    config = configparser.RawConfigParser()
+    config.read('config.ini')
+    config.set('TimeZone', 'timezone', timezone)
+
+def get_logdir():
+    config = configparser.RawConfigParser()
+    config.read('config.ini')
+    return config.get('Logging', 'log_file')
+
+
+def writeconfig(configDir: str):
+    info = configparser.ConfigParser()
+    info.add_section("General")
+    info.set("General", "app_name", "Monitor Everything")
+    info.set("General", "version", "0.2")
+
+    info.add_section("Logging")
+    info.set("Logging", "log_level", "info")
+    info.set("Logging", "log_file", "~/Downloads/APIMonitor/")
+
+    info.add_section("TimeZone")
+    info.set("TimeZone", "timezone", "8")
+
+    info.add_section("Mail")
+    info.set("Mail", "smtp_server", "smtp-mail.outlook.com")
+    info.set("Mail", "smtp_port", "587")
+    info.set("Mail", "username", "OperationTeam_tds@outlook.com")
+    info.set("Mail", "password", "1qaz2wsx#EDC")
+    info.set("Mail", "from_addr", "OperationTeam_tds@outlook.com")
+    info.set("Mail", "to_addrs", "johnnyzhao5619@gmail.com")
+    info.set("Mail", "subject", "Outage Warning！")
+
+    info.add_section("MonitorNum")
+    info.set("MonitorNum", "total", "5")
+
+    info.add_section("Monitor1")
+    info.set("Monitor1", "name", "Baidu-For Test")
+    info.set("Monitor1", "url", "http://www.baidu.com")
+    info.set("Monitor1", "type", "SERVER")
+    info.set("Monitor1", "interval", "60")
+    info.set("Monitor1", "email", "johnnyzhao56192@gmail.com")
+
+    info.add_section("Monitor2")
+    info.set("Monitor2", "name", "Wuxi Data Provider")
+    info.set("Monitor2", "url", "36.155.95.59:28080/JKS_Server/SysInfo")
+    info.set("Monitor2", "type", "SERVER")
+    info.set("Monitor2", "interval", "1800")
+    info.set("Monitor2", "email", "johnnyzhao56192@gmail.com")
+
+    info.add_section("Monitor3")
+    info.set("Monitor3", "name", "Nanjing Data Provider")
+    info.set("Monitor3", "url", "101.132.145.141:42887")
+    info.set("Monitor3", "type", "SERVER")
+    info.set("Monitor3", "interval", "1800")
+    info.set("Monitor3", "email", "johnnyzhao56192@gmail.com")
+
+    info.add_section("Monitor4")
+    info.set("Monitor4", "name", "Wuhan Data Provider")
+    info.set("Monitor4", "url", "c2v.huali-cloud.com/auth/servicesList")
+    info.set("Monitor4", "type", "SERVER")
+    info.set("Monitor4", "interval", "1800")
+    info.set("Monitor4", "email", "johnnyzhao56192@gmail.com")
+
+    info.add_section("Monitor5")
+    info.set("Monitor5", "name", "CN01-CN02")
+    info.set("Monitor5", "url", "219.239.83.74")
+    info.set("Monitor5", "type", "SERVER")
+    info.set("Monitor5", "interval", "1800")
+    info.set("Monitor5", "email", "johnnyzhao56192@gmail.com")
+
+    info.write(open((configDir + '/toolsetConfig.ini'), "w"))
