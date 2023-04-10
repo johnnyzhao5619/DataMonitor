@@ -5,7 +5,7 @@
 # @Software: PyCharm
 
 import json
-import requests
+
 
 def parseData(name, data):
     if name == "Wuxi Data Provider":
