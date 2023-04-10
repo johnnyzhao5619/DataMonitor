@@ -3,13 +3,20 @@
 # @Author: weijiazhao
 # @File : configuration.py
 # @Software: PyCharm
-
 import configparser
 
+
+def get_logdir():
+    logdir = "./APIMonitor/"
+    config = configparser.RawConfigParser()
+    config.read(logdir)
+    return logdir
+
 def read_monitor_list():
+    logdir = get_logdir()
     monitorlist = []
     config = configparser.RawConfigParser()
-    config.read('config.ini')
+    config.read(logdir+"Config/Config.ini")
     totalNumber = config.get('MonitorNum', 'total')
     for i in range(int(totalNumber)):
         monitordir = {}
@@ -24,9 +31,10 @@ def read_monitor_list():
     return monitorlist
 
 def read_mail_configuration():
+    logdir = get_logdir()
     mailconfig={}
     config = configparser.RawConfigParser()
-    config.read('config.ini')
+    config.read(logdir+"Config/Config.ini")
     mailconfig['smtp_server'] = config.get('Mail', 'smtp_server')
     mailconfig['smtp_port'] = config.get('Mail', 'smtp_port')
     mailconfig['username'] = config.get('Mail', 'username')
@@ -37,19 +45,18 @@ def read_mail_configuration():
     return mailconfig
 
 def get_timezone():
+    logdir = get_logdir()
     config = configparser.RawConfigParser()
-    config.read('config.ini')
+    config.read(logdir+"Config/Config.ini")
     return config.get('TimeZone', 'timezone')
 
 def set_timezone(timezone):
+    logdir = get_logdir()
     config = configparser.RawConfigParser()
-    config.read('config.ini')
+    config.read(logdir+"Config/Config.ini")
     config.set('TimeZone', 'timezone', timezone)
 
-def get_logdir():
-    config = configparser.RawConfigParser()
-    config.read('config.ini')
-    return config.get('Logging', 'log_file')
+
 
 
 def writeconfig(configDir: str):
@@ -112,4 +119,4 @@ def writeconfig(configDir: str):
     info.set("Monitor5", "interval", "1800")
     info.set("Monitor5", "email", "johnnyzhao56192@gmail.com")
 
-    info.write(open((configDir + '/toolsetConfig.ini'), "w"))
+    info.write(open(('./APIMonitor/Config/Config.ini'), "w"))

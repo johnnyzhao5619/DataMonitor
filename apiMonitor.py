@@ -3,9 +3,11 @@
 # @Author: weijiazhao
 # @File : apiMonitor.py
 # @Software: PyCharm
-
+import os
 import socket
 import subprocess
+
+
 import requests
 
 def monitor_get(url):
@@ -60,11 +62,16 @@ def monitor_server(address):
     host = address[0]
     if(address[1] == '' and address[2] == '' ):
         url = 'http://' + address[0]
-    elif(address[2] == ''):
+        port = 80
+    elif(address[1] != '' and address[2] == ''):
         url = 'http://' + address[0] + ':' + str(address[1])
+        port = address[1]
     elif(address[1] != '' and address[2] != ''):
         url = 'http://' + address[0] + ':' + str(address[1]) + '/' + address[2]
-    # print("url:", url)
+        port = address[1]
+    print("host:", host)
+    print("port:", port)
+    print("url:", url)
 
     try:
         # Method 1: Use socket to connect to a well-known port
@@ -76,15 +83,25 @@ def monitor_server(address):
         print(f"{host} is offline (Socket)")
         pass
 
+    # Ping
     try:
         # Method 2: Use subprocess to send a ping request
-        subprocess.check_output(['ping', '-c', '1', '-W', '2', host])
+        subprocess.check_output(['ping', '-c', '1', '-W', '5', host])
         print(f"{host} is online (Ping)")
         return True
     except subprocess.CalledProcessError:
         print(f"{host} is offline (Ping)")
         pass
 
+    try:
+        with socket.create_connection((host, port), timeout=5):
+            print(f"{host} is online (Ping)")
+            return True
+    except OSError:
+        print(f"{host} is offline (Ping)")
+        pass
+
+    # ICMP
     try:
         # Method 3: Use ICMP request to check if server responds
         with socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP) as sock:
@@ -102,6 +119,7 @@ def monitor_server(address):
         print(f"{host} is offline (ICMP)")
         pass
 
+    # request
     try:
         response = requests.get(url, timeout=5)
         if response.status_code == 200:
@@ -118,4 +136,5 @@ def monitor_server(address):
     # If none of the methods succeed, the server is offline
     print(f"{host} is offline")
     return False
+
 

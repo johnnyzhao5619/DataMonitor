@@ -8,7 +8,7 @@ import os
 from PyQt5 import QtWidgets, QtCore, QtGui
 from PyQt5.QtWidgets import QInputDialog
 
-from UI import MainWindow
+from GUI_Windows import MainWindow
 import apiMonitor
 import sendEmail
 import time
@@ -222,19 +222,26 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
             monitorInfo = monitorList[i]
             t = threading.Thread(name=monitorInfo['name'], target=self.run_periodically, args=(monitorInfo,))
             # t = threading.Thread(target=super().run_periodically, args=(monitorInfo,))
+            t.setDaemon(True)
             t.start()
 
 
 if __name__ == '__main__':
-    folder = os.path.expanduser(str(configuration.get_logdir()+'Log'))
-    configDir = os.path.expanduser(str(configuration.get_logdir()+"Config"))
+    if configuration.get_logdir() == "./APIMonitor/":
+        folder = os.path.expanduser('./APIMonitor/Log')
+        configDir = os.path.expanduser("./APIMonitor/Config")
+    else:
+        folder = os.path.expanduser(str(configuration.get_logdir()+"Log"))
+        configDir = os.path.expanduser(str(configuration.get_logdir()+"Config"))
     if not os.path.exists(folder):  # 判断是否存在文件夹如果不存在则创建为文件夹
         os.makedirs(folder)  # makedirs 创建文件时如果路径不存在会创建这个路径
     if not os.path.exists(configDir):
         os.makedirs(configDir)
         configuration.writeconfig(configDir)
-    elif not os.path.exists(configDir + "/Config.ini"):
+    elif not os.path.exists(str(configDir + "/Config.ini")):
         configuration.writeconfig(configDir)
+    print("folder:", folder)
+    print("configDir:", configDir)
     app = QtWidgets.QApplication(sys.argv)
     mainWindow = toolsetWindow()
     mainWindow.show()
