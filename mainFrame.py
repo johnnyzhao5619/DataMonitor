@@ -3,22 +3,23 @@
 # @Author: weijiazhao
 # @File : mainFrame.py
 # @Software: PyCharm
-import os
 
-from PyQt5 import QtWidgets, QtCore, QtGui
+
+
+from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import QInputDialog
+import threading
+import datetime
+import os
+import time
+import sys
 
-import parseData
 from GUI_Windows import MainWindow
+import configuration
+import parseData
 import apiMonitor
 import sendEmail
-import time
-import threading
-import configuration
-import datetime
-import sys
 import logRecorder
-
 
 switch_status = True
 printf = []
@@ -34,7 +35,7 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
         # 将提示信息显示在状态栏中showMessage（‘提示信息’，显示时间（单位毫秒））
         self.status.showMessage('>>初始化...', 4000)
         # 创建窗口标题
-        self.setWindowTitle('Monitor Everything v0.2')
+        self.setWindowTitle('Monitor Everything v0.3')
         self.switchButton.clicked.connect(self.start_monitor)
         self.configButton.clicked.connect(self.configuration)
         self.locationButton.clicked.connect(self.set_location)
@@ -99,19 +100,24 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
         # 发送请求
         if type == "GET":
             # 返回值：结果(bool)，内容(str)
+            print("monitor_get url:", url)
             result = apiMonitor.monitor_get(url)
             # 当成功Get到结果时，进一步对获取到的字符串进行解析
             if result[0] == True:
                 # 返回值：结果(bool)，内容(str)
                 result = parseData.parseData(name, result[1])
+                print("GET-Result:", result)
                 return result
             else:
+                print("GET-Result:", result)
                 return result
         elif type == "POST":
             result = apiMonitor.monitor_post(url, "1")
+            print("POST-Result:", result)
             return result
         elif type == "SERVER":
             result = apiMonitor.monitor_server(url)
+            print("SERVER-Result:", result)
             return result
 
     # 格式化url
@@ -127,7 +133,7 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
         else:
             url_port_suffix = address
 
-        print("url_port_suffix:", url_port_suffix)
+        # print("url_port_suffix:", url_port_suffix)
 
         if '/' in url_port_suffix:
             url_port, suffix = url_port_suffix.split('/', 1)
@@ -158,15 +164,13 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
             interval = int(monitorInfo['interval'])
             email = monitorInfo['email']
 
-            # 格式化url
+            # 格式化url, url, port, suffix
             url = self.parse_network_address(url)
 
             # 触发状态监控监控流程, 返回值：bool, string
             result = self.perform_task(url, mtype, name, email)
             status = result[0]
             remark = result[1]
-
-
 
             # 判断结果
             # 当状态正常，且跟上一次状态一致时，无操作，等待下一次
@@ -184,46 +188,46 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
 
             # 给予结果进行处理
             if responseCode == 1:
-                print(f"\n第{i}次：{timenow} --> 状态：{name}服务正常")
+                print(f"\n第{i}次：{timenow} >>> 状态 Status：{name} >>> 服务正常 Service Available")
                 # Log和输出————————————————————————————————————————————————————————————————————————
-                printf.append(f"时间：{timenow} --> 状态：{name}服务正常, {remark}")
+                printf.append(f"时间 Time：{timenow} >>> 状态 Status：{name} >>> 服务正常 Service Available, {remark}")
                 # 记录Log日志
-                logRecorder.record(f"{name} --- 类型 Type: {mtype} --- 地址 url: {url} --- 周期 Interval: {interval}秒", f">>>{timenow}: {name}服务正常, {remark}\n")
-                logRecorder.saveToFile([timenow, name, mtype, url, interval, responseCode, '正常', remark], name)
+                logRecorder.record(f"{name} --- 类型 Type: {mtype} --- 地址 url: {url} --- 周期 Interval: {interval}秒", f">>> {timenow}: {name} >>> 服务正常 Service Available, {remark}\n")
+                logRecorder.saveToFile([timenow, name, mtype, url, interval, responseCode, '正常 Service Available', remark], name)
 
             elif responseCode == 2:
-                sendEmail.send_email(f"{timenow}: {name} Server Outage Recovery!", f"{name}服务已恢复\n恢复时间：{timenow}\nRemark: {remark}")
-                print(f"\n第{i}次：{timenow}状态 --> {name}服务恢复")
+                sendEmail.send_email(f"{timenow}: {name} Server Outage Recovery!", f"{name} 服务已恢复 Service Restored\n恢复时间 Time：{timenow}\nRemark: {remark}")
+                print(f"\n第{i}次：{timenow}状态 Status >>> {name} >>> 服务恢复 Service Restored")
                 # Log和输出————————————————————————————————————————————————————————————————————————
-                printf.append(f"时间：{timenow} --> 状态：{name}服务恢复, {remark}")
+                printf.append(f"时间 Time：{timenow} >>> 状态 Status：{name} >>> 服务恢复 Service Restored, {remark}")
                 # 记录Log日志
-                logRecorder.record(f"{name} --- 类型 Type: {mtype} --- 地址 url: {url} --- 周期 Interval: {interval}秒", f">>>{timenow}: {name}服务恢复, {remark}\n")
-                logRecorder.saveToFile([timenow, name, mtype, url, interval, responseCode, '恢复', remark], name)
+                logRecorder.record(f"{name} --- 类型 Type: {mtype} --- 地址 url: {url} --- 周期 Interval: {interval}秒", f">>> {timenow}: {name} >>> 服务恢复 Service Restored, {remark}\n")
+                logRecorder.saveToFile([timenow, name, mtype, url, interval, responseCode, '恢复 Service Restored', remark], name)
 
             elif responseCode == 3:
-                sendEmail.send_email(f"{timenow}: {name} Server Outage Recovery!", f"{name}服务异常\n发生时间：{timenow}\nRemark: {remark}")
-                print(f"\n第{i}次：{timenow}状态 --> {name}服务异常")
+                sendEmail.send_email(f"{timenow}: {name} Server Outage Recovery!", f"{name} 服务异常 Service Outage\n发生时间 Time：{timenow}\nRemark: {remark}")
+                print(f"\n第{i}次：{timenow}状态 Status >>> {name} >>> 服务异常 Service Outage")
                 # Log和输出————————————————————————————————————————————————————————————————————————
-                printf.append(f"时间：{timenow} --> 状态：{name}服务异常, {remark}")
+                printf.append(f"时间 Time：{timenow} >>> 状态 Status：{name} >>> 服务异常 Service Outage, {remark}")
                 # 记录Log日志
-                logRecorder.record(f"{name} --- 类型 Type: {mtype} --- 地址 url: {url} --- 周期 Interval: {interval}秒", f">>>{timenow}: {name}服务异常, {remark}\n")
-                logRecorder.saveToFile([timenow, name, mtype, url, interval, responseCode, '异常', remark], name)
+                logRecorder.record(f"{name} --- 类型 Type: {mtype} --- 地址 url: {url} --- 周期 Interval: {interval}秒", f">>> {timenow}: {name} >>> 服务异常 Service Outage, {remark}\n")
+                logRecorder.saveToFile([timenow, name, mtype, url, interval, responseCode, '异常 Service Outage', remark], name)
 
             elif responseCode == 4:
-                print(f"\n第{i}次：{timenow}状态 --> {name}服务持续异常")
+                print(f"\n第{i}次：{timenow}状态 Status >>> {name} >>> 服务持续异常 Service Outage")
                 # Log和输出————————————————————————————————————————————————————————————————————————
-                printf.append(f"时间：{timenow} --> 状态：{name}服务持续异常, {remark}")
+                printf.append(f"时间 Time：{timenow} >>> 状态 Status：{name} >>> 服务持续异常 Service Outage, {remark}")
 
                 # 记录Log日志
-                logRecorder.record(f"{name} --- 类型 Type: {mtype} --- 地址 url: {url} --- 周期 Interval: {interval}秒", f">>>{timenow}: {name}服务持续异常, {remark}\n")
-                logRecorder.saveToFile([timenow, name, mtype, url, interval, responseCode, '持续异常', remark], name)
+                logRecorder.record(f"{name} --- 类型 Type: {mtype} --- 地址 url: {url} --- 周期 Interval: {interval}秒", f">>> {timenow}: {name} >>> 服务持续异常 Service Outage, {remark}\n")
+                logRecorder.saveToFile([timenow, name, mtype, url, interval, responseCode, '持续异常 Service Outage', remark], name)
 
             if responseCode == 1 or responseCode == 2:
                 # 将提示信息显示在状态栏中showMessage（‘提示信息’，显示时间（单位毫秒））
-                self.status.showMessage('>>>运行中...')
+                self.status.showMessage('>>>运行中 Runing...')
             else:
                 # 将提示信息显示在状态栏中showMessage（‘提示信息’，显示时间（单位毫秒））
-                self.status.showMessage(f'{name}服务异常')
+                self.status.showMessage(f'{name} Service Outage')
             print(f"\n等待{interval}秒")
             i += 1
             lastStatus = status

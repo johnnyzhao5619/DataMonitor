@@ -8,9 +8,8 @@ import json
 import requests
 
 def parseData(name, data):
-    if name == "Wuxi":
+    if name == "Wuxi Data Provider":
         signal_num = parseWuxi(data)
-        print("parseWuxi(data):", signal_num)
         return signal_num[0], signal_num[1]
     else:
         return True, "GET"
@@ -23,8 +22,6 @@ def parseWuxi(dataString):
         controler_id = singal_controler_id[i]['SignalControlerID']
         controler_list.append(controler_id)
     controler_counter = len(list(set(controler_list)))
-    # print("controler_list:", len(controler_list))
-    # print("controler_counter:", len(controler_counter))
     if controler_counter < 1000:
         return False, controler_counter
     elif controler_counter < 1400:

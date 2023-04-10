@@ -57,18 +57,15 @@ def set_timezone(timezone):
     config.read(logdir+"Config/Config.ini")
     config.set('TimeZone', 'timezone', timezone)
 
-
-
-
 def writeconfig(configDir: str):
     info = configparser.ConfigParser()
     info.add_section("General")
     info.set("General", "app_name", "Monitor Everything")
-    info.set("General", "version", "0.2")
+    info.set("General", "version", "0.3")
 
     info.add_section("Logging")
     info.set("Logging", "log_level", "info")
-    info.set("Logging", "log_file", "~/Downloads/APIMonitor/")
+    info.set("Logging", "log_file", "./APIMonitor/")
 
     info.add_section("TimeZone")
     info.set("TimeZone", "timezone", "8")
@@ -80,7 +77,7 @@ def writeconfig(configDir: str):
     info.set("Mail", "password", "1qaz2wsx#EDC")
     info.set("Mail", "from_addr", "OperationTeam_tds@outlook.com")
     info.set("Mail", "to_addrs", "johnnyzhao5619@gmail.com")
-    info.set("Mail", "subject", "Outage Warning！")
+    info.set("Mail", "subject", "Outage Warning")
 
     info.add_section("MonitorNum")
     info.set("MonitorNum", "total", "5")
