@@ -9,20 +9,21 @@ import subprocess
 import time
 import requests
 from myPing import *
+import numpy as np
 
 
 def monitor_get(url):
     try:
-        response = requests.get(url)
+        response = requests.get(url, timeout=10)
         if response.status_code == 200:
             print(f"GET request to {url} successful")
-            return True
+            return True, response.text
         else:
             print(f"GET request to {url} failed with status code: {response.status_code}")
-            return False
+            return False, response.status_code
     except:
         print(f"GET request to {url} failed")
-        return False
+        return False, 'GET'
 
 
 
@@ -31,13 +32,13 @@ def monitor_post(url, payload):
         response = requests.post(url, data=payload)
         if response.status_code == 200:
             print(f"POST request to {url} successful")
-            return True
+            return True, response.text
         else:
             print(f"POST request to {url} failed with status code: {response.status_code}")
-            return False
+            return False, response.status_code
     except:
         print(f"POST request to {url} failed")
-        return False
+        return False, 'POST'
 
 # def monitor_server(host: str, timeout: float = 2.0) -> bool:
 #     try:
@@ -82,7 +83,7 @@ def monitor_server(address):
         with socket.create_connection((host, port), timeout=5):
             pass  # If no exception is raised, the connection was successful
         print(f"{host} is online (Socket)")
-        return True
+        return True, 'Socket'
     except (ConnectionRefusedError, socket.timeout):
         print(f"{host} is offline (Socket)")
         pass
@@ -143,13 +144,14 @@ def monitor_server(address):
                     shorttime = return_time
                 time.sleep(0.7)
                 status.append(True)
+
             else:
                 status.append(False)
                 print("请求超时")
 
         if any(status):
             print(f"{host} is online (Ping)")
-            return True
+            return True, 'Ping'
         else:
             print(f"{host} is offline (Ping)")
             pass
@@ -172,28 +174,14 @@ def monitor_server(address):
             response_packet = sock.recv(1024)
             # If a response packet is received, the server is online
             print(f"{host} is online (ICMP)")
-            return True
+            return True, 'ICMP'
     except (socket.timeout, socket.error):
         print(f"{host} is offline (ICMP)")
         pass
 
-    # request
-    try:
-        response = requests.get(url, timeout=10)
-        if response.status_code == 200:
-            print(f"{url} is online (Get Requests)")
-            print(response)
-            return True
-        else:
-            print(f"{url} is offline (Get Requests)")
-            return True
-    except:
-        print(f"{url} is offline (Get Requests)")
-        pass
-
     # If none of the methods succeed, the server is offline
     print(f"{host} is offline")
-    return False
+    return False, 'SERVER'
 
 
 

@@ -21,29 +21,23 @@ def record(action: str, log):
         file.write(">>Action:" + action + '\n')
         file.write(str(log) + '\n')
         file.close()
-    # 写入文件
 
-
+# 写入文件
 def saveToFile(dataString, API):
     # 根据UTC时间，换算成中国区域时间
-
+    time_zone = int(configuration.get_timezone())
     folder = os.path.expanduser(str(configuration.get_logdir()+'Log'))
     if not os.path.exists(folder):  # 判断是否存在文件夹如果不存在则创建为文件夹
         os.makedirs(folder)  # makedirs 创建文件时如果路径不存在会创建这个路径
 
-    nowDateTime = datetime.datetime.utcnow() + datetime.timedelta(hours=8)
+    nowDateTime = datetime.datetime.utcnow() + datetime.timedelta(hours=time_zone)
     nowDate = nowDateTime.strftime("%Y%m%d")
 
     filename = f'{folder}/{API}_{nowDate}.csv'
     if not os.path.exists(filename):  # 判断文件是否存在,如果不存在则创建新文件
         with open(filename, mode='w', newline='', encoding='utf8') as cf:
             wf = csv.writer(cf)
-            title = ['Time', 'API', 'Type', 'url', 'Interval', 'Code', 'Status']
-
-            print("title:", title)
-            print("title:", len(title))
-            print("dataString:", dataString)
-            print("dataString:", len(dataString))
+            title = ['Time', 'API', 'Type', 'url', 'Interval', 'Code', 'Status', 'Remark']
             wf.writerow(title)
             wf.writerow(dataString)
     else:

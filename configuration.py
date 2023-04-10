@@ -23,6 +23,7 @@ def read_monitor_list():
         monitordir['name'] = config.get(f'Monitor{i+1}', 'name')
         monitordir['url'] = config.get(f'Monitor{i+1}', 'url')
         monitordir['type'] = config.get(f'Monitor{i+1}', 'type')
+        monitordir['format'] = config.get(f'Monitor{i+1}', 'format')
         monitordir['interval'] = config.get(f'Monitor{i+1}', 'interval')
         monitordir['email'] = config.get(f'Monitor{i+1}', 'email')
         monitorlist.append(monitordir)
@@ -88,13 +89,15 @@ def writeconfig(configDir: str):
     info.set("Monitor1", "name", "Baidu-For Test")
     info.set("Monitor1", "url", "http://www.baidu.com")
     info.set("Monitor1", "type", "SERVER")
+    info.set("Monitor1", "format", "HTTP")
     info.set("Monitor1", "interval", "60")
     info.set("Monitor1", "email", "johnnyzhao56192@gmail.com")
 
     info.add_section("Monitor2")
     info.set("Monitor2", "name", "Wuxi Data Provider")
     info.set("Monitor2", "url", "36.155.95.59:28080/JKS_Server/SysInfo")
-    info.set("Monitor2", "type", "SERVER")
+    info.set("Monitor2", "type", "GET")
+    info.set("Monitor2", "format", "JSON")
     info.set("Monitor2", "interval", "1800")
     info.set("Monitor2", "email", "johnnyzhao56192@gmail.com")
 
@@ -102,6 +105,7 @@ def writeconfig(configDir: str):
     info.set("Monitor3", "name", "Nanjing Data Provider")
     info.set("Monitor3", "url", "101.132.145.141:42887")
     info.set("Monitor3", "type", "SERVER")
+    info.set("Monitor3", "format", "HTTP")
     info.set("Monitor3", "interval", "1800")
     info.set("Monitor3", "email", "johnnyzhao56192@gmail.com")
 
@@ -109,6 +113,7 @@ def writeconfig(configDir: str):
     info.set("Monitor4", "name", "Wuhan Data Provider")
     info.set("Monitor4", "url", "c2v.huali-cloud.com/auth/servicesList")
     info.set("Monitor4", "type", "SERVER")
+    info.set("Monitor4", "format", "HTTP")
     info.set("Monitor4", "interval", "1800")
     info.set("Monitor4", "email", "johnnyzhao56192@gmail.com")
 
@@ -116,6 +121,7 @@ def writeconfig(configDir: str):
     info.set("Monitor5", "name", "CN01-CN02")
     info.set("Monitor5", "url", "219.239.83.74")
     info.set("Monitor5", "type", "SERVER")
+    info.set("Monitor5", "format", "HTTP")
     info.set("Monitor5", "interval", "1800")
     info.set("Monitor5", "email", "johnnyzhao56192@gmail.com")
 
