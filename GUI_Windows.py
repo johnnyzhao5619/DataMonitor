@@ -20,11 +20,11 @@ class MainWindow(object):
     # def __init__(self):
         global switch
 
-        Monitor.setMinimumSize(QtCore.QSize(1040, 500))
-        Monitor.setMaximumSize(QtCore.QSize(1040, 500))
+        Monitor.setMinimumSize(QtCore.QSize(1040, 520))
+        Monitor.setMaximumSize(QtCore.QSize(1040, 520))
 
         self.MonitorLayout = QtWidgets.QWidget(Monitor)
-        self.MonitorLayout.setGeometry(QtCore.QRect(0, 0, 1040, 500))
+        self.MonitorLayout.setGeometry(QtCore.QRect(0, 0, 1040, 520))
         self.mainLayout = QtWidgets.QVBoxLayout(self.MonitorLayout)
 
 
@@ -32,20 +32,19 @@ class MainWindow(object):
         self.buttonLayout = QHBoxLayout(Monitor)
 
         self.switchButton = QPushButton('监控 Monitor')
-        self.switchButton.setMaximumSize(QtCore.QSize(150, 35))
-        self.switchButton.setMinimumSize(QtCore.QSize(150, 35))
+        self.switchButton.setMaximumSize(QtCore.QSize(200, 40))
+        self.switchButton.setMinimumSize(QtCore.QSize(200, 40))
 
         self.configButton = QPushButton('配置 Configuration')
-        self.configButton.setMaximumSize(QtCore.QSize(200, 35))
-        self.configButton.setMinimumSize(QtCore.QSize(200, 35))
+        self.configButton.setMaximumSize(QtCore.QSize(200, 40))
+        self.configButton.setMinimumSize(QtCore.QSize(200, 40))
 
         self.locationButton = QPushButton('时区 Time Zone')
-        self.locationButton.setMaximumSize(QtCore.QSize(200, 35))
-        self.locationButton.setMinimumSize(QtCore.QSize(200, 35))
+        self.locationButton.setMaximumSize(QtCore.QSize(200, 40))
+        self.locationButton.setMinimumSize(QtCore.QSize(200, 40))
 
         font = QtGui.QFont()
         font.setFamily("Arial")
-        font.setPointSize(12)
         font.setPointSize(10)
         font.setWeight(75)
         self.switchButton.setFont(font)
@@ -66,8 +65,8 @@ class MainWindow(object):
         # 为GroupBox创建设置布局
         self.localTimeLayout = QVBoxLayout()
         self.localTimeGroupBox.setLayout(self.localTimeLayout)
-        self.localTimeGroupBox.setMinimumSize(QtCore.QSize(500, 80))
-        self.localTimeGroupBox.setMaximumSize(QtCore.QSize(500, 80))
+        self.localTimeGroupBox.setMinimumSize(QtCore.QSize(500, 100))
+        self.localTimeGroupBox.setMaximumSize(QtCore.QSize(500, 100))
         font = QtGui.QFont()
         font.setFamily("Arial")
         font.setPointSize(12)
@@ -80,7 +79,7 @@ class MainWindow(object):
         self.localTimeLabel.setMaximumSize(QtCore.QSize(500, 50))
         font = QtGui.QFont()
         font.setFamily("Arial")
-        font.setPointSize(16)
+        font.setPointSize(20)
         font.setBold(True)
         font.setWeight(75)
         self.localTimeLabel.setFont(font)
@@ -93,8 +92,8 @@ class MainWindow(object):
         # 为GroupBox创建设置布局
         self.utcTimeLayout = QVBoxLayout()
         self.utcTimeGroupBox.setLayout(self.utcTimeLayout)
-        self.utcTimeGroupBox.setMinimumSize(QtCore.QSize(500, 80))
-        self.utcTimeGroupBox.setMaximumSize(QtCore.QSize(500, 80))
+        self.utcTimeGroupBox.setMinimumSize(QtCore.QSize(500, 100))
+        self.utcTimeGroupBox.setMaximumSize(QtCore.QSize(500, 100))
         font = QtGui.QFont()
         font.setFamily("Arial")
         font.setPointSize(12)
@@ -109,7 +108,7 @@ class MainWindow(object):
         self.utcTimeLabel.setMaximumSize(QtCore.QSize(500, 50))
         font = QtGui.QFont()
         font.setFamily("Arial")
-        font.setPointSize(16)
+        font.setPointSize(20)
         font.setBold(True)
         font.setWeight(75)
         self.utcTimeLabel.setFont(font)
@@ -127,8 +126,8 @@ class MainWindow(object):
         self.monitorBrowser = QtWidgets.QTextBrowser()
         self.monitorBrowser.setGeometry(QtCore.QRect(10, 10, 1020, 300))
 
-        self.monitorBrowser.setMinimumSize(QtCore.QSize(1020, 300))
-        self.monitorBrowser.setMaximumSize(QtCore.QSize(1020, 300))
+        self.monitorBrowser.setMinimumSize(QtCore.QSize(1010, 300))
+        self.monitorBrowser.setMaximumSize(QtCore.QSize(1010, 300))
 
         self.mainLayout.addLayout(self.buttonLayout)
 
@@ -140,6 +139,11 @@ class MainWindow(object):
 
         # 添加监控窗口
         self.mainLayout.addWidget(self.logLine)
+
+        font = QtGui.QFont()
+        font.setFamily("Arial")
+        font.setPointSize(8)
+        self.monitorBrowser.setFont(font)
         self.mainLayout.addWidget(self.monitorBrowser)
 
         self.mainLayout.addStretch(1)

@@ -33,7 +33,7 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
         # 将提示信息显示在状态栏中showMessage（‘提示信息’，显示时间（单位毫秒））
         self.status.showMessage('>>初始化...', 4000)
         # 创建窗口标题
-        self.setWindowTitle('Monitor Everything v0.1')
+        self.setWindowTitle('Monitor Everything v0.2')
         self.switchButton.clicked.connect(self.start_monitor)
         self.configButton.clicked.connect(self.configuration)
         self.locationButton.clicked.connect(self.set_location)
@@ -130,9 +130,9 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
             port = int(port)
         else:
             url = url_port
-            port = 80
+            port = ''
 
-        return [url, int(port), suffix]
+        return [url, port, suffix]
 
     # 周期性运行
     def run_periodically(self, monitorInfo):
@@ -199,7 +199,7 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
                 print(f"\n第{i}次：{timenow}状态 --> {name}服务持续异常")
                 # Log和输出————————————————————————————————————————————————————————————————————————
                 # self.printf(f"时间：{timenow} --> 状态：{name}服务持续异常")
-                printf.append_message(f"时间：{timenow} --> 状态：{name}服务持续异常")
+                printf.append(f"时间：{timenow} --> 状态：{name}服务持续异常")
 
                 # 记录Log日志
                 logRecorder.record(f"{name} --- 类型 Type: {mtype} --- 地址 url: {url} --- 周期 Interval: {interval}秒", f">>>{timenow}: {name}服务持续异常\n")

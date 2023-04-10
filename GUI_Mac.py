@@ -120,6 +120,10 @@ class MainWindow(object):
         self.monitorBrowser.setMinimumSize(QtCore.QSize(700, 300))
         self.monitorBrowser.setMaximumSize(QtCore.QSize(700, 300))
 
+        font = QtGui.QFont()
+        font.setFamily("Arial")
+        font.setPointSize(10)
+        self.monitorBrowser.setFont(font)
         self.mainLayout.addLayout(self.buttonLayout)
 
         # 将时钟添加至窗口当中

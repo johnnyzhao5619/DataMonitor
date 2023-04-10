@@ -6,9 +6,10 @@
 import os
 import socket
 import subprocess
-
-
+import time
 import requests
+from myPing import *
+
 
 def monitor_get(url):
     try:
@@ -61,21 +62,24 @@ def monitor_post(url, payload):
 def monitor_server(address):
     host = address[0]
     if(address[1] == '' and address[2] == '' ):
-        url = 'http://' + address[0]
+        url = 'https://' + address[0]
         port = 80
     elif(address[1] != '' and address[2] == ''):
-        url = 'http://' + address[0] + ':' + str(address[1])
+        url = 'https://' + address[0] + ':' + str(address[1])
         port = address[1]
     elif(address[1] != '' and address[2] != ''):
-        url = 'http://' + address[0] + ':' + str(address[1]) + '/' + address[2]
+        url = 'https://' + address[0] + ':' + str(address[1]) + '/' + address[2]
         port = address[1]
+    elif (address[1] == '' and address[2] != ''):
+        url = 'https://' + address[0] + '/' + address[2]
+        port = 80
     print("host:", host)
     print("port:", port)
     print("url:", url)
 
     try:
         # Method 1: Use socket to connect to a well-known port
-        with socket.create_connection((host, 80), timeout=5):
+        with socket.create_connection((host, port), timeout=5):
             pass  # If no exception is raised, the connection was successful
         print(f"{host} is online (Socket)")
         return True
@@ -84,22 +88,76 @@ def monitor_server(address):
         pass
 
     # Ping
+    # try:
+    #     # Method 2: Use subprocess to send a ping request
+    #     subprocess.check_output(['ping', '-c', '1', '-W', '5', host])
+    #     print(f"{host} is online (Ping)")
+    #     return True
+    # except subprocess.CalledProcessError:
+    #     print(f"{host} is offline (Ping)")
+    #     pass
+    #
+    # try:
+    #     with socket.create_connection((host, port), timeout=5):
+    #         print(f"{host} is online (Ping)")
+    #         return True
+    # except OSError:
+    #     print(f"{host} is offline (Ping)")
+    #     pass
+
     try:
         # Method 2: Use subprocess to send a ping request
-        subprocess.check_output(['ping', '-c', '1', '-W', '5', host])
-        print(f"{host} is online (Ping)")
-        return True
+        # 使用Ping方法
+        ping = MyPing()
+        status = []
+        sumtime, shorttime, longtime, avgtime = 0, 1000, 0, 0
+        # 8回射请求 11超时 0回射应答
+        data_type = 8
+        data_code = 0
+        # 检验和
+        data_checksum = 0
+        # ID
+        data_ID = 0
+        # 序号
+        data_Sequence = 1
+        # 可选的内容
+        payload_body = b'abcdefghijklmnopqrstuvwabcdefghi'
+        dst_addr = socket.gethostbyname(host)
+        print("正在 Ping {0} [{1}] 具有 32 字节的数据:".format(host, dst_addr))
+        # 发送3次
+        for i in range(0, 3):
+            # 请求ping数据包的二进制转换
+            icmp_packet = ping.request_ping(data_type, data_code, data_checksum, data_ID, data_Sequence + i,
+                                            payload_body)
+            # 连接套接字,并将数据发送到套接字
+            send_request_ping_time, rawsocket = ping.raw_socket(dst_addr, icmp_packet)
+            # 数据包传输时间
+            times = ping.reply_ping(send_request_ping_time, rawsocket, data_Sequence + i)
+            if times > 0:
+                print("来自 {0} 的回复: 字节=32 时间={1}ms".format(dst_addr, int(times * 1000)))
+                return_time = int(times * 1000)
+                sumtime += return_time
+                if return_time > longtime:
+                    longtime = return_time
+                if return_time < shorttime:
+                    shorttime = return_time
+                time.sleep(0.7)
+                status.append(True)
+            else:
+                status.append(False)
+                print("请求超时")
+
+        if any(status):
+            print(f"{host} is online (Ping)")
+            return True
+        else:
+            print(f"{host} is offline (Ping)")
+            pass
+
     except subprocess.CalledProcessError:
         print(f"{host} is offline (Ping)")
         pass
 
-    try:
-        with socket.create_connection((host, port), timeout=5):
-            print(f"{host} is online (Ping)")
-            return True
-    except OSError:
-        print(f"{host} is offline (Ping)")
-        pass
 
     # ICMP
     try:
@@ -121,7 +179,7 @@ def monitor_server(address):
 
     # request
     try:
-        response = requests.get(url, timeout=5)
+        response = requests.get(url, timeout=10)
         if response.status_code == 200:
             print(f"{url} is online (Get Requests)")
             print(response)
@@ -138,3 +196,54 @@ def monitor_server(address):
     return False
 
 
+
+# while True:
+#     host = "c2v.huali-cloud.com"
+#     port = 80
+#
+#     # 使用Ping方法
+#     ping = MyPing()
+#     status = []
+#     sumtime, shorttime, longtime, avgtime = 0, 1000, 0, 0
+#     # 8回射请求 11超时 0回射应答
+#     data_type = 8
+#     data_code = 0
+#     # 检验和
+#     data_checksum = 0
+#     # ID
+#     data_ID = 0
+#     # 序号
+#     data_Sequence = 1
+#     # 可选的内容
+#     payload_body = b'abcdefghijklmnopqrstuvwabcdefghi'
+#     dst_addr = socket.gethostbyname(host)
+#     print("正在 Ping {0} [{1}] 具有 32 字节的数据:".format(host, dst_addr))
+#     # 发送3次
+#     for i in range(0, 3):
+#         # 请求ping数据包的二进制转换
+#         icmp_packet = ping.request_ping(data_type, data_code, data_checksum, data_ID, data_Sequence + i,
+#                                         payload_body)
+#         # 连接套接字,并将数据发送到套接字
+#         send_request_ping_time, rawsocket = ping.raw_socket(dst_addr, icmp_packet)
+#         # 数据包传输时间
+#         times = ping.reply_ping(send_request_ping_time, rawsocket, data_Sequence + i)
+#         if times > 0:
+#             print("来自 {0} 的回复: 字节=32 时间={1}ms".format(dst_addr, int(times * 1000)))
+#             return_time = int(times * 1000)
+#             sumtime += return_time
+#             if return_time > longtime:
+#                 longtime = return_time
+#             if return_time < shorttime:
+#                 shorttime = return_time
+#             time.sleep(0.7)
+#             status.append(True)
+#         else:
+#             status.append(False)
+#             print("请求超时")
+#     print("status:", status)
+#     if any(status):
+#         print(f"{host} is online (Ping)")
+#     else:
+#         print(f"{host} is offline (Ping)")
+#
+#     time.sleep(5)
