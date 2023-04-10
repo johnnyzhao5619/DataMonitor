@@ -12,6 +12,12 @@ def get_logdir():
     config.read(logdir)
     return logdir
 
+def get_general():
+    config = configparser.RawConfigParser()
+    appname = config.read('General', 'app_name')
+    version = config.read('General', 'version')
+    return appname, version
+
 def read_monitor_list():
     logdir = get_logdir()
     monitorlist = []

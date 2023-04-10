@@ -35,7 +35,7 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
         # 将提示信息显示在状态栏中showMessage（‘提示信息’，显示时间（单位毫秒））
         self.status.showMessage('>>初始化...', 4000)
         # 创建窗口标题
-        self.setWindowTitle('Monitor Everything v0.3')
+        self.setWindowTitle(f'{configuration.get_general()[0]} v{configuration.get_general()[1]}')
         self.switchButton.clicked.connect(self.start_monitor)
         self.configButton.clicked.connect(self.configuration)
         self.locationButton.clicked.connect(self.set_location)
