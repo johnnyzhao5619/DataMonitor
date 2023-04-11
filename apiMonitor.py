@@ -52,25 +52,6 @@ def monitor_post(url, payload):
         print(f"POST request to {url} failed")
         return False, 'POST'
 
-# def monitor_server(host: str, timeout: float = 2.0) -> bool:
-#     try:
-#         response_time = ping3.ping(host, timeout=timeout)
-#         if response_time is not None:
-#             print("response_time:", response_time)
-#             return True, response_time
-#         else:
-#             return False, "Unknow Error"
-#     except ping3.NetworkError:
-#         print(f"Network error: Could not reach host {host}")
-#         return False, f"Network error: Could not reach host {host}"
-#     except ping3.Timeout:
-#         print(f"Timeout error: Host {host} did not respond within {timeout} seconds")
-#         return False, f"Timeout error: Host {host} did not respond within {timeout} seconds"
-#     except Exception as e:
-#         print(f"An error occurred: {e}")
-#         return False, f"An error occurred: {e}"
-
-
 
 def monitor_server(address):
     host = address[0]
