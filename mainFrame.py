@@ -24,7 +24,7 @@ import logRecorder
 switch_status = True
 printf = []
 
-class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
+class monitorWindow(QtWidgets.QMainWindow, MainWindow):
     global switch_status
     global printf
     def __init__(self):
@@ -34,8 +34,9 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
         self.status = self.statusBar()
         # 将提示信息显示在状态栏中showMessage（‘提示信息’，显示时间（单位毫秒））
         self.status.showMessage('>>初始化...', 4000)
+        title = configuration.get_general()
         # 创建窗口标题
-        self.setWindowTitle(f'{configuration.get_general()[0]} v{configuration.get_general()[1]}')
+        self.setWindowTitle(f'{title[0]} v{title[1]}')
         self.switchButton.clicked.connect(self.start_monitor)
         self.configButton.clicked.connect(self.configuration)
         self.locationButton.clicked.connect(self.set_location)
@@ -260,6 +261,6 @@ if __name__ == '__main__':
     print("folder:", folder)
     print("configDir:", configDir)
     app = QtWidgets.QApplication(sys.argv)
-    mainWindow = toolsetWindow()
+    mainWindow = monitorWindow()
     mainWindow.show()
     sys.exit(app.exec_())
