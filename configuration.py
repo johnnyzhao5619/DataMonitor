@@ -9,13 +9,15 @@ import configparser
 def get_logdir():
     logdir = "./APIMonitor/"
     config = configparser.RawConfigParser()
-    config.read(logdir)
+    config.read(logdir + "Config/Config.ini")
     return logdir
 
-def get_general():
+def read_general():
+    logdir = get_logdir()
     config = configparser.RawConfigParser()
-    appname = config.read('General', 'app_name')
-    version = config.read('General', 'version')
+    config.read(logdir+"Config/Config.ini")
+    appname = config.get('General', 'app_name')
+    version = config.get('General', 'version')
     return appname, version
 
 def read_monitor_list():

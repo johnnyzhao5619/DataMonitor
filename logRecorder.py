@@ -35,8 +35,8 @@ def saveToFile(dataString, API):
     nowDate = nowDateTime.strftime("%Y%m%d")
 
     filename = f'{folder}/{API}_{nowDate}.csv'
-    print("folder:", folder)
-    print("filename:", filename)
+    # print("folder:", folder)
+    # print("filename:", filename)
     if not os.path.exists(filename):  # 判断文件是否存在,如果不存在则创建新文件
         with open(filename, mode='w', newline='', encoding='gb18030', errors='ignore') as cf:
             wf = csv.writer(cf)
