@@ -36,7 +36,6 @@ class monitorWindow(QtWidgets.QMainWindow, MainWindow):
         self.status.showMessage('>>初始化...', 4000)
         title = configuration.read_general()
         # 创建窗口标题
-        print('Title:', title)
         self.setWindowTitle(f'{title[0]} - v{title[1]}')
         self.switchButton.clicked.connect(self.start_monitor)
         self.configButton.clicked.connect(self.configuration)
@@ -103,26 +102,35 @@ class monitorWindow(QtWidgets.QMainWindow, MainWindow):
         # 发送请求
         if type == "GET":
             # 返回值：结果(bool)，内容(str)
-            print("monitor_get url:", url)
+            # print("monitor_get url:", url)
             result = apiMonitor.monitor_get(url)
             # 当成功Get到结果时，进一步对获取到的字符串进行解析
-            if result[0] == True:
-                # 返回值：结果(bool)，内容(str)
-                result = parseData.parseData(name, result[1])
-                print("GET-Result:", result)
-                return result
-            else:
-                while check == 2:
-                    result = apiMonitor.monitor_get(url)
-                    if result[0] == True:
-                        print("GET-Result:", result)
-                        check = 2
-                        return result
-                    else:
-                        print("CHECK:", check)
-                        check += 1
-                print("GET-Result:", result)
-                return result
+            # 返回值：结果(bool)，内容(str)
+            result = parseData.parseData(name, result[1])
+            print("GET-Result:", result)
+            return result
+
+
+
+
+            # if result[0] == True:
+            #     # 返回值：结果(bool)，内容(str)
+            #     result = parseData.parseData(name, result[1])
+            #     print("GET-Result:", result)
+            #     return result
+            # else:
+            #     print("check1:", check)
+            #     while check < 2:
+            #         print("check2:", check)
+            #         result = apiMonitor.monitor_get(url)
+            #         if result[0] == True:
+            #             print("GET-Result:", result)
+            #             return result
+            #         else:
+            #             print("check3:", check)
+            #             check += 1
+            #     print("GET-Result:", result)
+            #     return result
         elif type == "POST":
             result = apiMonitor.monitor_post(url, "1")
             print("POST-Result:", result)

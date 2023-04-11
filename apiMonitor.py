@@ -10,6 +10,7 @@ from myPing import *
 
 
 def monitor_get(url):
+    check = 0
     if (url[1] == '' and url[2] == ''):
         url = 'http://' + url[0]
     elif (url[1] != '' and url[2] == ''):
@@ -18,17 +19,23 @@ def monitor_get(url):
         url = 'http://' + url[0] + ':' + str(url[1]) + '/' + url[2]
     elif (url[1] == '' and url[2] != ''):
         url = 'http://' + url[0] + '/' + url[2]
-    try:
-        response = requests.get(url, timeout=10)
-        if response.status_code == 200:
-            print(f"GET request to {url} successful")
-            return True, response.text
-        else:
-            print(f"GET request to {url} failed with status code: {response.status_code}")
-            return False, response.status_code
-    except:
-        print(f"GET request to {url} failed")
-        return False, 'GET'
+    # 当相应失败时，再次尝试，如果两次都失败时，返回False
+    while check < 1:
+        try:
+            response = requests.get(url, timeout=10)
+            if response.status_code == 200:
+                print(f"{check}：GET request to {url} successful")
+                return True, response.text
+            else:
+                print(f"{check}：GET request to {url} failed with status code: {response.status_code}")
+                feedback = response.status_code
+                check += 1
+                # return False, response.status_code
+        except:
+            print(f"{check}：GET request to {url} failed")
+            feedback = 'GET'
+            check += 1
+    return False, feedback
 
 
 
