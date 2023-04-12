@@ -44,10 +44,8 @@ def save_to_csv(dataString, API):
             title = ['StatusCode', 'Status', 'Time', 'Name', 'Type', 'URL', 'Interval', 'Content', 'Remarks[scNr, feedPhase, unsupportedPhase]']
             wf.writerow(title)
             wf.writerow(dataString)
-            wf.close()
     else:
         # 末尾追加写入，文件必须已存在
         with open(filename, mode='a', newline='', encoding='gb18030', errors='ignore') as cfa:
             wf = csv.writer(cfa)
             wf.writerow(dataString)
-            wf.close()
