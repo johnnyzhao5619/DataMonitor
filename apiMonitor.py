@@ -30,11 +30,14 @@ def monitor_get(url):
                 print(f"{check}：GET request to {url} failed with status code: {response.status_code}")
                 feedback = response.status_code
                 check += 1
+                check += 1
+                print("key point 1")
                 # return False, response.status_code
         except:
             print(f"{check}：GET request to {url} failed")
             feedback = 'GET'
             check += 1
+    print("key point 2 ")
     return False, feedback
 
 
@@ -173,3 +176,8 @@ def monitor_server(address):
     print(f"{host} is offline")
     return False, 'SERVER'
 
+
+
+# url = ["36.155.95.59", 28080, "JKS_Server/SysInfo"]
+# a = monitor_get(url)
+# print("key point3:", a)

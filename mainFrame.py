@@ -105,32 +105,24 @@ class monitorWindow(QtWidgets.QMainWindow, MainWindow):
             # print("monitor_get url:", url)
             result = apiMonitor.monitor_get(url)
             # 当成功Get到结果时，进一步对获取到的字符串进行解析
-            # 返回值：结果(bool)，内容(str)
-            result = parseData.parseData(name, result[1])
-            print("GET-Result:", result)
-            return result
-
-
-
-
-            # if result[0] == True:
-            #     # 返回值：结果(bool)，内容(str)
-            #     result = parseData.parseData(name, result[1])
-            #     print("GET-Result:", result)
-            #     return result
-            # else:
-            #     print("check1:", check)
-            #     while check < 2:
-            #         print("check2:", check)
-            #         result = apiMonitor.monitor_get(url)
-            #         if result[0] == True:
-            #             print("GET-Result:", result)
-            #             return result
-            #         else:
-            #             print("check3:", check)
-            #             check += 1
-            #     print("GET-Result:", result)
-            #     return result
+            if result[0] == True:
+                # 返回值：结果(bool)，内容(str)
+                result = parseData.parseData(name, result[1])
+                print("GET-Result:", result)
+                return result
+            else:
+                # print("check1:", check)
+                # while check < 2:
+                #     print("check2:", check)
+                #     result = apiMonitor.monitor_get(url)
+                #     if result[0] == True:
+                #         print("GET-Result:", result)
+                #         return result
+                #     else:
+                #         print("check3:", check)
+                #         check += 1
+                print("GET-Result:", result)
+                return result
         elif type == "POST":
             result = apiMonitor.monitor_post(url, "1")
             print("POST-Result:", result)
