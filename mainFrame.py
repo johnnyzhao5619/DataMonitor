@@ -61,7 +61,6 @@ class monitor_window(QtWidgets.QMainWindow, MainWindow):
                 # 记录Log日志
                 logRecorder.record_to_log("读取配置 Read Configuration", f"{i+1}.{name} --- 类型 Type: {mtype} --- 地址 url: {url} --- 周期 Interval: {interval}秒")
 
-            printf.append("-" * 30)
             self.run_with_threads(len(monitorList), monitorList)
 
             self.switchButton.setText('关闭 Close')
@@ -219,7 +218,7 @@ class monitor_window(QtWidgets.QMainWindow, MainWindow):
             if responseCode[0] == 1:
                 print(f"\n第{i}次：{timenow} >>> {name} >>> 状态 Status: 服务正常 Available")
                 # Log和输出————————————————————————————————————————————————————————————————————————
-                printf.append(f"{timenow} >>> {name} >>> 状态 Status: 服务正常 Available, {remark}")
+                printf.append(f"{timenow} >>> {name} >>> 状态 Status: 服务正常 Available, Remark: {remark}")
                 # 记录Log日志
                 logRecorder.record_to_log(f"{name} --- 类型 Type: {mtype} --- 地址 url: {url} --- 周期 Interval: {interval}秒", f">>{timenow} >> {name} >> 服务正常 Available >> Remarks: {remark}\n")
                 logRecorder.save_to_csv(output, name)
