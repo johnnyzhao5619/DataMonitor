@@ -6,7 +6,6 @@
 
 import subprocess
 import requests
-import time
 from myPing import *
 
 
@@ -49,10 +48,12 @@ def monitor_post(url, payload):
             return True, response.text
         else:
             print(f"POST request to {url} failed with status code: {response.status_code}")
-            return False, response.status_code
+            feedback = response.status_code
+            return False, feedback
     except:
         print(f"POST request to {url} failed")
-        return False, 'POST'
+        feedback = 'GET'
+        return False, feedback
 
 
 def monitor_server(address):
@@ -118,7 +119,7 @@ def monitor_server(address):
         dst_addr = socket.gethostbyname(host)
         print("正在 Ping {0} [{1}] 具有 32 字节的数据:".format(host, dst_addr))
         # 发送3次
-        for i in range(0, 3):
+        for i in range(0, 5):
             # 请求ping数据包的二进制转换
             icmp_packet = ping.request_ping(data_type, data_code, data_checksum, data_ID, data_Sequence + i,
                                             payload_body)
@@ -134,7 +135,7 @@ def monitor_server(address):
                     longtime = return_time
                 if return_time < shorttime:
                     shorttime = return_time
-                time.sleep(0.7)
+                time.sleep(1)
                 status.append(True)
 
             else:
@@ -147,7 +148,6 @@ def monitor_server(address):
         else:
             print(f"{host} is offline (Ping)")
             pass
-
     except subprocess.CalledProcessError:
         print(f"{host} is offline (Ping)")
         pass
@@ -174,8 +174,6 @@ def monitor_server(address):
     # If none of the methods succeed, the server is offline
     print(f"{host} is offline")
     return False, 'SERVER'
-
-
 
 # url = ["36.155.95.59", 28080, "JKS_Server/SysInfo1"]
 # a = monitor_get(url)

@@ -40,7 +40,7 @@ def saveToFile(dataString, API):
     if not os.path.exists(filename):  # 判断文件是否存在,如果不存在则创建新文件
         with open(filename, mode='w', newline='', encoding='gb18030', errors='ignore') as cf:
             wf = csv.writer(cf)
-            title = ['Time', 'API', 'Type', 'url', 'Interval', 'Code', 'Status', 'Remark']
+            title = ['StatusCode', 'Status', 'Time', 'Name', 'Type', 'URL', 'Interval', 'Content', 'Remarks[scNr, feedPhase, unsupportedPhase]']
             wf.writerow(title)
             wf.writerow(dataString)
     else:

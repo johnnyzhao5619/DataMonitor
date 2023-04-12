@@ -26,14 +26,6 @@ def send_email(subject: str, body: str):
     message['Subject'] = subject
     message.attach(MIMEText(body, 'plain'))
 
-    # Attach file if specified
-    # if attachment_file:
-    #     with open(attachment_file, 'rb') as f:
-    #         attachment = MIMEApplication(f.read(), _subtype='txt')
-    #         attachment.add_header('Content-Disposition', 'attachment', filename=attachment_file)
-    #         message.attach(attachment)
-
-    # Connect to SMTP server and send message
     try:
         with smtplib.SMTP(smtp_server, smtp_port) as server:
             server.starttls()
