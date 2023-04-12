@@ -6,6 +6,7 @@
 
 import subprocess
 import requests
+import time
 from myPing import *
 
 
@@ -20,7 +21,7 @@ def monitor_get(url):
     elif (url[1] == '' and url[2] != ''):
         url = 'http://' + url[0] + '/' + url[2]
     # 当相应失败时，再次尝试，如果两次都失败时，返回False
-    while check < 1:
+    while check < 2:
         try:
             response = requests.get(url, timeout=10)
             if response.status_code == 200:
@@ -30,13 +31,13 @@ def monitor_get(url):
                 print(f"{check}：GET request to {url} failed with status code: {response.status_code}")
                 feedback = response.status_code
                 check += 1
-                check += 1
                 print("key point 1")
                 # return False, response.status_code
         except:
             print(f"{check}：GET request to {url} failed")
             feedback = 'GET'
             check += 1
+        time.sleep(3)
     print("key point 2 ")
     return False, feedback
 
@@ -178,6 +179,6 @@ def monitor_server(address):
 
 
 
-# url = ["36.155.95.59", 28080, "JKS_Server/SysInfo"]
+# url = ["36.155.95.59", 28080, "JKS_Server/SysInfo1"]
 # a = monitor_get(url)
 # print("key point3:", a)
