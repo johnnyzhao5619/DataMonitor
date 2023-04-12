@@ -35,7 +35,7 @@ def monitor_get(url):
             print(f"{check}：GET request to {url} failed")
             feedback = 'GET'
             check += 1
-        time.sleep(3)
+        time.sleep(2.7)
     return False, feedback
 
 
@@ -135,7 +135,7 @@ def monitor_server(address):
                     longtime = return_time
                 if return_time < shorttime:
                     shorttime = return_time
-                time.sleep(1)
+                time.sleep(1.3)
                 status.append(True)
 
             else:
