@@ -47,7 +47,7 @@ class monitor_window(QtWidgets.QMainWindow, MainWindow):
             monitorList = configuration.read_monitor_list()
             # self.printf(f"目前读取到{len(monitorList)}个监控项，分别是：")
             printf.append(f"目前读取到{len(monitorList)}个监控项，分别是：")
-            logRecorder.record("Start Monitor", f"目前读取到{len(monitorList)}个监控项")
+            logRecorder.record_to_log("Start Monitor", f"目前读取到{len(monitorList)}个监控项")
             for i in range(len(monitorList)):
                 name = monitorList[i]['name']
                 url = monitorList[i]['url']
@@ -59,8 +59,9 @@ class monitor_window(QtWidgets.QMainWindow, MainWindow):
                 # self.printf(f"{i+1}. {name} --- 类型: {mtype} --- 地址: {url} --- 周期: {interval}秒")
                 printf.append(f"{i+1}. {name} --- 类型: {mtype} --- 地址: {url} --- 周期: {interval}秒")
                 # 记录Log日志
-                logRecorder.record("读取配置 Read Configuration", f"{i+1}.{name} --- 类型 Type: {mtype} --- 地址 url: {url} --- 周期 Interval: {interval}秒\n")
+                logRecorder.record_to_log("读取配置 Read Configuration", f"{i+1}.{name} --- 类型 Type: {mtype} --- 地址 url: {url} --- 周期 Interval: {interval}秒")
 
+            printf.append("-" * 30)
             self.run_with_threads(len(monitorList), monitorList)
 
             self.switchButton.setText('关闭 Close')
@@ -220,8 +221,8 @@ class monitor_window(QtWidgets.QMainWindow, MainWindow):
                 # Log和输出————————————————————————————————————————————————————————————————————————
                 printf.append(f"{timenow} >>> {name} >>> 状态 Status: 服务正常 Available, {remark}")
                 # 记录Log日志
-                logRecorder.record(f"{name} --- 类型 Type: {mtype} --- 地址 url: {url} --- 周期 Interval: {interval}秒", f">>> {timenow} >>> {name} >>> 服务正常 Available >>> Remarks: {remark}\n")
-                logRecorder.saveToFile(output, name)
+                logRecorder.record_to_log(f"{name} --- 类型 Type: {mtype} --- 地址 url: {url} --- 周期 Interval: {interval}秒", f">>{timenow} >> {name} >> 服务正常 Available >> Remarks: {remark}\n")
+                logRecorder.save_to_csv(output, name)
 
             elif responseCode[0] == 2:
                 sendEmail.send_email(f"{timenow}: The {name} service has been restored!", f"{name} 服务已恢复 Restored\n恢复时间 Time：{timenow}\nRemark: {remark}")
@@ -229,8 +230,8 @@ class monitor_window(QtWidgets.QMainWindow, MainWindow):
                 # Log和输出————————————————————————————————————————————————————————————————————————
                 printf.append(f"{timenow} >>> {name} >>> 状态 Status: 服务恢复 Restored, {remark}")
                 # 记录Log日志
-                logRecorder.record(f"{name} --- 类型 Type: {mtype} --- 地址 url: {url} --- 周期 Interval: {interval}秒", f">>> {timenow} >>> {name} >>> 服务恢复 Restored >>> Remarks: {remark}\n")
-                logRecorder.saveToFile(output, name)
+                logRecorder.record_to_log(f"{name} --- 类型 Type: {mtype} --- 地址 url: {url} --- 周期 Interval: {interval}秒", f">>{timenow} >> {name} >> 服务恢复 Restored >> Remarks: {remark}\n")
+                logRecorder.save_to_csv(output, name)
 
             elif responseCode[0] == 3:
                 sendEmail.send_email(f"{timenow}: The {name} server outage!", f"{name} 服务异常 Outage\n发生时间 Time：{timenow}\nRemark: {remark}")
@@ -238,8 +239,8 @@ class monitor_window(QtWidgets.QMainWindow, MainWindow):
                 # Log和输出————————————————————————————————————————————————————————————————————————
                 printf.append(f"{timenow} >>> {name} >>> 状态 Status: 服务异常 Outage, {remark}")
                 # 记录Log日志
-                logRecorder.record(f"{name} --- 类型 Type: {mtype} --- 地址 url: {url} --- 周期 Interval: {interval}秒", f">>> {timenow} >>> {name} >>> 服务异常 Outage >>> Remarks: {remark}\n")
-                logRecorder.saveToFile(output, name)
+                logRecorder.record_to_log(f"{name} --- 类型 Type: {mtype} --- 地址 url: {url} --- 周期 Interval: {interval}秒", f">>{timenow} >> {name} >> 服务异常 Outage >> Remarks: {remark}\n")
+                logRecorder.save_to_csv(output, name)
 
             elif responseCode[0] == 4:
                 sendEmail.send_email(f"{timenow}: The {name} server outage!", f"{name} 服务持续异常 Outage\n发生时间 Time：{timenow}\nRemark: {remark}")
@@ -248,8 +249,8 @@ class monitor_window(QtWidgets.QMainWindow, MainWindow):
                 printf.append(f"{timenow} >>> {name} >>> 状态 Status: 持续异常 Outage, {remark}")
 
                 # 记录Log日志
-                logRecorder.record(f"{name} --- 类型 Type: {mtype} --- 地址 url: {url} --- 周期 Interval: {interval}秒", f">>> {timenow} >>> {name} >>> 服务持续异常 Outage >>> Remarks: {remark}\n")
-                logRecorder.saveToFile(output, name)
+                logRecorder.record_to_log(f"{name} --- 类型 Type: {mtype} --- 地址 url: {url} --- 周期 Interval: {interval}秒", f">>{timenow} >> {name} >> 服务持续异常 Outage >> Remarks: {remark}\n")
+                logRecorder.save_to_csv(output, name)
 
             if responseCode[0] == 1 or responseCode[0] == 2:
                 # 将提示信息显示在状态栏中showMessage（‘提示信息’，显示时间（单位毫秒））

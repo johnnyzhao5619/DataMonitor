@@ -10,28 +10,29 @@ import os
 import configuration
 
 
-def record(action: str, log):
-    chinaDateTime = datetime.datetime.utcnow() + datetime.timedelta(hours=8)
+def record_to_log(action: str, log):
+    timezone = configuration.get_timezone()
+    local_Time = datetime.datetime.utcnow() + datetime.timedelta(hours=timezone)
 
     folder = os.path.expanduser(str(configuration.get_logdir()+'Log'))
     if not os.path.exists(folder):  # 判断是否存在文件夹如果不存在则创建为文件夹
         os.makedirs(folder)  # makedirs 创建文件时如果路径不存在会创建这个路径
 
-    with open((folder + "/log-%s.txt" % chinaDateTime.strftime("%Y%m%d")), 'a', encoding='gb18030', errors='ignore') as file:
-        file.write(">>" + str(chinaDateTime)+"(China Time)----------------------------------------------\n")
+    with open((folder + "/log-%s.txt" % local_Time.strftime("%Y%m%d")), 'a', encoding='gb18030', errors='ignore') as file:
+        file.write(">>" + str(local_Time)+f"(Timezone:{timezone})----------------------------------------------\n")
         file.write(">>Action:" + action + '\n')
         file.write(str(log) + '\n')
         file.close()
 
 # 写入文件
-def saveToFile(dataString, API):
+def save_to_csv(dataString, API):
     # 根据UTC时间，换算成中国区域时间
-    time_zone = int(configuration.get_timezone())
+    timezone = int(configuration.get_timezone())
     folder = os.path.expanduser(str(configuration.get_logdir()+'Log'))
     if not os.path.exists(folder):  # 判断是否存在文件夹如果不存在则创建为文件夹
         os.makedirs(folder)  # makedirs 创建文件时如果路径不存在会创建这个路径
 
-    nowDateTime = datetime.datetime.utcnow() + datetime.timedelta(hours=time_zone)
+    nowDateTime = datetime.datetime.utcnow() + datetime.timedelta(hours=timezone)
     nowDate = nowDateTime.strftime("%Y%m%d")
 
     filename = f'{folder}/{API}_{nowDate}.csv'
@@ -48,6 +49,3 @@ def saveToFile(dataString, API):
         with open(filename, mode='a', newline='', encoding='gb18030', errors='ignore') as cfa:
             wf = csv.writer(cfa)
             wf.writerow(dataString)
-
-# b = ['aaa','vvvv','ssss','wwww','gggg','qqqq','rrrr','yyyy']
-# saveToFile(b, 'test')
