@@ -12,6 +12,12 @@ def get_logdir():
     config.read(logdir + "Config/Config.ini")
     return logdir
 
+def get_mail_format():
+    logdir = get_logdir()
+    config = configparser.RawConfigParser()
+    config.read(logdir+"Config/Config.ini")
+
+
 def read_general():
     logdir = get_logdir()
     config = configparser.RawConfigParser()

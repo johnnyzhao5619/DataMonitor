@@ -3,8 +3,7 @@
 # @Author: weijiazhao
 # @File : mainFrame.py
 # @Software: PyCharm
-
-
+import subprocess
 
 from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import QInputDialog
@@ -69,7 +68,14 @@ class monitor_window(QtWidgets.QMainWindow, MainWindow):
             sys.exit()
 
     def configuration(self):
-        return
+        dir = f'{configuration.get_logdir()}Config/Config.ini'
+        print(dir)
+        os.system(r"start %s" % dir)
+
+        # try:
+        #     os.startfile(dir)
+        # except:
+        #     subprocess.Popen('xdg-open', dir)
 
     def set_location(self):
         time_zone = int(configuration.get_timezone())
@@ -87,7 +93,6 @@ class monitor_window(QtWidgets.QMainWindow, MainWindow):
         current_time = datetime.datetime.utcnow() + datetime.timedelta(hours=time_zone)
         self.localTimeLabel.setText(current_time.strftime('%Y-%m-%d %H:%M:%S'))
         self.utcTimeLabel.setText(utc_time.strftime('%Y-%m-%d %H:%M:%S'))
-
         while len(printf) > 0:
             for i in printf:
                 self.monitorBrowser.append(i)  # 在指定的区域显示提示信息

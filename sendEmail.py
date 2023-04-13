@@ -37,3 +37,10 @@ def send_email(subject: str, body: str):
         print("SMTP error: ", e)
     except Exception as e:
         print("An error occurred: ", e)
+
+
+def data_outage_massage():
+    return
+
+def phase_continuity_massage():
+    return
