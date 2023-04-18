@@ -7,21 +7,21 @@ import configparser
 
 
 def get_logdir():
-    logdir = "./APIMonitor/"
+    logdir = './APIMonitor/'
     config = configparser.RawConfigParser()
-    config.read(logdir + "Config/Config.ini")
+    config.read(logdir + 'Config/Config.ini')
     return logdir
 
 def get_mail_format():
     logdir = get_logdir()
     config = configparser.RawConfigParser()
-    config.read(logdir+"Config/Config.ini")
+    config.read(logdir+'Config/Config.ini')
 
 
 def read_general():
     logdir = get_logdir()
     config = configparser.RawConfigParser()
-    config.read(logdir+"Config/Config.ini")
+    config.read(logdir+'Config/Config.ini')
     appname = config.get('General', 'app_name')
     version = config.get('General', 'version')
     return appname, version
@@ -30,7 +30,7 @@ def read_monitor_list():
     logdir = get_logdir()
     monitorlist = []
     config = configparser.RawConfigParser()
-    config.read(logdir+"Config/Config.ini")
+    config.read(logdir+'Config/Config.ini')
     totalNumber = config.get('MonitorNum', 'total')
     for i in range(int(totalNumber)):
         monitordir = {}
@@ -62,7 +62,7 @@ def read_mail_configuration():
 def get_timezone():
     logdir = get_logdir()
     config = configparser.RawConfigParser()
-    config.read(logdir+"Config/Config.ini")
+    config.read(logdir+'Config/Config.ini')
     return config.get('TimeZone', 'timezone')
 
 
@@ -76,9 +76,43 @@ def get_targetnum(target:str):
 def set_timezone(timezone):
     logdir = get_logdir()
     config = configparser.RawConfigParser()
-    config.read(logdir+"Config/Config.ini")
+    config.read(logdir+'Config/Config.ini')
     config.set('TimeZone', 'timezone', timezone)
 
+def get_mail_formate(mail_type:str):
+    logdir = get_logdir()
+    config = configparser.RawConfigParser()
+    config.read(logdir+'Config/Config.ini')
+    mail_content = config.get('MailContent', mail_type)
+    return mail_content
+
+
+def write_mailSample(mailSampleDir:str):
+    outage_mail = configparser.ConfigParser()
+    outage_mail.add_section("OutageNotificationMailSample")
+    outage_mail.set("OutageNotificationMailSample", "Subject", "abcd")
+    outage_mail.set("OutageNotificationMailSample", "body", "abcd")
+    outage_mail.write(open((mailSampleDir+'/OutageNotificationMailSample.html'), "w"))
+
+    outage_resolution_mail = configparser.ConfigParser()
+    outage_resolution_mail.add_section("OutageNotificationResolutionMailSample")
+    outage_resolution_mail.set("OutageNotificationResolutionMailSample", "Subject", "abcd")
+    outage_resolution_mail.set("OutageNotificationResolutionMailSample", "body", "abcd")
+    outage_resolution_mail.write(open((mailSampleDir+'/OutageNotificationResolutionMailSample.html'), "w"))
+
+
+    incomplete_mail = configparser.ConfigParser()
+    incomplete_mail.add_section("PhaseIncompleteNotificationMailSample")
+    incomplete_mail.set("PhaseIncompleteNotificationMailSample", "Subject", "abcd")
+    incomplete_mail.set("PhaseIncompleteNotificationMailSample", "body", "abcd")
+    incomplete_mail.write(open((mailSampleDir+'/PhaseIncompleteNotificationMailSample.html'), "w"))
+
+
+    incomplete_resolution_mail = configparser.ConfigParser()
+    incomplete_resolution_mail.add_section("PhaseIncompleteNotificationResolutionMailSample")
+    incomplete_resolution_mail.set("PhaseIncompleteNotificationResolutionMailSample", "Subject", "abcd")
+    incomplete_resolution_mail.set("PhaseIncompleteNotificationResolutionMailSample", "body", "abcd")
+    incomplete_resolution_mail.write(open((mailSampleDir+'/PhaseIncompleteNotificationResolutionMailSample.html'), "w"))
 
 def write_config(configDir: str):
     info = configparser.ConfigParser()
@@ -192,4 +226,4 @@ def write_config(configDir: str):
     info.set("Monitor10", "interval", "900")
     info.set("Monitor10", "email", "johnnyzhao56192@gmail.com")
 
-    info.write(open(('./APIMonitor/Config/Config.ini'), "w"))
+    info.write(open((configDir), "w"))

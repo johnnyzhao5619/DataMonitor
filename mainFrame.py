@@ -68,9 +68,11 @@ class monitor_window(QtWidgets.QMainWindow, MainWindow):
             sys.exit()
 
     def configuration(self):
-        dir = f'{configuration.get_logdir()}Config/Config.ini'
+        dir = f'{configuration.get_logdir()}Config/Config_test.ini'
+        dir2 = f'./mail_sample/OutageNotificationMailSample.html'
         print(dir)
         os.system(r"start %s" % dir)
+        os.system(r"start %s" % dir2)
 
         # try:
         #     os.startfile(dir)
@@ -279,6 +281,7 @@ class monitor_window(QtWidgets.QMainWindow, MainWindow):
 if __name__ == '__main__':
     folder = os.path.expanduser('./APIMonitor/Log')
     configDir = os.path.expanduser("./APIMonitor/Config")
+    mailSampleDir = os.path.expanduser("./APIMonitor/MialSample")
     # if configuration.get_logdir() == "./APIMonitor/":
     #     folder = os.path.expanduser('./APIMonitor/Log')
     #     configDir = os.path.expanduser("./APIMonitor/Config")
@@ -287,6 +290,9 @@ if __name__ == '__main__':
     #     configDir = os.path.expanduser(str(configuration.get_logdir()+"Config"))
     if not os.path.exists(folder):  # 判断是否存在文件夹如果不存在则创建为文件夹
         os.makedirs(folder)  # makedirs 创建文件时如果路径不存在会创建这个路径
+    if not os.path.exists(mailSampleDir):
+        os.makedirs(mailSampleDir)
+        configuration.write_mailSample(mailSampleDir)
     if not os.path.exists(configDir):
         os.makedirs(configDir)
         configuration.write_config(configDir)
