@@ -3,15 +3,16 @@
 # @Author: weijiazhao
 # @File : mainFrame.py
 # @Software: PyCharm
-import os
 
-from PyQt5 import QtWidgets, QtCore, QtGui
+
+from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import QInputDialog
 
-from GUI_Windows import MainWindow
+from GUI_Windows_New import MainWindow
 import apiMonitor
 import sendEmail
 import time
+import os
 import threading
 import configuration
 import datetime
