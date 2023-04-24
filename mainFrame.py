@@ -13,7 +13,7 @@ import os
 import time
 import sys
 
-from GUI_Windows import MainWindow
+from GUI_Windows_v2 import MainWindow
 import configuration
 import parseData
 import apiMonitor
@@ -32,33 +32,56 @@ class monitor_window(QtWidgets.QMainWindow, MainWindow):
         # 实例化创建状态栏
         self.status = self.statusBar()
         # 将提示信息显示在状态栏中showMessage（‘提示信息’，显示时间（单位毫秒））
-        self.status.showMessage('>>初始化...', 4000)
+        self.status.showMessage('>>Initializing...', 4000)
         title = configuration.read_general()
+        # 读取配置文件
+        self.read_config()
         # 创建窗口标题
         self.setWindowTitle(f'{title[0]} - v{title[1]}')
         self.switchButton.clicked.connect(self.start_monitor)
         self.configButton.clicked.connect(self.configuration)
         self.locationButton.clicked.connect(self.set_location)
 
+
+    def read_config(self):
+        monitorList = configuration.read_monitor_list()
+        # self.printf(f"Read {len(monitorList)} Monitor Items as following:")
+        printf.append(f"Read {len(monitorList)} Monitor Items as following:")
+        logRecorder.record_to_log("Start Monitor", f"Read {len(monitorList)} Monitor Items")
+        for i in range(len(monitorList)):
+            name = monitorList[i]['name']
+            url = monitorList[i]['url']
+            interval = monitorList[i]['interval']
+            mtype = monitorList[i]['type']
+            print("name:", name)
+
+            # Log和输出————————————————————————————————————————————————————————————————————————
+            # self.printf(f"{i+1}. {name} --- Type: {mtype} --- Url: {url} --- Interval: {interval}s")
+            printf.append(f"{i + 1}. {name} --- Type: {mtype} --- Url: {url} --- Interval: {interval}s")
+            # 记录Log日志
+            logRecorder.record_to_log("Read Configuration",
+                                      f"{i + 1}.{name} --- Type: {mtype} --- Url: {url} --- Interval: {interval}s")
+
+
     def start_monitor(self):
         global switch_status
         if switch_status == True:
             monitorList = configuration.read_monitor_list()
-            # self.printf(f"目前读取到{len(monitorList)}个监控项，分别是：")
-            printf.append(f"目前读取到{len(monitorList)}个监控项，分别是：")
-            logRecorder.record_to_log("Start Monitor", f"目前读取到{len(monitorList)}个监控项")
-            for i in range(len(monitorList)):
-                name = monitorList[i]['name']
-                url = monitorList[i]['url']
-                interval = monitorList[i]['interval']
-                mtype = monitorList[i]['type']
-                print("name:", name)
-
-                # Log和输出————————————————————————————————————————————————————————————————————————
-                # self.printf(f"{i+1}. {name} --- 类型: {mtype} --- 地址: {url} --- 周期: {interval}秒")
-                printf.append(f"{i+1}. {name} --- 类型: {mtype} --- 地址: {url} --- 周期: {interval}秒")
-                # 记录Log日志
-                logRecorder.record_to_log("读取配置 Read Configuration", f"{i+1}.{name} --- 类型 Type: {mtype} --- 地址 url: {url} --- 周期 Interval: {interval}秒")
+            # # self.printf(f"目前读取到{len(monitorList)}个监控项，分别是：")
+            # printf.append(f"目前读取到{len(monitorList)}个监控项，分别是：")
+            # logRecorder.record_to_log("Start Monitor", f"目前读取到{len(monitorList)}个监控项")
+            # for i in range(len(monitorList)):
+            #     name = monitorList[i]['name']
+            #     url = monitorList[i]['url']
+            #     interval = monitorList[i]['interval']
+            #     mtype = monitorList[i]['type']
+            #     print("name:", name)
+            #
+            #     # Log和输出————————————————————————————————————————————————————————————————————————
+            #     # self.printf(f"{i+1}. {name} --- 类型: {mtype} --- 地址: {url} --- 周期: {interval}秒")
+            #     printf.append(f"{i+1}. {name} --- 类型: {mtype} --- 地址: {url} --- 周期: {interval}秒")
+            #     # 记录Log日志
+            #     logRecorder.record_to_log("读取配置 Read Configuration", f"{i+1}.{name} --- 类型 Type: {mtype} --- 地址 url: {url} --- 周期 Interval: {interval}秒")
 
             self.run_with_threads(len(monitorList), monitorList)
 
@@ -68,11 +91,11 @@ class monitor_window(QtWidgets.QMainWindow, MainWindow):
             sys.exit()
 
     def configuration(self):
-        dir = f'{configuration.get_logdir()}Config/Config_test.ini'
-        dir2 = f'./mail_sample/OutageNotificationMailSample.html'
+        dir = f'{configuration.get_logdir()}Config/Config.ini'
+        # dir2 = f'./mail_sample/OutageNotificationMailSample.html'
         print(dir)
         os.system(r"start %s" % dir)
-        os.system(r"start %s" % dir2)
+        # os.system(r"start %s" % dir2)
 
         # try:
         #     os.startfile(dir)
@@ -83,7 +106,7 @@ class monitor_window(QtWidgets.QMainWindow, MainWindow):
         time_zone = int(configuration.get_timezone())
         # 后面四个数字的作用依次是 初始值 最小值 最大值 步幅
         time_zone, ok = QInputDialog.getInt(self, "输入时区", "请输入所在时区(整数):", time_zone, -12, 14, 1)
-        self.localTimeGroupBox.setTitle(f'本地时间 Local Time(时区 Time Zone: {time_zone})')
+        self.localTimeGroupBox.setTitle(f'本地时间 Local Time(Time Zone:{time_zone})')
         configuration.set_timezone(time_zone)
         # self.echo(time_zone)
 
@@ -192,21 +215,21 @@ class monitor_window(QtWidgets.QMainWindow, MainWindow):
             # 判断结果
             # 当状态正常，且跟上一次状态一致时，无操作，等待下一次
             if result[0] == True and result[0] == lastStatus:
-                responseCode = [1, '服务正常 Available']    # 服务正常
+                responseCode = [1, 'Available']    # 服务正常
 
 
             # 当状态正常，且跟上一次状态不一致时，发送数据恢复邮件
             elif result[0] == True and result[0] != lastStatus:
-                responseCode = [2, '服务恢复 Restored'] # 服务恢复
+                responseCode = [2, 'Restored'] # 服务恢复
 
             # 当状态不正常，且跟上一次状态不一致时，发送数据中断告警邮件
             elif result[0] == False and result[0] != lastStatus:
-                responseCode = [3, '服务异常 Outage']   # 服务异常
+                responseCode = [3, 'Outage']   # 服务异常
 
 
             # 当状态不正常，且跟上一次状态一致时，数据持续异常
             elif result[0] == False and result[0] == lastStatus:
-                responseCode = [4, '持续异常 Outage']   # 服务持续异常
+                responseCode = [4, 'Outage']   # 服务持续异常
 
 
             if type(result[1]).__name__ == 'list':
@@ -223,7 +246,7 @@ class monitor_window(QtWidgets.QMainWindow, MainWindow):
 
             # 给予结果进行处理
             if responseCode[0] == 1:
-                print(f"\n第{i}次：{timenow} >>> {name} >>> 状态 Status: 服务正常 Available")
+                print(f"\n{i}: {timenow} >>> {name} >>> 状态 Status: 服务正常 Available")
                 # Log和输出————————————————————————————————————————————————————————————————————————
                 printf.append(f"{timenow} >>> {name} >>> 状态 Status: 服务正常 Available, Remark: {remark}")
                 # 记录Log日志
@@ -232,7 +255,7 @@ class monitor_window(QtWidgets.QMainWindow, MainWindow):
 
             elif responseCode[0] == 2:
                 sendEmail.send_email(f"{timenow}: The {name} service has been restored!", f"{name} 服务已恢复 Restored\n恢复时间 Time：{timenow}\nRemark: {remark}")
-                print(f"\n第{i}次：{timenow} >>> {name} >>> 状态 Status: 服务恢复 Restored")
+                print(f"\n{i}: {timenow} >>> {name} >>> 状态 Status: 服务恢复 Restored")
                 # Log和输出————————————————————————————————————————————————————————————————————————
                 printf.append(f"{timenow} >>> {name} >>> 状态 Status: 服务恢复 Restored, {remark}")
                 # 记录Log日志
@@ -241,7 +264,7 @@ class monitor_window(QtWidgets.QMainWindow, MainWindow):
 
             elif responseCode[0] == 3:
                 sendEmail.send_email(f"{timenow}: The {name} server outage!", f"{name} 服务异常 Outage\n发生时间 Time：{timenow}\nRemark: {remark}")
-                print(f"\n第{i}次：{timenow} >>> {name} >>> 状态 Status:  服务异常 Outage")
+                print(f"\n{i}: {timenow} >>> {name} >>> 状态 Status:  服务异常 Outage")
                 # Log和输出————————————————————————————————————————————————————————————————————————
                 printf.append(f"{timenow} >>> {name} >>> 状态 Status: 服务异常 Outage, {remark}")
                 # 记录Log日志
@@ -250,7 +273,7 @@ class monitor_window(QtWidgets.QMainWindow, MainWindow):
 
             elif responseCode[0] == 4:
                 sendEmail.send_email(f"{timenow}: The {name} server outage!", f"{name} 服务持续异常 Outage\n发生时间 Time：{timenow}\nRemark: {remark}")
-                print(f"\n第{i}次：{timenow} >>> {name} >>> 状态 Status: 服务持续异常 Outage")
+                print(f"\n{i}: {timenow} >>> {name} >>> 状态 Status: 服务持续异常 Outage")
                 # Log和输出————————————————————————————————————————————————————————————————————————
                 printf.append(f"{timenow} >>> {name} >>> 状态 Status: 持续异常 Outage, {remark}")
 
@@ -260,11 +283,11 @@ class monitor_window(QtWidgets.QMainWindow, MainWindow):
 
             if responseCode[0] == 1 or responseCode[0] == 2:
                 # 将提示信息显示在状态栏中showMessage（‘提示信息’，显示时间（单位毫秒））
-                self.status.showMessage('>>>运行中 Runing...')
+                self.status.showMessage('>>>Runing...')
             else:
                 # 将提示信息显示在状态栏中showMessage（‘提示信息’，显示时间（单位毫秒））
                 self.status.showMessage(f'{name} Service Outage')
-            print(f"\n等待{interval}秒")
+            print(f"\nWaiting for {interval} s")
             i += 1
             lastStatus = result[0]
             time.sleep(interval)
@@ -279,15 +302,19 @@ class monitor_window(QtWidgets.QMainWindow, MainWindow):
             t.start()
 
 if __name__ == '__main__':
-    folder = os.path.expanduser('./APIMonitor/Log')
-    configDir = os.path.expanduser("./APIMonitor/Config")
-    mailSampleDir = os.path.expanduser("./APIMonitor/MialSample")
+    folder = os.path.expanduser('APIMonitor/Log')
+    configDir = os.path.expanduser("APIMonitor/Config")
+    mailSampleDir = os.path.expanduser("APIMonitor/MialSample")
+    print("folder:", folder)
+    print("configDir:", configDir)
+    print("mailSampleDir:", mailSampleDir)
     # if configuration.get_logdir() == "./APIMonitor/":
     #     folder = os.path.expanduser('./APIMonitor/Log')
     #     configDir = os.path.expanduser("./APIMonitor/Config")
     # else:
     #     folder = os.path.expanduser(str(configuration.get_logdir()+"Log"))
     #     configDir = os.path.expanduser(str(configuration.get_logdir()+"Config"))
+
     if not os.path.exists(folder):  # 判断是否存在文件夹如果不存在则创建为文件夹
         os.makedirs(folder)  # makedirs 创建文件时如果路径不存在会创建这个路径
     if not os.path.exists(mailSampleDir):
@@ -298,7 +325,7 @@ if __name__ == '__main__':
         configuration.write_config(configDir)
     elif not os.path.exists(str(configDir + "/Config.ini")):
         configuration.write_config(configDir)
-    time.sleep(1)
+    time.sleep(3)
     app = QtWidgets.QApplication(sys.argv)
     mainWindow = monitor_window()
     mainWindow.show()

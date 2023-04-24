@@ -117,7 +117,7 @@ def monitor_server(address):
         # 可选的内容
         payload_body = b'abcdefghijklmnopqrstuvwabcdefghi'
         dst_addr = socket.gethostbyname(host)
-        print("正在 Ping {0} [{1}] 具有 32 字节的数据:".format(host, dst_addr))
+        print("Pinging {0} [{1}] with 32 bytes of data:".format(host, dst_addr))
         # 发送3次
         for i in range(0, 5):
             # 请求ping数据包的二进制转换
@@ -128,7 +128,7 @@ def monitor_server(address):
             # 数据包传输时间
             times = ping.reply_ping(send_request_ping_time, rawsocket, data_Sequence + i)
             if times > 0:
-                print("来自 {0} 的回复: 字节=32 时间={1}ms".format(dst_addr, int(times * 1000)))
+                print("Reply from {0}: bytes=32 time={1}ms".format(dst_addr, int(times * 1000)))
                 return_time = int(times * 1000)
                 sumtime += return_time
                 if return_time > longtime:
@@ -140,7 +140,7 @@ def monitor_server(address):
 
             else:
                 status.append(False)
-                print("请求超时")
+                print("Timeout")
 
         if any(status):
             print(f"{host} is online (Ping)")

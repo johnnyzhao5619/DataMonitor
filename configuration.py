@@ -118,7 +118,7 @@ def write_config(configDir: str):
     info = configparser.ConfigParser()
     info.add_section("General")
     info.set("General", "app_name", "Monitor Everything")
-    info.set("General", "version", "0.5")
+    info.set("General", "version", "0.7")
 
     info.add_section("Logging")
     info.set("Logging", "log_level", "info")
@@ -226,4 +226,4 @@ def write_config(configDir: str):
     info.set("Monitor10", "interval", "900")
     info.set("Monitor10", "email", "johnnyzhao56192@gmail.com")
 
-    info.write(open((configDir), "w"))
+    info.write(open((configDir+"/Config.ini"), "w"))
