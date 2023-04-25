@@ -78,8 +78,6 @@ def send_email_test(subject: str, mail_type: str):
         print("An error occurred: ", e)
 
 
-
-
 def data_outage_massage(mail_type: str):
     mail_content = configuration.get_mail_formate('Outage')
     return mail_content

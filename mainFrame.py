@@ -34,13 +34,37 @@ class monitor_window(QtWidgets.QMainWindow, MainWindow):
         # 将提示信息显示在状态栏中showMessage（‘提示信息’，显示时间（单位毫秒））
         self.status.showMessage('>>Initializing...', 4000)
         title = configuration.read_general()
-        # 读取配置文件
-        self.read_config()
+
+
+
         # 创建窗口标题
         self.setWindowTitle(f'{title[0]} - v{title[1]}')
         self.switchButton.clicked.connect(self.start_monitor)
         self.configButton.clicked.connect(self.configuration)
         self.locationButton.clicked.connect(self.set_location)
+        auto_update = configuration.read_log_settings()
+        if auto_update == 1:
+            # 获取并更新各区域Target路口数量
+            self.get_expected_targets()
+        # 读取配置文件
+        self.read_config()
+
+    def get_expected_targets(self):
+        server_list = configuration.get_server_ip()
+        time.sleep(0.2)
+        for item in server_list:
+            region = item[0].title()
+            ip_address = item[1]
+            url = str(ip_address + f":6265/PSA/Services/GetExpectedTargets?region=China.{region.split('-')[0]}&format=XML&filter=All")
+            result = apiMonitor.monitor_get(self.parse_network_address(url))
+            expected_num = parseData.parse_expected_targets(result[1])
+            configuration.set_targetnum(region, expected_num)
+            # Log和输出————————————————————————————————————————————————————————————————————————
+            printf.append(f"{region} - Expected Targets is {expected_num}")
+            # 记录Log日志
+            logRecorder.record_to_log("Get Expected Targets", f"{region} Expected Target Signal Number is {expected_num}")
+        return
+
 
 
     def read_config(self):
@@ -91,7 +115,7 @@ class monitor_window(QtWidgets.QMainWindow, MainWindow):
             sys.exit()
 
     def configuration(self):
-        dir = f'{configuration.get_logdir()}Config/Config.ini'
+        dir = f'{configuration.get_logdir()}Config/MonitorList.ini'
         # dir2 = f'./mail_sample/OutageNotificationMailSample.html'
         print(dir)
         os.system(r"start %s" % dir)
@@ -246,39 +270,39 @@ class monitor_window(QtWidgets.QMainWindow, MainWindow):
 
             # 给予结果进行处理
             if responseCode[0] == 1:
-                print(f"\n{i}: {timenow} >>> {name} >>> 状态 Status: 服务正常 Available")
+                print(f"\n{i}: {timenow} >>> {name} >>> Status: Service/Server Available")
                 # Log和输出————————————————————————————————————————————————————————————————————————
-                printf.append(f"{timenow} >>> {name} >>> 状态 Status: 服务正常 Available, Remark: {remark}")
+                printf.append(f"{timenow} >>> {name} >>> Status: Service/Server Available, Remark: {remark}")
                 # 记录Log日志
-                logRecorder.record_to_log(f"{name} --- 类型 Type: {mtype} --- 地址 url: {url} --- 周期 Interval: {interval}秒", f">>{timenow} >> {name} >> 服务正常 Available >> Remarks: {remark}\n")
+                logRecorder.record_to_log(f"{name} --- Type: {mtype} --- url: {url} --- Interval: {interval} s", f">>{timenow} >> {name} >> Service/Server Available >> Remarks: {remark}\n")
                 logRecorder.save_to_csv(output, name)
 
             elif responseCode[0] == 2:
                 sendEmail.send_email(f"{timenow}: The {name} service has been restored!", f"{name} 服务已恢复 Restored\n恢复时间 Time：{timenow}\nRemark: {remark}")
-                print(f"\n{i}: {timenow} >>> {name} >>> 状态 Status: 服务恢复 Restored")
+                print(f"\n{i}: {timenow} >>> {name} >>> Status: Service/Server has been restored")
                 # Log和输出————————————————————————————————————————————————————————————————————————
-                printf.append(f"{timenow} >>> {name} >>> 状态 Status: 服务恢复 Restored, {remark}")
+                printf.append(f"{timenow} >>> {name} >>> Status: Service/Server has been restored, {remark}")
                 # 记录Log日志
-                logRecorder.record_to_log(f"{name} --- 类型 Type: {mtype} --- 地址 url: {url} --- 周期 Interval: {interval}秒", f">>{timenow} >> {name} >> 服务恢复 Restored >> Remarks: {remark}\n")
+                logRecorder.record_to_log(f"{name} --- Type: {mtype} --- url: {url} --- Interval: {interval}s", f">>{timenow} >> {name} >> Service/Server has been restored >> Remarks: {remark}\n")
                 logRecorder.save_to_csv(output, name)
 
             elif responseCode[0] == 3:
-                sendEmail.send_email(f"{timenow}: The {name} server outage!", f"{name} 服务异常 Outage\n发生时间 Time：{timenow}\nRemark: {remark}")
-                print(f"\n{i}: {timenow} >>> {name} >>> 状态 Status:  服务异常 Outage")
+                sendEmail.send_email(f"{timenow}: The {name} server outage!", f"{name} 服务异常 Outage\nTime：{timenow}\nRemark: {remark}")
+                print(f"\n{i}: {timenow} >>> {name} >>> Status: Service/Server Outage")
                 # Log和输出————————————————————————————————————————————————————————————————————————
-                printf.append(f"{timenow} >>> {name} >>> 状态 Status: 服务异常 Outage, {remark}")
+                printf.append(f"{timenow} >>> {name} >>> Status: Service/Server Outage, {remark}")
                 # 记录Log日志
-                logRecorder.record_to_log(f"{name} --- 类型 Type: {mtype} --- 地址 url: {url} --- 周期 Interval: {interval}秒", f">>{timenow} >> {name} >> 服务异常 Outage >> Remarks: {remark}\n")
+                logRecorder.record_to_log(f"{name} --- Type: {mtype} --- url: {url} --- Interval: {interval}s", f">>{timenow} >> {name} >> Service/Server Outage >> Remarks: {remark}\n")
                 logRecorder.save_to_csv(output, name)
 
             elif responseCode[0] == 4:
-                sendEmail.send_email(f"{timenow}: The {name} server outage!", f"{name} 服务持续异常 Outage\n发生时间 Time：{timenow}\nRemark: {remark}")
-                print(f"\n{i}: {timenow} >>> {name} >>> 状态 Status: 服务持续异常 Outage")
+                sendEmail.send_email(f"{timenow}: The {name} server outage!", f"{name} 服务持续异常 Continuous Server/Service Outage\n发生时间 Time：{timenow}\nRemark: {remark}")
+                print(f"\n{i}: {timenow} >>> {name} >>> Status: Continuous Server/Service Outage")
                 # Log和输出————————————————————————————————————————————————————————————————————————
-                printf.append(f"{timenow} >>> {name} >>> 状态 Status: 持续异常 Outage, {remark}")
+                printf.append(f"{timenow} >>> {name} >>> Status: Continuous Server/Service Outage, {remark}")
 
                 # 记录Log日志
-                logRecorder.record_to_log(f"{name} --- 类型 Type: {mtype} --- 地址 url: {url} --- 周期 Interval: {interval}秒", f">>{timenow} >> {name} >> 服务持续异常 Outage >> Remarks: {remark}\n")
+                logRecorder.record_to_log(f"{name} --- Type: {mtype} --- url: {url} --- Interval: {interval}s", f">>{timenow} >> {name} >> Continuous Server/Service Outage >> Remarks: {remark}\n")
                 logRecorder.save_to_csv(output, name)
 
             if responseCode[0] == 1 or responseCode[0] == 2:
@@ -308,12 +332,6 @@ if __name__ == '__main__':
     print("folder:", folder)
     print("configDir:", configDir)
     print("mailSampleDir:", mailSampleDir)
-    # if configuration.get_logdir() == "./APIMonitor/":
-    #     folder = os.path.expanduser('./APIMonitor/Log')
-    #     configDir = os.path.expanduser("./APIMonitor/Config")
-    # else:
-    #     folder = os.path.expanduser(str(configuration.get_logdir()+"Log"))
-    #     configDir = os.path.expanduser(str(configuration.get_logdir()+"Config"))
 
     if not os.path.exists(folder):  # 判断是否存在文件夹如果不存在则创建为文件夹
         os.makedirs(folder)  # makedirs 创建文件时如果路径不存在会创建这个路径
@@ -323,8 +341,10 @@ if __name__ == '__main__':
     if not os.path.exists(configDir):
         os.makedirs(configDir)
         configuration.write_config(configDir)
-    elif not os.path.exists(str(configDir + "/Config.ini")):
+    if not os.path.exists(str(configDir + "/Config.ini")):
         configuration.write_config(configDir)
+    if not os.path.exists(str(configDir + "/MonitorList.ini")):
+        configuration.write_monitor_list(configDir)
     time.sleep(3)
     app = QtWidgets.QApplication(sys.argv)
     mainWindow = monitor_window()

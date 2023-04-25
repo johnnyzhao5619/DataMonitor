@@ -6,8 +6,6 @@
 
 import json
 import xml.etree.ElementTree as ET
-import requests
-
 import configuration
 
 
@@ -20,7 +18,12 @@ def parse_data(name, data):
     elif servicetype == 'Phase Continuity':
         signal_num = parse_phase_continuity(region, data)
         return signal_num[0], signal_num[1]
+    elif servicetype == 'Live Target':
+        print('!!Type: Live Target')
+        live_signal_num = parse_live_targets(region, data)
+        return live_signal_num[0], live_signal_num[1]
     else:
+        print('!!Type: No Match')
         return True, "GET"
 
 def parse_wuxi(dataString):
@@ -46,8 +49,10 @@ def parse_wuxi(dataString):
 #     print("parse_wuxi(data):", num)
 
 
-def parse_phase_continuity(target:str, dataString:str):
-    target_number = int(configuration.get_targetnum(target))
+
+
+def parse_phase_continuity(target_region:str, dataString:str):
+    target_number = int(configuration.get_targetnum(target_region))
     incomplete_phase = []
     # 从字符串中读取xml
     root = ET.fromstring(dataString)
@@ -69,9 +74,52 @@ def parse_phase_continuity(target:str, dataString:str):
     else:
         return True, incomplete_phase
 
-# url = 'http://101.42.254.16:6741/PSA/Services/GetPhaseContinuity?region=China.Wuxi&format=xml'
-# response = requests.get(url)
-# if response.status_code == 200:
-#     print(f"GET request to {url} successful")
-#     num = parse_phase_continuity('Wuxi', response.text)
-#     print("parse_phase_continuity(data):", num)
+def parse_expected_targets(dataString: str):
+    scnr_list = []
+    # 从字符串中读取xml
+    root = ET.fromstring(dataString)
+    for target in root.iter('Target'):
+        scnr = target.get('scNr')
+        scnr_list.append(scnr)
+    expected_targets_num = len(scnr_list)
+    print("expected_targets_num:", expected_targets_num)
+    return expected_targets_num
+
+def parse_live_targets(target_region: str, dataString: str):
+    target_region = target_region.title()
+    target_number = int(configuration.get_targetnum(target_region))
+    print("target_number:", target_number)
+    print("target_region:", target_region)
+    scnr_list = []
+    # 从字符串中读取xml
+    root = ET.fromstring(dataString)
+    for target in root.iter('Target'):
+        if target.get('subRegion') == target_region.split('-')[0]:
+            scnr = target.get('scNr')
+            scnr_list.append(scnr)
+    print("scnr_list:",scnr_list)
+    live_targets_num = len(scnr_list)
+    print("live_targets_num:", live_targets_num)
+    if live_targets_num > target_number/1.5:
+        return True, live_targets_num
+    elif live_targets_num > target_number/2:
+        return False, live_targets_num
+    else:
+        return False, live_targets_num
+
+# url_1 = 'http://101.42.254.16:6265/PSA/Services/GetExpectedTargets?region=China.Wuxi&format=XML&filter=All'
+# url_2 = 'http://101.42.254.16:6265/PSA/Services/GetLiveTargets?region=China.Wuxi&format=XML&filter=All'
+# response_1 = requests.get(url_1)
+# if response_1.status_code == 200:
+#     print(f"GET request to {url_1} successful")
+#     num = parse_expected_targets('Wuxi', response_1.text)
+#     print("parse_expected_targets(data):", num)
+#
+# response_2 = requests.get(url_2)
+#
+# time.sleep(2)
+# if response_2.status_code == 200:
+#     print(f"GET request to {url_2} successful")
+#     num = parse_live_targets('Wuhan', response_2.text)
+#     print("parse_live_targets(data):", num)
+
