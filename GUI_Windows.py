@@ -6,9 +6,10 @@
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import QTimer
-import configuration
+
 
 class MainWindow(object):
+
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
         MainWindow.resize(900, 500)
@@ -17,10 +18,12 @@ class MainWindow(object):
         self.centralwidget.setObjectName("centralwidget")
         self.switchButton = QtWidgets.QPushButton(self.centralwidget)
         self.switchButton.setGeometry(QtCore.QRect(10, 10, 180, 35))
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed,
+                                           QtWidgets.QSizePolicy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.switchButton.sizePolicy().hasHeightForWidth())
+        sizePolicy.setHeightForWidth(
+            self.switchButton.sizePolicy().hasHeightForWidth())
         self.switchButton.setSizePolicy(sizePolicy)
         self.switchButton.setMaximumSize(QtCore.QSize(180, 35))
         font = QtGui.QFont()
@@ -40,10 +43,12 @@ class MainWindow(object):
         self.configButton.setObjectName("configButton")
         self.locationButton = QtWidgets.QPushButton(self.centralwidget)
         self.locationButton.setGeometry(QtCore.QRect(670, 10, 220, 35))
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed,
+                                           QtWidgets.QSizePolicy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.locationButton.sizePolicy().hasHeightForWidth())
+        sizePolicy.setHeightForWidth(
+            self.locationButton.sizePolicy().hasHeightForWidth())
         self.locationButton.setSizePolicy(sizePolicy)
         self.locationButton.setMaximumSize(QtCore.QSize(220, 35))
         font = QtGui.QFont()
@@ -54,10 +59,12 @@ class MainWindow(object):
         self.locationButton.setObjectName("locationButton")
         self.localTimeGroupBox = QtWidgets.QGroupBox(self.centralwidget)
         self.localTimeGroupBox.setGeometry(QtCore.QRect(10, 50, 435, 80))
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed,
+                                           QtWidgets.QSizePolicy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.localTimeGroupBox.sizePolicy().hasHeightForWidth())
+        sizePolicy.setHeightForWidth(
+            self.localTimeGroupBox.sizePolicy().hasHeightForWidth())
         self.localTimeGroupBox.setSizePolicy(sizePolicy)
         self.localTimeGroupBox.setMaximumSize(QtCore.QSize(435, 80))
         font = QtGui.QFont()
@@ -68,10 +75,12 @@ class MainWindow(object):
         self.localTimeGroupBox.setObjectName("localTimeGroupBox")
         self.localTimeLabel = QtWidgets.QLabel(self.localTimeGroupBox)
         self.localTimeLabel.setGeometry(QtCore.QRect(20, 30, 400, 40))
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed,
+                                           QtWidgets.QSizePolicy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.localTimeLabel.sizePolicy().hasHeightForWidth())
+        sizePolicy.setHeightForWidth(
+            self.localTimeLabel.sizePolicy().hasHeightForWidth())
         self.localTimeLabel.setSizePolicy(sizePolicy)
         self.localTimeLabel.setMaximumSize(QtCore.QSize(370, 50))
         font = QtGui.QFont()
@@ -83,10 +92,12 @@ class MainWindow(object):
         self.localTimeLabel.setObjectName("localTimeLabel")
         self.utcTimeGroupBox = QtWidgets.QGroupBox(self.centralwidget)
         self.utcTimeGroupBox.setGeometry(QtCore.QRect(455, 50, 435, 80))
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed,
+                                           QtWidgets.QSizePolicy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.utcTimeGroupBox.sizePolicy().hasHeightForWidth())
+        sizePolicy.setHeightForWidth(
+            self.utcTimeGroupBox.sizePolicy().hasHeightForWidth())
         self.utcTimeGroupBox.setSizePolicy(sizePolicy)
         self.utcTimeGroupBox.setMaximumSize(QtCore.QSize(435, 80))
         font = QtGui.QFont()
@@ -97,10 +108,12 @@ class MainWindow(object):
         self.utcTimeGroupBox.setObjectName("utcTimeGroupBox")
         self.utcTimeLabel = QtWidgets.QLabel(self.utcTimeGroupBox)
         self.utcTimeLabel.setGeometry(QtCore.QRect(20, 30, 400, 40))
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed,
+                                           QtWidgets.QSizePolicy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.utcTimeLabel.sizePolicy().hasHeightForWidth())
+        sizePolicy.setHeightForWidth(
+            self.utcTimeLabel.sizePolicy().hasHeightForWidth())
         self.utcTimeLabel.setSizePolicy(sizePolicy)
         self.utcTimeLabel.setMaximumSize(QtCore.QSize(370, 50))
         font = QtGui.QFont()
@@ -111,10 +124,12 @@ class MainWindow(object):
         self.utcTimeLabel.setObjectName("utcTimeLabel")
         self.line = QtWidgets.QFrame(self.centralwidget)
         self.line.setGeometry(QtCore.QRect(10, 130, 880, 20))
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed,
+                                           QtWidgets.QSizePolicy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.line.sizePolicy().hasHeightForWidth())
+        sizePolicy.setHeightForWidth(
+            self.line.sizePolicy().hasHeightForWidth())
         self.line.setSizePolicy(sizePolicy)
         self.line.setMaximumSize(QtCore.QSize(880, 20))
         self.line.setFrameShape(QtWidgets.QFrame.HLine)
@@ -141,12 +156,13 @@ class MainWindow(object):
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
-        self.switchButton.setText(_translate("MainWindow", "监控 Monitor"))
-        self.configButton.setText(_translate("MainWindow", "配置 Configuration"))
-        self.locationButton.setText(_translate("MainWindow", "时区 Time Zone"))
-        self.localTimeGroupBox.setTitle(_translate("MainWindow", "本地时间 Local Time(Time Zone:8)"))
-        self.localTimeLabel.setText(_translate("MainWindow", "2023-04-19 00:00:00"))
-        self.utcTimeGroupBox.setTitle(_translate("MainWindow", "UTC时间 UTC Time"))
-        self.utcTimeLabel.setText(_translate("MainWindow", "2023-04-19 00:00:00"))
-
-
+        self.switchButton.setText(_translate("MainWindow", "Monitor"))
+        self.configButton.setText(_translate("MainWindow", "Configuration"))
+        self.locationButton.setText(_translate("MainWindow", "Time Zone"))
+        self.localTimeGroupBox.setTitle(
+            _translate("MainWindow", "Local Time(Time Zone:8)"))
+        self.localTimeLabel.setText(
+            _translate("MainWindow", "2023-04-19 00:00:00"))
+        self.utcTimeGroupBox.setTitle(_translate("MainWindow", "UTC Time"))
+        self.utcTimeLabel.setText(
+            _translate("MainWindow", "2023-04-19 00:00:00"))

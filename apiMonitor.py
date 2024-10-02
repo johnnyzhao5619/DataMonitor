@@ -2,11 +2,13 @@
 # @Time : 2023-03-29 3:23 p.m.
 # @Author: weijiazhao
 # @File : apiMonitor.py
-# @Software: PyCharm
 
-import subprocess
 import requests
-from myPing import *
+import subprocess
+import socket
+import time
+
+from myPing import MyPing
 
 
 def monitor_get(url):
@@ -24,20 +26,21 @@ def monitor_get(url):
         try:
             response = requests.get(url, timeout=10)
             if response.status_code == 200:
-                print(f"{check}：GET request to {url} successful")
+                print(f"{check}: GET request to {url} successful")
                 return True, response.text
             else:
-                print(f"{check}：GET request to {url} failed with status code: {response.status_code}")
+                print(
+                    f"{check}: GET request to {url} failed with status code: {response.status_code}"
+                )
                 feedback = response.status_code
                 check += 1
                 # return False, response.status_code
         except:
-            print(f"{check}：GET request to {url} failed")
+            print(f"{check}: GET request to {url} failed")
             feedback = 'GET'
             check += 1
         time.sleep(2.7)
     return False, feedback
-
 
 
 def monitor_post(url, payload):
@@ -47,7 +50,9 @@ def monitor_post(url, payload):
             print(f"POST request to {url} successful")
             return True, response.text
         else:
-            print(f"POST request to {url} failed with status code: {response.status_code}")
+            print(
+                f"POST request to {url} failed with status code: {response.status_code}"
+            )
             feedback = response.status_code
             return False, feedback
     except:
@@ -58,14 +63,15 @@ def monitor_post(url, payload):
 
 def monitor_server(address):
     host = address[0]
-    if(address[1] == '' and address[2] == '' ):
+    if (address[1] == '' and address[2] == ''):
         url = 'https://' + address[0]
         port = 80
-    elif(address[1] != '' and address[2] == ''):
+    elif (address[1] != '' and address[2] == ''):
         url = 'https://' + address[0] + ':' + str(address[1])
         port = address[1]
-    elif(address[1] != '' and address[2] != ''):
-        url = 'https://' + address[0] + ':' + str(address[1]) + '/' + address[2]
+    elif (address[1] != '' and address[2] != ''):
+        url = 'https://' + address[0] + ':' + str(
+            address[1]) + '/' + address[2]
         port = address[1]
     elif (address[1] == '' and address[2] != ''):
         url = 'https://' + address[0] + '/' + address[2]
@@ -80,24 +86,6 @@ def monitor_server(address):
     except (ConnectionRefusedError, socket.timeout):
         print(f"{host} is offline (Socket)")
         pass
-
-    # Ping
-    # try:
-    #     # Method 2: Use subprocess to send a ping request
-    #     subprocess.check_output(['ping', '-c', '1', '-W', '5', host])
-    #     print(f"{host} is online (Ping)")
-    #     return True
-    # except subprocess.CalledProcessError:
-    #     print(f"{host} is offline (Ping)")
-    #     pass
-    #
-    # try:
-    #     with socket.create_connection((host, port), timeout=5):
-    #         print(f"{host} is online (Ping)")
-    #         return True
-    # except OSError:
-    #     print(f"{host} is offline (Ping)")
-    #     pass
 
     try:
         # Method 2: Use subprocess to send a ping request
@@ -117,18 +105,23 @@ def monitor_server(address):
         # 可选的内容
         payload_body = b'abcdefghijklmnopqrstuvwabcdefghi'
         dst_addr = socket.gethostbyname(host)
-        print("Pinging {0} [{1}] with 32 bytes of data:".format(host, dst_addr))
+        print("Pinging {0} [{1}] with 32 bytes of data:".format(
+            host, dst_addr))
         # 发送3次
         for i in range(0, 5):
             # 请求ping数据包的二进制转换
-            icmp_packet = ping.request_ping(data_type, data_code, data_checksum, data_ID, data_Sequence + i,
-                                            payload_body)
+            icmp_packet = ping.request_ping(data_type, data_code,
+                                            data_checksum, data_ID,
+                                            data_Sequence + i, payload_body)
             # 连接套接字,并将数据发送到套接字
-            send_request_ping_time, rawsocket = ping.raw_socket(dst_addr, icmp_packet)
+            send_request_ping_time, rawsocket = ping.raw_socket(
+                dst_addr, icmp_packet)
             # 数据包传输时间
-            times = ping.reply_ping(send_request_ping_time, rawsocket, data_Sequence + i)
+            times = ping.reply_ping(send_request_ping_time, rawsocket,
+                                    data_Sequence + i)
             if times > 0:
-                print("Reply from {0}: bytes=32 time={1}ms".format(dst_addr, int(times * 1000)))
+                print("Reply from {0}: bytes=32 time={1}ms".format(
+                    dst_addr, int(times * 1000)))
                 return_time = int(times * 1000)
                 sumtime += return_time
                 if return_time > longtime:
@@ -152,11 +145,11 @@ def monitor_server(address):
         print(f"{host} is offline (Ping)")
         pass
 
-
     # ICMP
     try:
         # Method 3: Use ICMP request to check if server responds
-        with socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP) as sock:
+        with socket.socket(socket.AF_INET, socket.SOCK_RAW,
+                           socket.IPPROTO_ICMP) as sock:
             # Create a dummy ICMP packet
             dummy_packet = b'\x08\x00\x7d\x4b\x00\x00\x00\x00PingData'
             # Send the ICMP packet to the server
@@ -173,8 +166,4 @@ def monitor_server(address):
 
     # If none of the methods succeed, the server is offline
     print(f"{host} is offline")
-    return False, 'SERVER'
-
-# url = ["36.155.95.59", 28080, "JKS_Server/SysInfo1"]
-# a = monitor_get(url)
-# print("key point3:", a)
+    return [False, 'SERVER']

@@ -3,7 +3,6 @@
 # @Author: weijiazhao
 # @File : mainFrame.py
 # @Software: PyCharm
-import subprocess
 
 from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import QInputDialog
@@ -23,175 +22,259 @@ import logRecorder
 switch_status = True
 printf = []
 
+
 class monitor_window(QtWidgets.QMainWindow, MainWindow):
     global switch_status
     global printf
-    def __init__(self):
+
+    def __init__(self) -> None:
+        """
+        Initialize the main window of the application.
+
+        This function will initialize the main window with UI components and
+        set up the connections between buttons and their corresponding functions.
+        It will also set the title of the window based on the configuration in
+        the json file.
+
+        :return: None
+        """
         super().__init__()
         self.setupUi(self)
-        # 实例化创建状态栏
         self.status = self.statusBar()
-        # 将提示信息显示在状态栏中showMessage（‘提示信息’，显示时间（单位毫秒））
         self.status.showMessage('>>Initializing...', 4000)
-        title = configuration.read_general()
+        title: list[str, str] = configuration.read_general()
 
-
-
-        # 创建窗口标题
         self.setWindowTitle(f'{title[0]} - v{title[1]}')
         self.switchButton.clicked.connect(self.start_monitor)
         self.configButton.clicked.connect(self.configuration)
         self.locationButton.clicked.connect(self.set_location)
-        auto_update = configuration.read_log_settings()
+        auto_update: int = configuration.read_log_settings()
         if auto_update == 1:
-            # 获取并更新各区域Target路口数量
             self.get_expected_targets()
-        # 读取配置文件
         self.read_config()
 
-    def get_expected_targets(self):
-        server_list = configuration.get_server_ip()
+    def get_expected_targets(self) -> None:
+        """
+        Get expected target signal numbers from servers.
+
+        This function will get the expected target signal numbers for each
+        region from the servers specified in the configuration file. It will
+        then save the numbers to the configuration file and log them to the
+        log file.
+
+        :return: None
+        """
+        server_list: list[tuple[str, str]] = configuration.get_server_ip()
         time.sleep(0.2)
         for item in server_list:
-            region = item[0].title()
-            ip_address = item[1]
-            url = str(ip_address + f":6265/PSA/Services/GetExpectedTargets?region=China.{region.split('-')[0]}&format=XML&filter=All")
-            result = apiMonitor.monitor_get(self.parse_network_address(url))
-            expected_num = parseData.parse_expected_targets(result[1])
+            region: str = item[0].title()
+            ip_address: str = item[1]
+            url: str = (
+                ip_address +
+                f":6265/PSA/Services/GetExpectedTargets?region=China.{region.split('-')[0]}&format=XML&filter=All"
+            )
+            result: tuple[int, str] = apiMonitor.monitor_get(
+                self.parse_network_address(url))
+            expected_num: int = parseData.parse_expected_targets(result[1])
             configuration.set_targetnum(region, expected_num)
-            # Log和输出————————————————————————————————————————————————————————————————————————
+
+            # Log/Output————————————————————————————————
             printf.append(f"{region} - Expected Targets is {expected_num}")
-            # 记录Log日志
-            logRecorder.record_to_log("Get Expected Targets", f"{region} Expected Target Signal Number is {expected_num}")
+            # entry to Log
+            logRecorder.record_to_log(
+                "Get Expected Targets",
+                f"{region} Expected Target Signal Number is {expected_num}")
         return
 
+    def read_config(self) -> None:
+        """
+        Read the monitor list from the configuration file and output the
+        configuration information.
 
-
-    def read_config(self):
-        monitorList = configuration.read_monitor_list()
-        # self.printf(f"Read {len(monitorList)} Monitor Items as following:")
+        :return: None
+        """
+        monitorList: list[dict[str, str]] = configuration.read_monitor_list()
         printf.append(f"Read {len(monitorList)} Monitor Items as following:")
-        logRecorder.record_to_log("Start Monitor", f"Read {len(monitorList)} Monitor Items")
+        logRecorder.record_to_log("Start Monitor",
+                                  f"Read {len(monitorList)} Monitor Items")
         for i in range(len(monitorList)):
-            name = monitorList[i]['name']
-            url = monitorList[i]['url']
-            interval = monitorList[i]['interval']
-            mtype = monitorList[i]['type']
-            print("name:", name)
+            name: str = monitorList[i]['name']
+            url: str = monitorList[i]['url']
+            interval: str = monitorList[i]['interval']
+            mtype: str = monitorList[i]['type']
 
-            # Log和输出————————————————————————————————————————————————————————————————————————
-            # self.printf(f"{i+1}. {name} --- Type: {mtype} --- Url: {url} --- Interval: {interval}s")
-            printf.append(f"{i + 1}. {name} --- Type: {mtype} --- Url: {url} --- Interval: {interval}s")
-            # 记录Log日志
-            logRecorder.record_to_log("Read Configuration",
-                                      f"{i + 1}.{name} --- Type: {mtype} --- Url: {url} --- Interval: {interval}s")
+            # Log/Output————————————————————————————————
+            printf.append(
+                f"{i+1}.{name} - Type:{mtype} - url:{url} - Interval:{interval} s"
+            )
+            # entry to Log
+            logRecorder.record_to_log(
+                "Read Configuration",
+                f"{i+1}.{name} - Type:{mtype} - url:{url} - Interval:{interval} s"
+            )
 
+    def start_monitor(self) -> None:
+        """
+        Start or stop the monitor based on the current status of the switch.
 
-    def start_monitor(self):
+        If the switch is currently on, it will start the monitor and switch
+        the button to say 'Close'. If the switch is currently off, it will
+        stop the monitor and exit the program.
+
+        :return: None
+        """
         global switch_status
-        if switch_status == True:
-            monitorList = configuration.read_monitor_list()
-            # # self.printf(f"目前读取到{len(monitorList)}个监控项，分别是：")
-            # printf.append(f"目前读取到{len(monitorList)}个监控项，分别是：")
-            # logRecorder.record_to_log("Start Monitor", f"目前读取到{len(monitorList)}个监控项")
-            # for i in range(len(monitorList)):
-            #     name = monitorList[i]['name']
-            #     url = monitorList[i]['url']
-            #     interval = monitorList[i]['interval']
-            #     mtype = monitorList[i]['type']
-            #     print("name:", name)
-            #
-            #     # Log和输出————————————————————————————————————————————————————————————————————————
-            #     # self.printf(f"{i+1}. {name} --- 类型: {mtype} --- 地址: {url} --- 周期: {interval}秒")
-            #     printf.append(f"{i+1}. {name} --- 类型: {mtype} --- 地址: {url} --- 周期: {interval}秒")
-            #     # 记录Log日志
-            #     logRecorder.record_to_log("读取配置 Read Configuration", f"{i+1}.{name} --- 类型 Type: {mtype} --- 地址 url: {url} --- 周期 Interval: {interval}秒")
+        if switch_status is True:
+            monitor_list: list[dict[str,
+                                    str]] = configuration.read_monitor_list()
+            self.run_with_threads(len(monitor_list), monitor_list)
 
-            self.run_with_threads(len(monitorList), monitorList)
-
-            self.switchButton.setText('关闭 Close')
+            self.switchButton.setText('Close')
             switch_status = False
-        elif switch_status == False:
+        elif switch_status is False:
             sys.exit()
 
-    def configuration(self):
-        dir = f'{configuration.get_logdir()}Config/MonitorList.ini'
-        # dir2 = f'./mail_sample/OutageNotificationMailSample.html'
+    def configuration(self) -> None:
+        """
+        Open the configuration file for the monitor list in the default text
+        editor of the system.
+
+        This function will open the configuration file specified in the
+        configuration file in the default text editor of the system. The user
+        can then edit the configuration file to change the monitor items.
+
+        :return: None
+        """
+        dir: str = f'{configuration.get_logdir()}Config/MonitorList.ini'
+        # dir2: str = f'./mail_sample/OutageNotificationMailSample.html'
         print(dir)
-        os.system(r"start %s" % dir)
-        # os.system(r"start %s" % dir2)
+        os.system(f"start {dir}")
 
-        # try:
-        #     os.startfile(dir)
-        # except:
-        #     subprocess.Popen('xdg-open', dir)
+    def set_location(self) -> None:
+        """
+        Opens a dialog box to let the user set the time zone, then update the
+        time zone displayed in the local time group box and save the time zone
+        to the configuration file.
 
-    def set_location(self):
-        time_zone = int(configuration.get_timezone())
-        # 后面四个数字的作用依次是 初始值 最小值 最大值 步幅
-        time_zone, ok = QInputDialog.getInt(self, "输入时区", "请输入所在时区(整数):", time_zone, -12, 14, 1)
-        self.localTimeGroupBox.setTitle(f'本地时间 Local Time(Time Zone:{time_zone})')
+        :return: None
+        """
+        time_zone: int = int(configuration.get_timezone())
+        time_zone, ok = QInputDialog.getInt(
+            self, "Enter time zone", "Please enter your time zone (integer):",
+            time_zone, -12, 14, 1)
+        self.localTimeGroupBox.setTitle(f'Local Time(Time Zone:{time_zone})')
         configuration.set_timezone(time_zone)
-        # self.echo(time_zone)
 
-    def update_clock(self):
+    def update_clock(self) -> None:
+        """
+        Update the clock displayed in the local time group box and utc time label.
+
+        This function will get the current time in the specified time zone and
+        update the clock displayed in the local time group box. It will also
+        update the utc time label. The function will also check if there are
+        any messages in the printf list and display them in the monitor
+        browser if there are.
+
+        :return: None
+        """
         global printf
-        time_zone = int(configuration.get_timezone())
+        time_zone: int = int(configuration.get_timezone())
         # current_time = QTime.currentTime().toString("Y-M-D hh:mm:ss")
-        utc_time = datetime.datetime.utcnow()
-        current_time = datetime.datetime.utcnow() + datetime.timedelta(hours=time_zone)
+        utc_time: datetime.datetime = datetime.datetime.utcnow()
+        current_time: datetime.datetime = datetime.datetime.utcnow(
+        ) + datetime.timedelta(hours=time_zone)
         self.localTimeLabel.setText(current_time.strftime('%Y-%m-%d %H:%M:%S'))
         self.utcTimeLabel.setText(utc_time.strftime('%Y-%m-%d %H:%M:%S'))
         while len(printf) > 0:
             for i in printf:
-                self.monitorBrowser.append(i)  # 在指定的区域显示提示信息
+                self.monitorBrowser.append(i)  # show information in monitor
                 self.cursot = self.monitorBrowser.textCursor()
                 self.monitorBrowser.moveCursor(self.cursot.End)
             printf.clear()
             QtWidgets.QApplication.processEvents()
 
+    def perform_task(self, url: str, request_type: str, name: str,
+                     email: str) -> list[bool, str]:
+        """
+        Perform a request to the specified url with the specified request type.
 
-    def perform_task(self, url, type, name, email):
-        check = 0
-        # 发送请求
-        if type == "GET":
-            # 返回值：结果(bool)，内容(str)
-            # print("monitor_get url:", url)
+        Args:
+            url (str): The url to request.
+            request_type (str): The type of request to make, one of "GET", "POST", or "SERVER".
+            name (str): The name of the request.
+            email (str): The email to send result to.
+
+        Returns:
+            list[bool, str]: A list containing the result of the request as a boolean and a string describing the result.
+        """
+
+        def handle_request(result: tuple[bool, str]) -> None:
+            """
+            Handle the request result by printing and potentially logging it.
+
+            Args:
+                result (tuple[bool, str]): A tuple containing the result of the request as a boolean and a string describing the result.
+            """
+            print(f"{request_type.upper()}-Result: {result}")
+            # TODO: add logging logic if needed
+
+        if request_type == "GET":
             result = apiMonitor.monitor_get(url)
-            # 当成功Get到结果时，进一步对获取到的字符串进行解析
-            if result[0] == True:
-                # 返回值：结果(bool)，内容(str)
+            if result[0]:
                 result = parseData.parse_data(name, result[1])
-                print("GET-Result:", result)
-                return result
-            else:
-                # print("check1:", check)
-                # while check < 2:
-                #     print("check2:", check)
-                #     result = apiMonitor.monitor_get(url)
-                #     if result[0] == True:
-                #         print("GET-Result:", result)
-                #         return result
-                #     else:
-                #         print("check3:", check)
-                #         check += 1
-                print("GET-Result:", result)
-                return result
-        elif type == "POST":
+            handle_request(result)
+            return result
+        elif request_type == "POST":
             result = apiMonitor.monitor_post(url, "1")
-            print("POST-Result:", result)
+            handle_request(result)
             return result
-        elif type == "SERVER":
+        elif request_type == "SERVER":
             result = apiMonitor.monitor_server(url)
-            print("SERVER-Result:", result)
+            handle_request(result)
             return result
+        else:
+            # Handle unknown request type
+            handle_request((False, "Unknown request type"))
+            return [False, "Unknown request type"]
 
-    # 格式化url
-    def parse_network_address(self, address):
+        # # send query to the url
+        # if request_type == "GET":
+        #     # Returns: result(bool), content(str)
+        #     result: list[bool, str] = apiMonitor.monitor_get(url)
+        #     # When GET is successful, further parse the string
+        #     if result[0] is True:
+        #         # Returns: result(bool), content(str)
+        #         result: list[bool, str] = parseData.parse_data(name, result[1])
+        #         print("GET-Result:", result)
+        #         return result
+        #     else:
+        #         print("GET-Result:", result)
+        #         return result
+        # elif request_type == "POST":
+        #     result: list[bool, str] = apiMonitor.monitor_post(url, "1")
+        #     print("POST-Result:", result)
+        #     return result
+        # elif request_type == "SERVER":
+        #     result: list[bool, str] = apiMonitor.monitor_server(url)
+        #     print("SERVER-Result:", result)
+        #     return result
+
+    # format url
+    def parse_network_address(self, address: str) -> list[str, int, str]:
         """
-        Parses a network address string in the format "http(s)://url:port/suffix" and returns a list
-        containing the URL, port, and suffix.
+        Parse a network address into its components.
+
+        Parameters:
+            address (str): The network address to be parsed.
+
+        Returns:
+            list: A list of [url (str), port (int), suffix (str)] where url is
+            the url of the network address, port is the port number of the
+            network address and suffix is the suffix of the network address
+            after the port number.
+
         """
+        # Remove protocol prefix
         if address.startswith("http://"):
             url_port_suffix = address[len("http://"):]
         elif address.startswith("https://"):
@@ -199,113 +282,176 @@ class monitor_window(QtWidgets.QMainWindow, MainWindow):
         else:
             url_port_suffix = address
 
-        # print("url_port_suffix:", url_port_suffix)
+        # Split URL into base and suffix at the first '/'
+        # and port if specified
+        url_port_match = url_port_suffix.split('/', 1)
+        url_port = url_port_match[0]
+        suffix = url_port_match[1] if len(url_port_match) > 1 else ''
 
-        if '/' in url_port_suffix:
-            url_port, suffix = url_port_suffix.split('/', 1)
-        else:
-            url_port = url_port_suffix
-            suffix = ''
+        # Extract port number if specified
+        port_match = url_port.split(':')
+        url = port_match[0]
+        port = int(port_match[1]) if len(port_match) > 1 else ''
 
-        if ':' in url_port:
-            url, port = url_port.split(':')
-            port = int(port)
-        else:
-            url = url_port
-            port = ''
-
+        print('url:', url, '\nport:', port, '\nsuffix:', suffix)
         return [url, port, suffix]
 
-    # 周期性运行
-    def run_periodically(self, monitorInfo):
+        # if '/' in url_port_suffix:
+        #     url_port, suffix = url_port_suffix.split('/', 1)
+        # else:
+        #     url_port = url_port_suffix
+        #     suffix = ''
+
+        # if ':' in url_port:
+        #     url, port = url_port.split(':')
+        #     port = int(port)
+        # else:
+        #     url = url_port
+        #     port = ''
+        # print('url:', url, '\nport:', port, '\nsuffix:', suffix)
+        # return [url, port, suffix]
+
+    def run_periodically(self, monitor_info: dict[str, str]) -> None:
+        """
+        Run the monitoring process in a loop.
+
+        Parameters:
+            monitor_info (dict[str, str]): A dictionary containing the
+                configuration information of the monitor, including the
+                name, url, type and interval of the monitor, the email
+                address to send the notification to.
+
+        Returns:
+            None
+
+        """
         time_zone = int(configuration.get_timezone())
         i = 1
-        lastStatus = True
+        last_status = True
         while True:
-            timenow = datetime.datetime.utcnow() + datetime.timedelta(hours=time_zone)
-            # 获取配置信息
-            name = monitorInfo['name']
-            url = monitorInfo['url']
-            mtype = monitorInfo['type']
-            interval = int(monitorInfo['interval'])
-            email = monitorInfo['email']
+            timenow = datetime.datetime.utcnow() + datetime.timedelta(
+                hours=time_zone)
+            # Get the configuration
+            name = monitor_info['name']
+            url = monitor_info['url']
+            mtype = monitor_info['type']
+            interval = int(monitor_info['interval'])
+            email = monitor_info['email']
 
-            # 格式化url, url, port, suffix
+            # format the url, port, suffix
             url = self.parse_network_address(url)
 
-            # 触发状态监控监控流程, 返回值：bool, string
+            # start the monitoring process, return value: bool, string
             result = self.perform_task(url, mtype, name, email)
 
-            # 判断结果
-            # 当状态正常，且跟上一次状态一致时，无操作，等待下一次
-            if result[0] == True and result[0] == lastStatus:
-                responseCode = [1, 'Available']    # 服务正常
+            # when the result is True and the last status is True
+            # the server/service is running well.
+            # no action
+            if result[0] is True and result[0] == last_status:
+                response_code = [1, 'Available']
 
+            # When the result is True and the last status is False
+            # the server/service has been restored.
+            # send a 'restored' email.
+            elif result[0] is True and result[0] != last_status:
+                response_code = [2, 'Restored']
 
-            # 当状态正常，且跟上一次状态不一致时，发送数据恢复邮件
-            elif result[0] == True and result[0] != lastStatus:
-                responseCode = [2, 'Restored'] # 服务恢复
+            # When the result is False and differs from the previous status
+            # the server/service in an outage state.
+            # send a outage alert.
+            elif result[0] is False and result[0] != last_status:
+                response_code = [3, 'Outage']
 
-            # 当状态不正常，且跟上一次状态不一致时，发送数据中断告警邮件
-            elif result[0] == False and result[0] != lastStatus:
-                responseCode = [3, 'Outage']   # 服务异常
-
-
-            # 当状态不正常，且跟上一次状态一致时，数据持续异常
-            elif result[0] == False and result[0] == lastStatus:
-                responseCode = [4, 'Outage']   # 服务持续异常
-
+            # When the result is False and consistent with the previous status
+            # the server/service in an outage state.
+            elif result[0] is False and result[0] == last_status:
+                response_code = [4, 'Outage']
 
             if type(result[1]).__name__ == 'list':
                 remark = len(result[1])
-                output = [timenow, name, mtype, url, interval, len(result[1])] + result[1]
+                output = [timenow, name, mtype, url, interval,
+                          len(result[1])] + result[1]
             else:
                 remark = result[1]
                 output = [timenow, name, mtype, url, interval, result[1]]
 
-
             # 'StatusCode', 'Status', 'Time', 'Name', 'Type', 'URL', 'Interval', 'Content', 'Remarks'
-            output = responseCode + output
-
+            # output = response_code + output
+            output = response_code.append(output)
 
             # 给予结果进行处理
-            if responseCode[0] == 1:
-                print(f"\n{i}: {timenow} >>> {name} >>> Status: Service/Server Available")
+            if response_code[0] == 1:
+                print(f"\n{i}: {timenow} > {name} > Status: \
+                    Service/Server is running well")
                 # Log和输出————————————————————————————————————————————————————————————————————————
-                printf.append(f"{timenow} >>> {name} >>> Status: Service/Server Available, Remark: {remark}")
+                printf.append(
+                    f"{timenow} >> {name} >> Status: Service/Server Available, Remark: {remark}"
+                )
                 # 记录Log日志
-                logRecorder.record_to_log(f"{name} --- Type: {mtype} --- url: {url} --- Interval: {interval} s", f">>{timenow} >> {name} >> Service/Server Available >> Remarks: {remark}\n")
+                logRecorder.record_to_log(
+                    f"{name} - Type: {mtype} - url: {url} - Interval: {interval} s",
+                    f">>{timenow} >> {name} >> Service/Server Available >> Remarks: {remark}\n"
+                )
                 logRecorder.save_to_csv(output, name)
 
-            elif responseCode[0] == 2:
-                sendEmail.send_email(f"{timenow}: The {name} service has been restored!", f"{name} 服务已恢复 Restored\n恢复时间 Time：{timenow}\nRemark: {remark}")
-                print(f"\n{i}: {timenow} >>> {name} >>> Status: Service/Server has been restored")
+            elif response_code[0] == 2:
+                sendEmail.send_email(
+                    f"{timenow}: The {name} service were restored!",
+                    f"{name} Service Restored\nRestored Time：{timenow}\nRemark: {remark}"
+                )
+                print(
+                    f"\n{i}: {timenow} >> {name} >> Status: Service/Server were restored"
+                )
                 # Log和输出————————————————————————————————————————————————————————————————————————
-                printf.append(f"{timenow} >>> {name} >>> Status: Service/Server has been restored, {remark}")
+                printf.append(
+                    f"{timenow} >> {name} >> Status: Service/Server were restored, {remark}"
+                )
                 # 记录Log日志
-                logRecorder.record_to_log(f"{name} --- Type: {mtype} --- url: {url} --- Interval: {interval}s", f">>{timenow} >> {name} >> Service/Server has been restored >> Remarks: {remark}\n")
+                logRecorder.record_to_log(
+                    f"{name} - Type: {mtype} - url: {url} - Interval: {interval}s",
+                    f">>{timenow} >> {name} >> Service/Server were restored >> Remarks: {remark}\n"
+                )
                 logRecorder.save_to_csv(output, name)
 
-            elif responseCode[0] == 3:
-                sendEmail.send_email(f"{timenow}: The {name} server outage!", f"{name} 服务异常 Outage\nTime：{timenow}\nRemark: {remark}")
-                print(f"\n{i}: {timenow} >>> {name} >>> Status: Service/Server Outage")
+            elif response_code[0] == 3:
+                sendEmail.send_email(
+                    f"{timenow}: The {name} server outage!",
+                    f"{name} Outage\nTime: {timenow}\nRemark: {remark}")
+                print(
+                    f"\n{i}: {timenow} >> {name} >> Status: Service/Server Outage"
+                )
                 # Log和输出————————————————————————————————————————————————————————————————————————
-                printf.append(f"{timenow} >>> {name} >>> Status: Service/Server Outage, {remark}")
+                printf.append(
+                    f"{timenow} >> {name} >> Status: Service/Server Outage, {remark}"
+                )
                 # 记录Log日志
-                logRecorder.record_to_log(f"{name} --- Type: {mtype} --- url: {url} --- Interval: {interval}s", f">>{timenow} >> {name} >> Service/Server Outage >> Remarks: {remark}\n")
+                logRecorder.record_to_log(
+                    f"{name} - Type: {mtype} - url: {url} - Interval: {interval}s",
+                    f">>{timenow} >> {name} >> Service/Server Outage >> Remarks: {remark}\n"
+                )
                 logRecorder.save_to_csv(output, name)
 
-            elif responseCode[0] == 4:
-                sendEmail.send_email(f"{timenow}: The {name} server outage!", f"{name} 服务持续异常 Continuous Server/Service Outage\n发生时间 Time：{timenow}\nRemark: {remark}")
-                print(f"\n{i}: {timenow} >>> {name} >>> Status: Continuous Server/Service Outage")
+            elif response_code[0] == 4:
+                sendEmail.send_email(
+                    f"{timenow}: The {name} server outage!",
+                    f"{name} Continuous Server/Service Outage\nSignal outage occurred: {timenow}\nRemark: {remark}"
+                )
+                print(
+                    f"\n{i}: {timenow} >>> {name} >>> Status: Continuous Server/Service Outage"
+                )
                 # Log和输出————————————————————————————————————————————————————————————————————————
-                printf.append(f"{timenow} >>> {name} >>> Status: Continuous Server/Service Outage, {remark}")
+                printf.append(
+                    f"{timenow} >>> {name} >>> Status: Continuous Server/Service Outage, {remark}"
+                )
 
                 # 记录Log日志
-                logRecorder.record_to_log(f"{name} --- Type: {mtype} --- url: {url} --- Interval: {interval}s", f">>{timenow} >> {name} >> Continuous Server/Service Outage >> Remarks: {remark}\n")
+                logRecorder.record_to_log(
+                    f"{name} --- Type: {mtype} --- url: {url} --- Interval: {interval}s",
+                    f">>{timenow} >> {name} >> Continuous Server/Service Outage >> Remarks: {remark}\n"
+                )
                 logRecorder.save_to_csv(output, name)
 
-            if responseCode[0] == 1 or responseCode[0] == 2:
+            if response_code[0] == 1 or response_code[0] == 2:
                 # 将提示信息显示在状态栏中showMessage（‘提示信息’，显示时间（单位毫秒））
                 self.status.showMessage('>>>Runing...')
             else:
@@ -313,17 +459,19 @@ class monitor_window(QtWidgets.QMainWindow, MainWindow):
                 self.status.showMessage(f'{name} Service Outage')
             print(f"\nWaiting for {interval} s")
             i += 1
-            lastStatus = result[0]
+            last_status = result[0]
             time.sleep(interval)
 
     # 根据需求，为每个监控项启动独立的线程
-    def run_with_threads(self, num_threads:int, monitorList:list):
+    def run_with_threads(self, num_threads: int, monitorList: list):
         for i in range(num_threads):
             monitorInfo = monitorList[i]
-            t = threading.Thread(name=monitorInfo['name'], target=self.run_periodically, args=(monitorInfo,))
-            # t = threading.Thread(target=super().run_periodically, args=(monitorInfo,))
+            t = threading.Thread(name=monitorInfo['name'],
+                                 target=self.run_periodically,
+                                 args=(monitorInfo, ))
             t.setDaemon(True)
             t.start()
+
 
 if __name__ == '__main__':
     folder = os.path.expanduser('APIMonitor/Log')

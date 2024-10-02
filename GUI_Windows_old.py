@@ -2,22 +2,20 @@
 # @Time : 2023-03-31 12:32 a.m.
 # @Author: weijiazhao
 # @File : GUI_Mac.py
-# @Software: PyCharm
 
-
-import sys
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QGroupBox, QPushButton, QLabel, QApplication, \
-    QInputDialog
+from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout, QPushButton
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import QTimer
 import configuration
 
 # time_zone = configuration.get_timezone()
 
+
 # 主窗口类
 class MainWindow(object):
+
     def setupUi(self, Monitor):
-    # def __init__(self):
+        # def __init__(self):
         global switch
 
         Monitor.setMaximumSize(QtCore.QSize(890, 580))
@@ -27,19 +25,18 @@ class MainWindow(object):
         self.MonitorLayout.setGeometry(QtCore.QRect(0, 0, 890, 580))
         self.mainLayout = QtWidgets.QVBoxLayout(self.MonitorLayout)
 
-
         # 创建按钮
         self.buttonLayout = QHBoxLayout(Monitor)
 
-        self.switchButton = QPushButton('监控 Monitor')
+        self.switchButton = QPushButton('Monitor')
         self.switchButton.setMaximumSize(QtCore.QSize(180, 40))
         self.switchButton.setMinimumSize(QtCore.QSize(180, 40))
 
-        self.configButton = QPushButton('配置 Configuration')
+        self.configButton = QPushButton('Configuration')
         self.configButton.setMaximumSize(QtCore.QSize(200, 40))
         self.configButton.setMinimumSize(QtCore.QSize(200, 40))
 
-        self.locationButton = QPushButton('时区 Time Zone')
+        self.locationButton = QPushButton('Time Zone')
         self.locationButton.setMaximumSize(QtCore.QSize(200, 40))
         self.locationButton.setMinimumSize(QtCore.QSize(200, 40))
 
@@ -59,7 +56,8 @@ class MainWindow(object):
 
         # 创建时钟
         # 创建localTimeGroupBox
-        self.localTimeGroupBox = QtWidgets.QGroupBox(f'本地时间 Local Time(Time Zone: {configuration.get_timezone()})')
+        self.localTimeGroupBox = QtWidgets.QGroupBox(
+            f'Local Time(Time Zone: {configuration.get_timezone()})')
         # self.localTimeGroupBox.setGeometry(QtCore.QRect(10, 70, 340, 80))
 
         # 为GroupBox创建设置布局
@@ -86,7 +84,7 @@ class MainWindow(object):
         self.localTimeLayout.addWidget(self.localTimeLabel)
 
         # 创建UTCTimeGroupBox
-        self.utcTimeGroupBox = QtWidgets.QGroupBox('UTC时间 UTC Time')
+        self.utcTimeGroupBox = QtWidgets.QGroupBox('UTC Time')
         # self.utcTimeGroupBox.setGeometry(QtCore.QRect(350, 70, 340, 80))
 
         # 为GroupBox创建设置布局
@@ -145,47 +143,3 @@ class MainWindow(object):
         self.monitorBrowser.setFont(font)
         self.mainLayout.addWidget(self.monitorBrowser)
         self.mainLayout.addStretch(1)
-
-
-
-    # def start_monitor(self, status):
-    #     global switch
-    #     if status == True:
-    #         monitorList = configuration.read_monitor_list()
-    #         for i in range(len(monitorList)):
-    #             name = monitorList[i]['name']
-    #             print("name:", name)
-    #         mainFrame.run_with_threads(len(monitorList), monitorList)
-    #         self.button.setText('关闭 Close')
-    #         switch = False
-    #     elif status == False:
-    #         sys.exit()
-    #
-    # def configuration(self):
-    #     return
-    #
-    # def set_location(self):
-    #     global time_zone
-    #     # 后面四个数字的作用依次是 初始值 最小值 最大值 步幅
-    #     time_zone, ok = QInputDialog.getInt(self, "输入时区", "请输入所在时区\n\n请输入整数:", time_zone, -12, 14, 1)
-    #     self.localTimeGroupBox.setTitle(f'本地时间 Local Time(时区 Time Zone: {time_zone})')
-    #     # self.echo(time_zone)
-    #
-    #
-    # def update_clock(self):
-    #     global time_zone
-    #     # current_time = QTime.currentTime().toString("Y-M-D hh:mm:ss")
-    #     utc_time = datetime.datetime.utcnow()
-    #     current_time = datetime.datetime.utcnow() + datetime.timedelta(hours=time_zone)
-    #     self.localTimeLabel.setText(current_time.strftime('%Y-%m-%d %H:%M:%S'))
-    #     self.utcTimeLabel.setText(utc_time.strftime('%Y-%m-%d %H:%M:%S'))
-
-
-
-
-# if __name__ == '__main__':
-#     app = QApplication(sys.argv)
-#     window = MainWindow()
-#     window.setGeometry(100, 100, 720, 600)  # set default window size to 200x200
-#     window.show()
-#     sys.exit(app.exec_())

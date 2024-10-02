@@ -2,7 +2,6 @@
 # @Time : 2023/4/10 14:37
 # @Author: weijia
 # @File : parseData.py
-# @Software: PyCharm
 
 import json
 import xml.etree.ElementTree as ET
@@ -26,10 +25,12 @@ def parse_data(name, data):
         print('!!Type: No Match')
         return True, "GET"
 
+
 def parse_wuxi(dataString):
     controler_list = []
     data = json.loads(dataString)
-    singal_controler_id = data['Body']['Operation']['SysInfo']['SignalControlerIDList']
+    singal_controler_id = data['Body']['Operation']['SysInfo'][
+        'SignalControlerIDList']
     for i in range(len(singal_controler_id)):
         controler_id = singal_controler_id[i]['SignalControlerID']
         controler_list.append(controler_id)
@@ -41,6 +42,7 @@ def parse_wuxi(dataString):
     else:
         return True, controler_counter
 
+
 # url = 'http://36.155.95.59:28080/JKS_Server/SysInfo'
 # response = requests.get(url)
 # if response.status_code == 200:
@@ -49,9 +51,7 @@ def parse_wuxi(dataString):
 #     print("parse_wuxi(data):", num)
 
 
-
-
-def parse_phase_continuity(target_region:str, dataString:str):
+def parse_phase_continuity(target_region: str, dataString: str):
     target_number = int(configuration.get_targetnum(target_region))
     incomplete_phase = []
     # 从字符串中读取xml
@@ -67,12 +67,13 @@ def parse_phase_continuity(target_region:str, dataString:str):
         incomplete_phase.append(scnr_list)
         # print("scnr_list:", scnr_list)
     print("scnr_feedback:", len(incomplete_phase))
-    if len(incomplete_phase) > target_number/1.5:
+    if len(incomplete_phase) > target_number / 1.5:
         return False, incomplete_phase
-    elif len(incomplete_phase) > target_number/2:
+    elif len(incomplete_phase) > target_number / 2:
         return False, incomplete_phase
     else:
         return True, incomplete_phase
+
 
 def parse_expected_targets(dataString: str):
     scnr_list = []
@@ -84,6 +85,7 @@ def parse_expected_targets(dataString: str):
     expected_targets_num = len(scnr_list)
     print("expected_targets_num:", expected_targets_num)
     return expected_targets_num
+
 
 def parse_live_targets(target_region: str, dataString: str):
     target_region = target_region.title()
@@ -97,15 +99,16 @@ def parse_live_targets(target_region: str, dataString: str):
         if target.get('subRegion') == target_region.split('-')[0]:
             scnr = target.get('scNr')
             scnr_list.append(scnr)
-    print("scnr_list:",scnr_list)
+    print("scnr_list:", scnr_list)
     live_targets_num = len(scnr_list)
     print("live_targets_num:", live_targets_num)
-    if live_targets_num > target_number/1.5:
+    if live_targets_num > target_number / 1.5:
         return True, live_targets_num
-    elif live_targets_num > target_number/2:
+    elif live_targets_num > target_number / 2:
         return False, live_targets_num
     else:
         return False, live_targets_num
+
 
 # url_1 = 'http://101.42.254.16:6265/PSA/Services/GetExpectedTargets?region=China.Wuxi&format=XML&filter=All'
 # url_2 = 'http://101.42.254.16:6265/PSA/Services/GetLiveTargets?region=China.Wuxi&format=XML&filter=All'
@@ -122,4 +125,3 @@ def parse_live_targets(target_region: str, dataString: str):
 #     print(f"GET request to {url_2} successful")
 #     num = parse_live_targets('Wuhan', response_2.text)
 #     print("parse_live_targets(data):", num)
-

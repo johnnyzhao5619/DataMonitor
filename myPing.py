@@ -2,15 +2,18 @@
 # @Time : 2023/4/10 0:56
 # @Author: weijia
 # @File : myPing.py
-# @Software: PyCharm
 
-import time, struct
-import socket, select
+import select
+import socket
+import struct
+import time
+
 
 class MyPing():
     # 发送原始套接字
     def raw_socket(self, dst_addr, imcp_packet):
-        rawsocket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.getprotobyname("icmp"))
+        rawsocket = socket.socket(socket.AF_INET, socket.SOCK_RAW,
+                                  socket.getprotobyname("icmp"))
         send_request_ping_time = time.time()
         rawsocket.sendto(imcp_packet, (dst_addr, 80))
         return send_request_ping_time, rawsocket
@@ -31,22 +34,31 @@ class MyPing():
         return answer
 
     # 通过域名获取主机地址
-    def get_host_address(self,host):
+    def get_host_address(self, host):
         dst_addr = socket.gethostbyname(host)
         return dst_addr
 
     # 接受到数据包
-    def request_ping(self, data_type, data_code, data_checksum, data_ID, data_Sequence, payload_body):
+    def request_ping(self, data_type, data_code, data_checksum, data_ID,
+                     data_Sequence, payload_body):
         #  把字节打包成二进制数据
-        imcp_packet = struct.pack('>BBHHH32s', data_type, data_code, data_checksum, data_ID, data_Sequence,payload_body)
+        imcp_packet = struct.pack('>BBHHH32s', data_type, data_code,
+                                  data_checksum, data_ID, data_Sequence,
+                                  payload_body)
         # 获取校验和
         icmp_chesksum = self.chesksum(imcp_packet)
         #  把校验和传入，再次打包
-        imcp_packet = struct.pack('>BBHHH32s', data_type, data_code, icmp_chesksum, data_ID, data_Sequence,payload_body)
+        imcp_packet = struct.pack('>BBHHH32s', data_type, data_code,
+                                  icmp_chesksum, data_ID, data_Sequence,
+                                  payload_body)
         return imcp_packet
 
     # 相应数据包,解包执行
-    def reply_ping(self, send_request_ping_time, rawsocket, data_Sequence, timeout=3):
+    def reply_ping(self,
+                   send_request_ping_time,
+                   rawsocket,
+                   data_Sequence,
+                   timeout=3):
         while True:
             # 实例化select对象（非阻塞），可读，可写为空，异常为空，超时时间
             what_ready = select.select([rawsocket], [], [], timeout)
@@ -62,7 +74,8 @@ class MyPing():
             # 获取接收包的icmp头
             icmpHeader = received_packet[20:28]
             # 反转编码
-            type, code, r_checksum, packet_id, sequence = struct.unpack(">BBHHH", icmpHeader)
+            type, code, r_checksum, packet_id, sequence = struct.unpack(
+                ">BBHHH", icmpHeader)
             if type == 0 and sequence == data_Sequence:
                 return time_received - send_request_ping_time
             # 数据包的超时时间判断
@@ -80,11 +93,14 @@ class MyPing():
         payload_body = b'abcdefghijklmnopqrstuvwabcdefghi'
 
         # 请求ping数据包的二进制转换
-        icmp_packet = self.request_ping(data_type, data_code, data_checksum, data_ID, data_Sequence, payload_body)
+        icmp_packet = self.request_ping(data_type, data_code, data_checksum,
+                                        data_ID, data_Sequence, payload_body)
         # 连接套接字,并将数据发送到套接字
-        send_request_ping_time, rawsocket = self.raw_socket(address, icmp_packet)
+        send_request_ping_time, rawsocket = self.raw_socket(
+            address, icmp_packet)
         # 数据包传输时间
-        times = self.reply_ping(send_request_ping_time, rawsocket, data_Sequence)
+        times = self.reply_ping(send_request_ping_time, rawsocket,
+                                data_Sequence)
         if times > 0:
             return_time = int(times * 1000)
             return return_time
