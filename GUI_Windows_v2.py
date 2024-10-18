@@ -1,8 +1,7 @@
 # -*- codeing = utf-8 -*-
 # @Time : 2023-03-31 12:32 a.m.
-# @Author: weijiazhao
-# @File : GUI_Mac.py
-# @Software: PyCharm
+# @Author: John Zhao
+# @File : GUI_windows_v2.py
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import QTimer

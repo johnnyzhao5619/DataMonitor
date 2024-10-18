@@ -9,7 +9,20 @@ from email.mime.multipart import MIMEMultipart
 import configuration
 
 
-def send_email(subject: str, body: str):
+def send_email(
+    subject: str, body: str
+) -> None:
+    """
+    Send an email with the given subject and body.
+
+    Args:
+        subject (str): The subject of the email.
+        body (str): The body of the email.
+
+    Returns:
+        None
+    """
+
     # Get Mail info
     mailconfig = configuration.read_mail_configuration()
     smtp_server = mailconfig['smtp_server']
@@ -40,7 +53,18 @@ def send_email(subject: str, body: str):
         print("An error occurred: ", e)
 
 
-def send_email_test(subject: str, mail_type: str):
+def send_email_test(subject: str, mail_type: str) -> None:
+    """
+    Send an email to the recipients in the configuration file using the given subject and mail type.
+
+    Args:
+        subject (str): The subject of the email.
+        mail_type (str): The type of the email. Supported types are 'Outage', 'Outage Resolution', 'Phase Incomplete', 'Phase Incomplete Resolution'.
+
+    Returns:
+        None
+    """
+
     # Get Mail info
     mailconfig = configuration.read_mail_configuration()
     smtp_server = mailconfig['smtp_server']
