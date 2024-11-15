@@ -272,3 +272,220 @@
     >>Action:CEVE- Type: GET - url: ('ceve.traffictechservices.com', 5833, 'APhA/Services/GeoReferencedPredictions?username=john.monitor&password=tWXnIftK&latitude=27.944893&longitude=-82.511942&heading=270&bearingType=Compass&includeTopology=yes&asTurns=yes&includeAmber=no&returnJSON=yes&version=1.0.8') - Interval: 900 s
     >>2024-11-15 15:47:13.379595 - CEVE - Service/Server Available, Remarks: 200
 
+>>2024-11-15 16:00:05.887874(Timezone: -7)
+    >>Action:Start Monitor
+    Read 3 Monitor Items
+>>2024-11-15 16:00:05.889874(Timezone: -7)
+    >>Action:Read Configuration
+    1.For Test - Type:SERVER - url:http://www.googles.com - Interval:60s
+>>2024-11-15 16:00:05.889874(Timezone: -7)
+    >>Action:Read Configuration
+    2.NCTCOG - Type:GET - url:nctcog.traffictechservices.com:5833/APhA/Services/GeoReferencedPredictions?username=john.monitor&password=tWXnIftK&latitude=27.944893&longitude=-82.511942&heading=270&bearingType=Compass&includeTopology=yes&asTurns=yes&includeAmber=no&returnJSON=yes&version=1.0.8 - Interval:900s
+>>2024-11-15 16:00:05.890874(Timezone: -7)
+    >>Action:Read Configuration
+    3.CEVE - Type:GET - url:ceve.traffictechservices.com:5833/APhA/Services/GeoReferencedPredictions?username=john.monitor&password=tWXnIftK&latitude=27.944893&longitude=-82.511942&heading=270&bearingType=Compass&includeTopology=yes&asTurns=yes&includeAmber=no&returnJSON=yes&version=1.0.8 - Interval:900s
+>>2024-11-15 16:00:18.397312(Timezone: -7)
+    >>Action:GET
+    Result: (True, 200)
+>>2024-11-15 16:00:18.399318(Timezone: -7)
+    >>Action:NCTCOG- Type: GET - url: ('nctcog.traffictechservices.com', 5833, 'APhA/Services/GeoReferencedPredictions?username=john.monitor&password=tWXnIftK&latitude=27.944893&longitude=-82.511942&heading=270&bearingType=Compass&includeTopology=yes&asTurns=yes&includeAmber=no&returnJSON=yes&version=1.0.8') - Interval: 900 s
+    >>2024-11-15 16:00:08.450024 - NCTCOG - Service/Server Available, Remarks: 200
+
+>>2024-11-15 16:00:19.291443(Timezone: -7)
+    >>Action:GET
+    Result: (True, 200)
+>>2024-11-15 16:00:19.292866(Timezone: -7)
+    >>Action:CEVE- Type: GET - url: ('ceve.traffictechservices.com', 5833, 'APhA/Services/GeoReferencedPredictions?username=john.monitor&password=tWXnIftK&latitude=27.944893&longitude=-82.511942&heading=270&bearingType=Compass&includeTopology=yes&asTurns=yes&includeAmber=no&returnJSON=yes&version=1.0.8') - Interval: 900 s
+    >>2024-11-15 16:00:08.452504 - CEVE - Service/Server Available, Remarks: 200
+
+>>2024-11-15 16:00:27.560458(Timezone: -7)
+    >>Action:SERVER
+    Result: (False, 'SERVER')
+>>2024-11-15 16:00:35.365648(Timezone: -7)
+    >>Action:For Test - Type: SERVER - url: ('www.googles.com', None, '') - Interval: 60s
+    >>2024-11-15 16:00:08.451350 - For Test - Service/Server Outage, Remarks: SERVER
+
+>>2024-11-15 16:09:44.011113(Timezone: -7)
+    >>Action:Start Monitor
+    Read 3 Monitor Items
+>>2024-11-15 16:09:44.013113(Timezone: -7)
+    >>Action:Read Configuration
+    1.For Test - Type:SERVER - url:http://www.googles.com - Interval:60s
+>>2024-11-15 16:09:44.013113(Timezone: -7)
+    >>Action:Read Configuration
+    2.NCTCOG - Type:GET - url:nctcog.traffictechservices.com:5833/APhA/Services/GeoReferencedPredictions?username=john.monitor&password=tWXnIftK&latitude=27.944893&longitude=-82.511942&heading=270&bearingType=Compass&includeTopology=yes&asTurns=yes&includeAmber=no&returnJSON=yes&version=1.0.8 - Interval:900s
+>>2024-11-15 16:09:44.014107(Timezone: -7)
+    >>Action:Read Configuration
+    3.CEVE - Type:GET - url:ceve.traffictechservices.com:5833/APhA/Services/GeoReferencedPredictions?username=john.monitor&password=tWXnIftK&latitude=27.944893&longitude=-82.511942&heading=270&bearingType=Compass&includeTopology=yes&asTurns=yes&includeAmber=no&returnJSON=yes&version=1.0.8 - Interval:900s
+>>2024-11-15 16:09:56.543459(Timezone: -7)
+    >>Action:GET
+    Result: (True, 200)
+>>2024-11-15 16:09:56.545458(Timezone: -7)
+    >>Action:NCTCOG- Type: GET - url: ('nctcog.traffictechservices.com', 5833, 'APhA/Services/GeoReferencedPredictions?username=john.monitor&password=tWXnIftK&latitude=27.944893&longitude=-82.511942&heading=270&bearingType=Compass&includeTopology=yes&asTurns=yes&includeAmber=no&returnJSON=yes&version=1.0.8') - Interval: 900 s
+    >>2024-11-15 16:09:46.160936 - NCTCOG - Service/Server Available, Remarks: 200
+
+>>2024-11-15 16:09:56.940248(Timezone: -7)
+    >>Action:GET
+    Result: (True, 200)
+>>2024-11-15 16:09:56.942248(Timezone: -7)
+    >>Action:CEVE- Type: GET - url: ('ceve.traffictechservices.com', 5833, 'APhA/Services/GeoReferencedPredictions?username=john.monitor&password=tWXnIftK&latitude=27.944893&longitude=-82.511942&heading=270&bearingType=Compass&includeTopology=yes&asTurns=yes&includeAmber=no&returnJSON=yes&version=1.0.8') - Interval: 900 s
+    >>2024-11-15 16:09:46.161425 - CEVE - Service/Server Available, Remarks: 200
+
+>>2024-11-15 16:10:05.204195(Timezone: -7)
+    >>Action:SERVER
+    Result: (False, 'SERVER')
+>>2024-11-15 16:10:13.036793(Timezone: -7)
+    >>Action:For Test - Type: SERVER - url: ('www.googles.com', None, '') - Interval: 60s
+    >>2024-11-15 16:09:46.157936 - For Test - Service/Server Outage, Remarks: SERVER
+
+>>2024-11-15 16:11:31.982800(Timezone: -7)
+    >>Action:SERVER
+    Result: (False, 'SERVER')
+>>2024-11-15 16:11:39.748856(Timezone: -7)
+    >>Action:For Test - Type: SERVER - url: ('www.googles.com', None, '') - Interval: 60s
+    >>2024-11-15 16:11:13.051565 - For Test - Continuous Server/Service Outage, Remarks: SERVER
+
+>>2024-11-15 16:12:58.854488(Timezone: -7)
+    >>Action:SERVER
+    Result: (False, 'SERVER')
+>>2024-11-15 16:13:06.600728(Timezone: -7)
+    >>Action:For Test - Type: SERVER - url: ('www.googles.com', None, '') - Interval: 60s
+    >>2024-11-15 16:12:39.757697 - For Test - Continuous Server/Service Outage, Remarks: SERVER
+
+>>2024-11-15 16:14:25.465078(Timezone: -7)
+    >>Action:SERVER
+    Result: (False, 'SERVER')
+>>2024-11-15 16:14:33.362029(Timezone: -7)
+    >>Action:For Test - Type: SERVER - url: ('www.googles.com', None, '') - Interval: 60s
+    >>2024-11-15 16:14:06.609260 - For Test - Continuous Server/Service Outage, Remarks: SERVER
+
+>>2024-11-15 16:15:52.043585(Timezone: -7)
+    >>Action:SERVER
+    Result: (False, 'SERVER')
+>>2024-11-15 16:15:59.779593(Timezone: -7)
+    >>Action:For Test - Type: SERVER - url: ('www.googles.com', None, '') - Interval: 60s
+    >>2024-11-15 16:15:33.374156 - For Test - Continuous Server/Service Outage, Remarks: SERVER
+
+>>2024-11-15 16:16:26.182107(Timezone: -7)
+    >>Action:Start Monitor
+    Read 3 Monitor Items
+>>2024-11-15 16:16:26.185109(Timezone: -7)
+    >>Action:Read Configuration
+    1.For Test - Type:SERVER - url:http://www.googles.com - Interval:60s
+>>2024-11-15 16:16:26.185109(Timezone: -7)
+    >>Action:Read Configuration
+    2.NCTCOG - Type:GET - url:nctcog.traffictechservices.com:5833/APhA/Services/GeoReferencedPredictions?username=john.monitor&password=tWXnIftK&latitude=27.944893&longitude=-82.511942&heading=270&bearingType=Compass&includeTopology=yes&asTurns=yes&includeAmber=no&returnJSON=yes&version=1.0.8 - Interval:900s
+>>2024-11-15 16:16:26.186109(Timezone: -7)
+    >>Action:Read Configuration
+    3.CEVE - Type:GET - url:ceve.traffictechservices.com:5833/APhA/Services/GeoReferencedPredictions?username=john.monitor&password=tWXnIftK&latitude=27.944893&longitude=-82.511942&heading=270&bearingType=Compass&includeTopology=yes&asTurns=yes&includeAmber=no&returnJSON=yes&version=1.0.8 - Interval:900s
+>>2024-11-15 16:16:37.941625(Timezone: -7)
+    >>Action:GET
+    Result: (True, 200)
+>>2024-11-15 16:16:37.944437(Timezone: -7)
+    >>Action:NCTCOG- Type: GET - url: ('nctcog.traffictechservices.com', 5833, 'APhA/Services/GeoReferencedPredictions?username=john.monitor&password=tWXnIftK&latitude=27.944893&longitude=-82.511942&heading=270&bearingType=Compass&includeTopology=yes&asTurns=yes&includeAmber=no&returnJSON=yes&version=1.0.8') - Interval: 900 s
+    >>2024-11-15 16:16:28.132838 - NCTCOG - Service/Server Available, Remarks: 200
+
+>>2024-11-15 16:16:38.736395(Timezone: -7)
+    >>Action:GET
+    Result: (True, 200)
+>>2024-11-15 16:16:38.737492(Timezone: -7)
+    >>Action:CEVE- Type: GET - url: ('ceve.traffictechservices.com', 5833, 'APhA/Services/GeoReferencedPredictions?username=john.monitor&password=tWXnIftK&latitude=27.944893&longitude=-82.511942&heading=270&bearingType=Compass&includeTopology=yes&asTurns=yes&includeAmber=no&returnJSON=yes&version=1.0.8') - Interval: 900 s
+    >>2024-11-15 16:16:28.134915 - CEVE - Service/Server Available, Remarks: 200
+
+>>2024-11-15 16:16:46.891857(Timezone: -7)
+    >>Action:SERVER
+    Result: (False, 'SERVER')
+>>2024-11-15 16:17:54.668568(Timezone: -7)
+    >>Action:For Test - Type: SERVER - url: ('www.googles.com', None, '') - Interval: 60s
+    >>2024-11-15 16:16:28.134915 - For Test - Service/Server Outage, Remarks: SERVER
+
+>>2024-11-15 16:21:16.327611(Timezone: -7)
+    >>Action:Start Monitor
+    Read 3 Monitor Items
+>>2024-11-15 16:21:16.328611(Timezone: -7)
+    >>Action:Read Configuration
+    1.For Test - Type:SERVER - url:http://www.googles.com - Interval:60s
+>>2024-11-15 16:21:16.328611(Timezone: -7)
+    >>Action:Read Configuration
+    2.NCTCOG - Type:GET - url:nctcog.traffictechservices.com:5833/APhA/Services/GeoReferencedPredictions?username=john.monitor&password=tWXnIftK&latitude=27.944893&longitude=-82.511942&heading=270&bearingType=Compass&includeTopology=yes&asTurns=yes&includeAmber=no&returnJSON=yes&version=1.0.8 - Interval:900s
+>>2024-11-15 16:21:16.329612(Timezone: -7)
+    >>Action:Read Configuration
+    3.CEVE - Type:GET - url:ceve.traffictechservices.com:5833/APhA/Services/GeoReferencedPredictions?username=john.monitor&password=tWXnIftK&latitude=27.944893&longitude=-82.511942&heading=270&bearingType=Compass&includeTopology=yes&asTurns=yes&includeAmber=no&returnJSON=yes&version=1.0.8 - Interval:900s
+>>2024-11-15 16:21:28.067658(Timezone: -7)
+    >>Action:GET
+    Result: (True, 200)
+>>2024-11-15 16:21:28.068673(Timezone: -7)
+    >>Action:NCTCOG- Type: GET - url: ('nctcog.traffictechservices.com', 5833, 'APhA/Services/GeoReferencedPredictions?username=john.monitor&password=tWXnIftK&latitude=27.944893&longitude=-82.511942&heading=270&bearingType=Compass&includeTopology=yes&asTurns=yes&includeAmber=no&returnJSON=yes&version=1.0.8') - Interval: 900 s
+    >>2024-11-15 16:21:17.854773 - NCTCOG - Service/Server Available, Remarks: 200
+
+>>2024-11-15 16:21:29.463084(Timezone: -7)
+    >>Action:GET
+    Result: (True, 200)
+>>2024-11-15 16:21:29.464085(Timezone: -7)
+    >>Action:CEVE- Type: GET - url: ('ceve.traffictechservices.com', 5833, 'APhA/Services/GeoReferencedPredictions?username=john.monitor&password=tWXnIftK&latitude=27.944893&longitude=-82.511942&heading=270&bearingType=Compass&includeTopology=yes&asTurns=yes&includeAmber=no&returnJSON=yes&version=1.0.8') - Interval: 900 s
+    >>2024-11-15 16:21:17.854773 - CEVE - Service/Server Available, Remarks: 200
+
+>>2024-11-15 16:21:37.672990(Timezone: -7)
+    >>Action:SERVER
+    Result: (False, 'SERVER')
+>>2024-11-15 16:21:50.701690(Timezone: -7)
+    >>Action:For Test - Type: SERVER - url: ('www.googles.com', None, '') - Interval: 60s
+    >>2024-11-15 16:21:17.853774 - For Test - Service/Server Outage, Remarks: SERVER
+
+>>2024-11-15 16:23:08.599379(Timezone: -7)
+    >>Action:SERVER
+    Result: (False, 'SERVER')
+>>2024-11-15 16:23:17.153197(Timezone: -7)
+    >>Action:For Test - Type: SERVER - url: ('www.googles.com', None, '') - Interval: 60s
+    >>2024-11-15 16:22:50.711799 - For Test - Continuous Server/Service Outage, Remarks: SERVER
+
+>>2024-11-15 16:24:34.498523(Timezone: -7)
+    >>Action:SERVER
+    Result: (False, 'SERVER')
+>>2024-11-15 16:24:43.023200(Timezone: -7)
+    >>Action:For Test - Type: SERVER - url: ('www.googles.com', None, '') - Interval: 60s
+    >>2024-11-15 16:24:17.159594 - For Test - Continuous Server/Service Outage, Remarks: SERVER
+
+>>2024-11-15 16:26:01.728549(Timezone: -7)
+    >>Action:SERVER
+    Result: (False, 'SERVER')
+>>2024-11-15 16:26:10.414998(Timezone: -7)
+    >>Action:For Test - Type: SERVER - url: ('www.googles.com', None, '') - Interval: 60s
+    >>2024-11-15 16:25:43.042916 - For Test - Continuous Server/Service Outage, Remarks: SERVER
+
+>>2024-11-15 16:26:57.602250(Timezone: -7)
+    >>Action:Start Monitor
+    Read 3 Monitor Items
+>>2024-11-15 16:26:57.602250(Timezone: -7)
+    >>Action:Read Configuration
+    1.For Test - Type:SERVER - url:http://www.googles.com - Interval:60s
+>>2024-11-15 16:26:57.603682(Timezone: -7)
+    >>Action:Read Configuration
+    2.NCTCOG - Type:GET - url:nctcog.traffictechservices.com:5833/APhA/Services/GeoReferencedPredictions?username=john.monitor&password=tWXnIftK&latitude=27.944893&longitude=-82.511942&heading=270&bearingType=Compass&includeTopology=yes&asTurns=yes&includeAmber=no&returnJSON=yes&version=1.0.8 - Interval:900s
+>>2024-11-15 16:26:57.603682(Timezone: -7)
+    >>Action:Read Configuration
+    3.CEVE - Type:GET - url:ceve.traffictechservices.com:5833/APhA/Services/GeoReferencedPredictions?username=john.monitor&password=tWXnIftK&latitude=27.944893&longitude=-82.511942&heading=270&bearingType=Compass&includeTopology=yes&asTurns=yes&includeAmber=no&returnJSON=yes&version=1.0.8 - Interval:900s
+>>2024-11-15 16:27:22.567810(Timezone: -7)
+    >>Action:GET
+    Result: (True, 200)
+>>2024-11-15 16:27:22.568817(Timezone: -7)
+    >>Action:NCTCOG- Type: GET - url: ('nctcog.traffictechservices.com', 5833, 'APhA/Services/GeoReferencedPredictions?username=john.monitor&password=tWXnIftK&latitude=27.944893&longitude=-82.511942&heading=270&bearingType=Compass&includeTopology=yes&asTurns=yes&includeAmber=no&returnJSON=yes&version=1.0.8') - Interval: 900 s
+    >>2024-11-15 16:27:11.992645 - NCTCOG - Service/Server Available, Remarks: 200
+
+>>2024-11-15 16:27:23.245174(Timezone: -7)
+    >>Action:GET
+    Result: (True, 200)
+>>2024-11-15 16:27:23.247521(Timezone: -7)
+    >>Action:CEVE- Type: GET - url: ('ceve.traffictechservices.com', 5833, 'APhA/Services/GeoReferencedPredictions?username=john.monitor&password=tWXnIftK&latitude=27.944893&longitude=-82.511942&heading=270&bearingType=Compass&includeTopology=yes&asTurns=yes&includeAmber=no&returnJSON=yes&version=1.0.8') - Interval: 900 s
+    >>2024-11-15 16:27:11.992645 - CEVE - Service/Server Available, Remarks: 200
+
+>>2024-11-15 16:27:31.455789(Timezone: -7)
+    >>Action:SERVER
+    Result: (False, 'SERVER')
+>>2024-11-15 16:27:39.439784(Timezone: -7)
+    >>Action:For Test - Type: SERVER - url: ('www.googles.com', None, '') - Interval: 60s
+    >>2024-11-15 16:27:11.991640 - For Test - Service/Server Outage, Remarks: SERVER
+
+>>2024-11-15 16:28:58.584976(Timezone: -7)
+    >>Action:SERVER
+    Result: (False, 'SERVER')

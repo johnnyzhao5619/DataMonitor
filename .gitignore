@@ -1,3 +1,5 @@
 .venv/*
 __pycache__/*
-APIMonitor/Log/*
+build/*
+dist/*
+APIMonitor/*

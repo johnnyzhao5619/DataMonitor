@@ -3,7 +3,7 @@
 
 block_cipher = None
 a = Analysis(
-    ['mainFrame.py','apiMonitor.py','configuration.py','GUI_windows.py','logRecorder.py','myPing.py','parseData.py','sendEmail.py','tts_icon.ico'],
+    ['main_frame.py','monitor.py','configuration.py','GUI_windows_v2.py','log_recorder.py','my_ping.py','parse_data.py','send_email.py','tts_icon.ico'],
     pathex=[],
     binaries=[],
     datas=[('tts_icon.ico', 'config')],

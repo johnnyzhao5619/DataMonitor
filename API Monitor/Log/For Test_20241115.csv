@@ -27,3 +27,15 @@ StatusCode,Status,Time,Name,Type,URL,Interval,Content,"Remarks[scNr, feedPhase, 
 1,Available,2024-11-15 15:43:41.900788,For Test,SERVER,"('www.google.com', None, '')",60,Socket
 1,Available,2024-11-15 15:44:42.257102,For Test,SERVER,"('www.google.com', None, '')",60,Socket
 1,Available,2024-11-15 15:47:13.378596,For Test,SERVER,"('www.google.com', None, '')",60,Socket
+3,Outage,2024-11-15 16:00:08.451350,For Test,SERVER,"('www.googles.com', None, '')",60,SERVER
+3,Outage,2024-11-15 16:09:46.157936,For Test,SERVER,"('www.googles.com', None, '')",60,SERVER
+4,Outage,2024-11-15 16:11:13.051565,For Test,SERVER,"('www.googles.com', None, '')",60,SERVER
+4,Outage,2024-11-15 16:12:39.757697,For Test,SERVER,"('www.googles.com', None, '')",60,SERVER
+4,Outage,2024-11-15 16:14:06.609260,For Test,SERVER,"('www.googles.com', None, '')",60,SERVER
+4,Outage,2024-11-15 16:15:33.374156,For Test,SERVER,"('www.googles.com', None, '')",60,SERVER
+3,Outage,2024-11-15 16:16:28.134915,For Test,SERVER,"('www.googles.com', None, '')",60,SERVER
+3,Outage,2024-11-15 16:21:17.853774,For Test,SERVER,"('www.googles.com', None, '')",60,SERVER
+4,Outage,2024-11-15 16:22:50.711799,For Test,SERVER,"('www.googles.com', None, '')",60,SERVER
+4,Outage,2024-11-15 16:24:17.159594,For Test,SERVER,"('www.googles.com', None, '')",60,SERVER
+4,Outage,2024-11-15 16:25:43.042916,For Test,SERVER,"('www.googles.com', None, '')",60,SERVER
+3,Outage,2024-11-15 16:27:11.991640,For Test,SERVER,"('www.googles.com', None, '')",60,SERVER
