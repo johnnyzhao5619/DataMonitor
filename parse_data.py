@@ -7,34 +7,77 @@ import json
 import xml.etree.ElementTree as ET
 import configuration
 
+from typing import Tuple, List, Union
 
-def parse_data(name, data):
-    region, servicetype = name.split(' ', 1)
-    print("region, servicetype:", region, servicetype)
-    if servicetype == 'Data Provider' and region == 'Wuxi':
-        signal_num = parse_wuxi(data)
-        return signal_num[0], signal_num[1]
-    elif servicetype == 'Phase Continuity':
-        signal_num = parse_phase_continuity(region, data)
-        return signal_num[0], signal_num[1]
-    elif servicetype == 'Live Target':
-        print('!!Type: Live Target')
-        live_signal_num = parse_live_targets(region, data)
-        return live_signal_num[0], live_signal_num[1]
+
+def parse_data(service_type: str, data: str) -> Tuple[bool, str]:
+    """
+    This function parses the data based on the name and data supplier.
+
+    Parameters:
+        service_type (str): The type of the data.
+        data (str): The data to be parsed.
+
+    Returns:
+        Tuple[bool, str]: A tuple containing the parsed data.
+    """
+    # TODO: Add more service types here
+    if service_type == 'NCTCOG' or service_type == 'CEVE':
+        print(f'!!!!Type: {service_type}')
+        status = parse_nctcog_ceve(data)
+        return status, service_type
+        # TODO: Add more service types here
+    # elif service_type == 'Wuxi':
+    #     print(f'!!!!Type: {service_type}')
+    #     status = parse_wuxi_data(data)
+    #     return status, service_type
     else:
         print('!!Type: No Match')
-        return True, "GET"
+        return True, 'GET'
 
 
-def parse_wuxi(dataString):
-    controler_list = []
-    data = json.loads(dataString)
-    singal_controler_id = data['Body']['Operation']['SysInfo'][
+def parse_nctcog_ceve(data_string: str) -> bool:
+    """
+    Parse the given JSON string and return True if the data is valid.
+
+    Parameters:
+        data_string (str): The JSON string to parse.
+
+    Returns:
+        bool: True if the data is valid, otherwise False.
+    """
+    # read the json from string
+    try:
+        data = json.loads(data_string)
+        print("!!!!!!!!!!!!!!data:", data)
+        return True
+    except json.JSONDecodeError:
+        print("Invalid JSON string")
+        return False
+
+
+def parse_wuxi_data(data_string: str) -> Tuple[bool, int]:
+    """
+    Parse the given JSON string and return True if the number of unique signal
+    controllers is less than 1000, False otherwise.
+
+    Parameters:
+        data_string (str): The JSON string to parse.
+
+    Returns:
+        Tuple[bool, int]: A tuple containing a boolean indicating if the
+        number of unique signal controllers is less than 1000, and the number
+        of unique signal controllers.
+    """
+    controler_list: List[str] = []
+    # read the json from string
+    data = json.loads(data_string)
+    signal_controler_id_list = data['Body']['Operation']['SysInfo'][
         'SignalControlerIDList']
-    for i in range(len(singal_controler_id)):
-        controler_id = singal_controler_id[i]['SignalControlerID']
+    for signal_controler_id in signal_controler_id_list:
+        controler_id = signal_controler_id['SignalControlerID']
         controler_list.append(controler_id)
-    controler_counter = len(list(set(controler_list)))
+    controler_counter = len(set(controler_list))
     if controler_counter < 1000:
         return False, controler_counter
     elif controler_counter < 1400:
@@ -43,27 +86,35 @@ def parse_wuxi(dataString):
         return True, controler_counter
 
 
-# url = 'http://36.155.95.59:28080/JKS_Server/SysInfo'
-# response = requests.get(url)
-# if response.status_code == 200:
-#     print(f"GET request to {url} successful")
-#     num = parse_wuxi(response.text)
-#     print("parse_wuxi(data):", num)
+def parse_phase_continuity(
+        target_region: str,
+        data_string: str) -> Tuple[bool, List[List[Union[str, int]]]]:
+    """
+    Parse the phase continuity data from the given XML string, and check if
+    the number of incomplete phases exceeds the threshold.
 
+    Args:
+        target_region (str): The target region to check.
+        data_string (str): The XML string containing the phase continuity data.
 
-def parse_phase_continuity(target_region: str, dataString: str):
+    Returns:
+        Tuple[bool, List[List[Union[str, int]]]]: A tuple containing a boolean
+        indicating if the number of incomplete phases exceeds the threshold,
+        and a list of lists containing the SCNR, feed phases, and unsupported
+        phases for each target.
+    """
     target_number = int(configuration.get_targetnum(target_region))
     incomplete_phase = []
-    # 从字符串中读取xml
-    root = ET.fromstring(dataString)
+    # read the xml from string
+    root = ET.fromstring(data_string)
     for target in root.iter('Target'):
         scnr_list = []
         scnr = target.get('scNr')
-        feedPhase = target.get('feedPhases')
-        unsupportedPhase = target.get('unsupportedPhases')
+        feed_phase = target.get('feedPhases')
+        unsupported_phase = target.get('unsupportedPhases')
         scnr_list.append(scnr)
-        scnr_list.append(feedPhase)
-        scnr_list.append(unsupportedPhase)
+        scnr_list.append(feed_phase)
+        scnr_list.append(unsupported_phase)
         incomplete_phase.append(scnr_list)
         # print("scnr_list:", scnr_list)
     print("scnr_feedback:", len(incomplete_phase))
@@ -75,26 +126,48 @@ def parse_phase_continuity(target_region: str, dataString: str):
         return True, incomplete_phase
 
 
-def parse_expected_targets(dataString: str):
-    scnr_list = []
-    # 从字符串中读取xml
-    root = ET.fromstring(dataString)
+def parse_expected_targets(data_string: str) -> int:
+    """
+    Parse the expected targets from the XML data.
+
+    Parameters:
+        dataString (str): The XML data string to parse.
+
+    Returns:
+        int: The number of expected targets parsed from the XML data.
+    """
+    scnr_list: List[str] = []
+    # read the xml from string
+    root = ET.fromstring(data_string)
     for target in root.iter('Target'):
-        scnr = target.get('scNr')
+        scnr: str = target.get('scNr')
         scnr_list.append(scnr)
-    expected_targets_num = len(scnr_list)
+    expected_targets_num: int = len(scnr_list)
     print("expected_targets_num:", expected_targets_num)
     return expected_targets_num
 
 
-def parse_live_targets(target_region: str, dataString: str):
+def parse_live_targets(target_region: str,
+                       data_string: str) -> Tuple[bool, int]:
+    """
+    Parse the live targets from the XML data.
+
+    Parameters:
+        target_region (str): The target region to parse.
+        data_string (str): The XML data string to parse.
+
+    Returns:
+        Tuple[bool, int]: A tuple containing a boolean indicating if the
+        number of live targets exceeds 1.5 times the target number, and the
+        number of live targets parsed from the XML data.
+    """
     target_region = target_region.title()
     target_number = int(configuration.get_targetnum(target_region))
     print("target_number:", target_number)
     print("target_region:", target_region)
     scnr_list = []
-    # 从字符串中读取xml
-    root = ET.fromstring(dataString)
+    # read the xml from string
+    root = ET.fromstring(data_string)
     for target in root.iter('Target'):
         if target.get('subRegion') == target_region.split('-')[0]:
             scnr = target.get('scNr')
@@ -108,20 +181,3 @@ def parse_live_targets(target_region: str, dataString: str):
         return False, live_targets_num
     else:
         return False, live_targets_num
-
-
-# url_1 = 'http://101.42.254.16:6265/PSA/Services/GetExpectedTargets?region=China.Wuxi&format=XML&filter=All'
-# url_2 = 'http://101.42.254.16:6265/PSA/Services/GetLiveTargets?region=China.Wuxi&format=XML&filter=All'
-# response_1 = requests.get(url_1)
-# if response_1.status_code == 200:
-#     print(f"GET request to {url_1} successful")
-#     num = parse_expected_targets('Wuxi', response_1.text)
-#     print("parse_expected_targets(data):", num)
-#
-# response_2 = requests.get(url_2)
-#
-# time.sleep(2)
-# if response_2.status_code == 200:
-#     print(f"GET request to {url_2} successful")
-#     num = parse_live_targets('Wuhan', response_2.text)
-#     print("parse_live_targets(data):", num)

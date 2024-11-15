@@ -107,13 +107,16 @@ class my_ping():
         Calculate the round-trip time for the ICMP echo reply.
 
         Args:
-            send_request_ping_time (float): The time when the ping request was sent.
-            rawsocket (socket.socket): The raw socket used for sending and receiving the packet.
+            send_request_ping_time (float): The time when the ping request was
+            sent.
+            rawsocket (socket.socket): The raw socket used for sending and
+            receiving the packet.
             data_Sequence (int): The sequence number of the ICMP packet.
             timeout (float): The maximum time to wait for a response.
 
         Returns:
-            float: The round-trip time for the echo reply, or -1 if the request times out.
+            float: The round-trip time for the echo reply, or -1 if the
+            request times out.
         """
         while True:
             # Check if the raw socket is ready to read
@@ -144,32 +147,46 @@ class my_ping():
         """
         Sends a ping request to the specified address.
 
-        This function sends a ping request to the specified address using an ICMP echo request packet,
-        and returns the round-trip time in milliseconds, or -1 if the request times out.
+        This function sends a ping request to the specified address using an
+        ICMP echo request packet,
+        and returns the round-trip time in milliseconds, or -1 if the request
+        times out.
 
         Args:
             address (str): The address to send the ping request to.
 
         Returns:
-            int: The round-trip time in milliseconds, or -1 if the request times out.
+            int: The round-trip time in milliseconds, or -1 if the request
+            times out.
         """
-        data_type: int = 8  # ICMP echo request type
-        data_code: int = 0  # ICMP echo request code
-        data_checksum: int = 0  # ICMP echo request checksum
-        data_ID: int = 0  # ICMP echo request ID
-        data_Sequence: int = 1  # ICMP echo request sequence number
-        payload_body: bytes = b'abcdefghijklmnopqrstuvwabcdefghi'  # ICMP echo request payload
+        # ICMP echo request type
+        data_type: int = 8
+        # ICMP echo request code
+        data_code: int = 0
+        # ICMP echo request checksum
+        data_checksum: int = 0
+        # ICMP echo request ID
+        data_ID: int = 0
+        # ICMP echo request sequence number
+        data_Sequence: int = 1
+        # ICMP echo request payload
+        payload_body: bytes = b'abcdefghijklmnopqrstuvwabcdefghi'
         icmp_packet: bytes = self.request_ping(data_type, data_code,
                                                data_checksum, data_ID,
                                                data_Sequence, payload_body)
-        send_request_ping_time: float  # Time when the ping request was sent
-        rawsocket: socket.socket  # Raw socket used for sending and receiving the packet
+        # Time when the ping request was sent
+        send_request_ping_time: float
+        # Raw socket used for sending and receiving the packet
+        rawsocket: socket.socket
         send_request_ping_time, rawsocket = self.raw_socket(
             address, icmp_packet)
+        # Round-trip time
         times: float = self.reply_ping(send_request_ping_time, rawsocket,
-                                       data_Sequence)  # Round-trip time
+                                       data_Sequence)
+        # Convert to milliseconds
         if times > 0:
-            return_time: int = int(times * 1000)  # Convert to milliseconds
+            return_time: int = int(times * 1000)
             return return_time
         else:
-            return -1  # Request timed out
+            # Request timed out
+            return -1

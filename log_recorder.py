@@ -21,23 +21,15 @@ def record_to_log(action: str, log: str) -> None:
     Returns:
         None
     """
-    # timezone: str = configuration.get_timezone()
-    # local_Time: datetime.datetime = datetime.datetime.utcnow(
-    # ) + datetime.timedelta(hours=int(timezone))
-
-    # folder: str = os.path.expanduser(str(configuration.get_logdir() + 'Log'))
-    # if not os.path.exists(folder):
-    #     os.makedirs(folder)
-
     timezone: str = configuration.get_timezone()
     local_time = datetime.datetime.utcnow() + datetime.timedelta(
         hours=int(timezone))
 
-    folder: str = os.path.expanduser(configuration.get_logdir() + 'Log')
+    folder: str = os.path.expanduser(configuration.get_log_dir() + 'Log')
     if not os.path.exists(folder):
         os.makedirs(folder)
 
-    log_message = f""">>{local_time}(Timezone: {timezone})--------------------------------------
+    log_message = f""">>{local_time}(Timezone: {timezone})
     >>Action:{action}
     {log}\n"""
     with open(f"{folder}/log-{local_time.strftime('%Y%m%d')}.txt",
@@ -73,7 +65,7 @@ def save_to_csv(dataString: Union[List[Tuple[int, str, str, str, str, str, str,
         None
     """
     timezone = int(configuration.get_timezone())
-    folder = os.path.expanduser(str(configuration.get_logdir() + 'Log'))
+    folder = os.path.expanduser(str(configuration.get_log_dir() + 'Log'))
     if not os.path.exists(folder):
         os.makedirs(folder)
     nowDateTime = datetime.datetime.utcnow() + datetime.timedelta(

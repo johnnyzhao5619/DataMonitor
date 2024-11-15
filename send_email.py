@@ -9,9 +9,7 @@ from email.mime.multipart import MIMEMultipart
 import configuration
 
 
-def send_email(
-    subject: str, body: str
-) -> None:
+def send_email(subject: str, body: str) -> None:
     """
     Send an email with the given subject and body.
 
@@ -55,11 +53,14 @@ def send_email(
 
 def send_email_test(subject: str, mail_type: str) -> None:
     """
-    Send an email to the recipients in the configuration file using the given subject and mail type.
+    Send an email to the recipients in the configuration file
+    using the given subject and mail type.
 
     Args:
         subject (str): The subject of the email.
-        mail_type (str): The type of the email. Supported types are 'Outage', 'Outage Resolution', 'Phase Incomplete', 'Phase Incomplete Resolution'.
+        mail_type (str): The type of the email. Supported types
+        are 'Outage', 'Outage Resolution', 'Phase Incomplete',
+        'Phase Incomplete Resolution'.
 
     Returns:
         None

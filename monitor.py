@@ -4,79 +4,77 @@
 # @File : api_monitor.py
 
 import requests
-import subprocess
 import socket
 import time
+from typing import Tuple, List, Union
 
 from my_ping import my_ping
 
-from typing import Tuple, List, Union
 
-
-def monitor_get(url: Tuple[str, str, str]) -> Tuple[bool, Union[str, int]]:
+def monitor_get(
+        url_parts: Tuple[str, str, str]) -> Tuple[bool, Union[str, int]]:
     """
     Send a GET request to the url and return True if the request is successful.
 
-    :param url: A tuple containing the host, port and path of the url.
-    :return: A tuple containing a boolean indicating whether the request is successful and a string or integer describing the result.
+    Args:
+        url_parts (Tuple[str, str, str]): A tuple containing the host, port,
+        and path of the url.
+
+    Returns:
+        A tuple containing a boolean indicating whether the request is
+        successful and a string or integer describing the result.
     """
-    check = 0
-    if (url[1] == '' and url[2] == ''):
-        url = 'http://' + url[0]
-    elif (url[1] != '' and url[2] == ''):
-        url = 'http://' + url[0] + ':' + str(url[1])
-    elif (url[1] != '' and url[2] != ''):
-        url = 'http://' + url[0] + ':' + str(url[1]) + '/' + url[2]
-    elif (url[1] == '' and url[2] != ''):
-        url = 'http://' + url[0] + '/' + url[2]
-    #  When the response fails, try again. If both attempts fail, return False
-    print(">>>>>url:", url)
-    while check < 2:
+    retry_count = 0
+    url = f"https://{url_parts[0]}:{url_parts[1] if url_parts[1] else '80'}/{url_parts[2] if url_parts[2] else ''}".rstrip(
+        '/')
+    while retry_count < 2:
         try:
             response = requests.get(url, timeout=10)
-            if response.status_code == 200:
-                print(f"{check}: GET request to {url} successful")
-                return True, response.text
+            code = response.status_code
+            message = f"{retry_count}: GET request to {url}"
+            if code == 200:
+                print(f"{message} successful")
+                return True, code
             else:
-                print(
-                    f"{check}: GET request to {url} failed with status code: {response.status_code}"
-                )
-                feedback = response.status_code
-                check += 1
-                # return False, response.status_code
+                print(f"{message} failed with status code: {code}")
+                return False, code
         except Exception as e:
-            print(f"{check}: GET request to {url} failed: {e}")
-            feedback = 'GET'
-            check += 1
+            print(f"{retry_count}: GET request to {url} failed: {e}")
+            feedback = str(e)
+        retry_count += 1
         time.sleep(2.7)
     return False, feedback
 
 
-def monitor_post(url: str, payload: str) -> tuple[bool, Union[str, int]]:
+def monitor_post(url: str, payload: str) -> Tuple[bool, Union[str, int]]:
     """
-    Send a POST request to the url with the given payload and return True if the request is successful.
+    Send a POST request to the url with the given payload and return True 
+    if the request is successful.
 
     Args:
-        url: The url to send the request to.
-        payload: The payload to send with the request.
+        url (str): The url to send the request to.
+        payload (str): The payload to send with the request.
 
     Returns:
-        A tuple containing a boolean indicating whether the request is successful and a string or integer describing the result.
+        Tuple[bool, Union[str, int]]: A tuple containing a boolean indicating whether the request is
+        successful and a string or integer describing the result.
     """
+    if not url.startswith('http://') and not url.startswith('https://'):
+        url = 'http://' + url
     try:
         response = requests.post(url, data=payload)
-        if response.status_code == 200:
+        code = response.status_code
+        if code == 200:
             print(f"POST request to {url} successful")
-            return True, response.text
+            return True, code
         else:
             print(
-                f"POST request to {url} failed with status code: {response.status_code}"
+                f"POST request to {url} failed with status code: {response.code}"
             )
-            feedback = response.status_code
-            return False, feedback
+            return False, code
     except Exception as e:
         print(f"POST request to {url} failed: {e}")
-        feedback = 'GET'
+        feedback = str(e)
         return False, feedback
 
 
@@ -212,7 +210,20 @@ def check_ping(address: Tuple[str, int, str]) -> Tuple[bool, str]:
         pass
 
 
-def check_icmp(address: Tuple[str, int, str]) -> bool:
+def check_icmp(address: Tuple[str, int, str]) -> Tuple[bool, str]:
+    """
+    Check if a server is online using ICMP protocol.
+
+    Args:
+        address (Tuple[str, int, str]): A tuple containing the host, port, and
+        path of the server.
+
+    Returns:
+        Tuple[bool, str]: A tuple where the first element is a boolean
+        indicating whether the server is online,
+        and the second element is a string indicating the method used to check
+        the server status.
+    """
     host = address[0]
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_RAW,
