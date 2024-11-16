@@ -189,7 +189,7 @@ def write_config(config_dir: str):
     info = configparser.ConfigParser()
     info.add_section("General")
     info.set("General", "app_name", "API Monitor")
-    info.set("General", "version", "0.9")
+    info.set("General", "version", "1.0")
 
     info.add_section("Logging")
     info.set("Logging", "log_level", "info")
