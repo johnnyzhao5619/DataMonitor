@@ -1,12 +1,11 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-
 block_cipher = None
 a = Analysis(
-    ['main_frame.py','monitor.py','configuration.py','GUI_windows_v2.py','log_recorder.py','my_ping.py','parse_data.py','send_email.py','tts_icon.ico'],
+    ['main_frame.py','monitor.py','configuration.py','GUI_windows_v2.py','log_recorder.py','my_ping.py','parse_data.py','send_email.py'],
     pathex=[],
     binaries=[],
-    datas=[('tts_icon.ico', 'config')],
+    datas=[],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
@@ -14,8 +13,9 @@ a = Analysis(
     excludes=[],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
-    cipher=block_cipher,
     noarchive=False,
+    cipher=block_cipher,
+    optimize=0,
 )
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
@@ -26,7 +26,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='mainFrame',
+    name='API Monitor',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
