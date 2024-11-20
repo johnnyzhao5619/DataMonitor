@@ -1,0 +1,305 @@
+>>2024-11-18 13:18:17.857800(Timezone: -7)
+    >>Action:Start Monitor
+    Read 3 Monitor Items
+>>2024-11-18 13:18:17.858802(Timezone: -7)
+    >>Action:Read Configuration
+    1.For Test - Type:SERVER - url:http://www.googles.com - Interval:60s
+>>2024-11-18 13:18:17.859808(Timezone: -7)
+    >>Action:Read Configuration
+    2.NCTCOG - Type:GET - url:nctcog.traffictechservices.com:5833/APhA/Services/GeoReferencedPredictions?username=john.monitor&password=tWXnIftK&latitude=27.944893&longitude=-82.511942&heading=270&bearingType=Compass&includeTopology=yes&asTurns=yes&includeAmber=no&returnJSON=yes&version=1.0.8 - Interval:900s
+>>2024-11-18 13:18:17.860306(Timezone: -7)
+    >>Action:Read Configuration
+    3.CEVE - Type:GET - url:ceve.traffictechservices.com:5833/APhA/Services/GeoReferencedPredictions?username=john.monitor&password=tWXnIftK&latitude=27.944893&longitude=-82.511942&heading=270&bearingType=Compass&includeTopology=yes&asTurns=yes&includeAmber=no&returnJSON=yes&version=1.0.8 - Interval:900s
+>>2024-11-18 13:25:31.898370(Timezone: -7)
+    >>Action:GET
+    Result: (True, 200)
+>>2024-11-18 13:25:31.899369(Timezone: -7)
+    >>Action:NCTCOG- Type: GET - url: ('nctcog.traffictechservices.com', 5833, 'APhA/Services/GeoReferencedPredictions?username=john.monitor&password=tWXnIftK&latitude=27.944893&longitude=-82.511942&heading=270&bearingType=Compass&includeTopology=yes&asTurns=yes&includeAmber=no&returnJSON=yes&version=1.0.8') - Interval: 900 s
+    >>2024-11-18 13:25:21.170223 - NCTCOG - Service/Server Available, Remarks: 200
+
+>>2024-11-18 13:25:40.573785(Timezone: -7)
+    >>Action:SERVER
+    Result: (False, 'SERVER')
+>>2024-11-18 13:26:09.423551(Timezone: -7)
+    >>Action:Start Monitor
+    Read 3 Monitor Items
+>>2024-11-18 13:26:09.424545(Timezone: -7)
+    >>Action:Read Configuration
+    1.For Test - Type:SERVER - url:http://www.google.com - Interval:60s
+>>2024-11-18 13:26:09.425543(Timezone: -7)
+    >>Action:Read Configuration
+    2.NCTCOG - Type:GET - url:nctcog.traffictechservices.com:5833/APhA/Services/GeoReferencedPredictions?username=john.monitor&password=tWXnIftK&latitude=27.944893&longitude=-82.511942&heading=270&bearingType=Compass&includeTopology=yes&asTurns=yes&includeAmber=no&returnJSON=yes&version=1.0.8 - Interval:900s
+>>2024-11-18 13:26:09.425543(Timezone: -7)
+    >>Action:Read Configuration
+    3.CEVE - Type:GET - url:ceve.traffictechservices.com:5833/APhA/Services/GeoReferencedPredictions?username=john.monitor&password=tWXnIftK&latitude=27.944893&longitude=-82.511942&heading=270&bearingType=Compass&includeTopology=yes&asTurns=yes&includeAmber=no&returnJSON=yes&version=1.0.8 - Interval:900s
+>>2024-11-18 13:26:12.199791(Timezone: -7)
+    >>Action:SERVER
+    Result: (True, 'Socket')
+>>2024-11-18 13:26:12.200797(Timezone: -7)
+    >>Action:For Test- Type: SERVER - url: ('www.google.com', None, '') - Interval: 60 s
+    >>2024-11-18 13:26:12.114929 - For Test - Service/Server Available, Remarks: Socket
+
+>>2024-11-18 13:26:12.441400(Timezone: -7)
+    >>Action:GET
+    Result: (True, 200)
+>>2024-11-18 13:26:12.442424(Timezone: -7)
+    >>Action:CEVE- Type: GET - url: ('ceve.traffictechservices.com', 5833, 'APhA/Services/GeoReferencedPredictions?username=john.monitor&password=tWXnIftK&latitude=27.944893&longitude=-82.511942&heading=270&bearingType=Compass&includeTopology=yes&asTurns=yes&includeAmber=no&returnJSON=yes&version=1.0.8') - Interval: 900 s
+    >>2024-11-18 13:26:12.114929 - CEVE - Service/Server Available, Remarks: 200
+
+>>2024-11-18 13:26:12.489343(Timezone: -7)
+    >>Action:GET
+    Result: (True, 200)
+>>2024-11-18 13:26:12.491319(Timezone: -7)
+    >>Action:NCTCOG- Type: GET - url: ('nctcog.traffictechservices.com', 5833, 'APhA/Services/GeoReferencedPredictions?username=john.monitor&password=tWXnIftK&latitude=27.944893&longitude=-82.511942&heading=270&bearingType=Compass&includeTopology=yes&asTurns=yes&includeAmber=no&returnJSON=yes&version=1.0.8') - Interval: 900 s
+    >>2024-11-18 13:26:12.114929 - NCTCOG - Service/Server Available, Remarks: 200
+
+>>2024-11-18 13:27:12.284480(Timezone: -7)
+    >>Action:SERVER
+    Result: (True, 'Socket')
+>>2024-11-18 13:27:12.286226(Timezone: -7)
+    >>Action:For Test- Type: SERVER - url: ('www.google.com', None, '') - Interval: 60 s
+    >>2024-11-18 13:27:12.206269 - For Test - Service/Server Available, Remarks: Socket
+
+>>2024-11-18 13:28:12.697406(Timezone: -7)
+    >>Action:SERVER
+    Result: (True, 'Socket')
+>>2024-11-18 13:28:12.699384(Timezone: -7)
+    >>Action:For Test- Type: SERVER - url: ('www.google.com', None, '') - Interval: 60 s
+    >>2024-11-18 13:28:12.304662 - For Test - Service/Server Available, Remarks: Socket
+
+>>2024-11-18 13:29:12.822660(Timezone: -7)
+    >>Action:SERVER
+    Result: (True, 'Socket')
+>>2024-11-18 13:29:12.823660(Timezone: -7)
+    >>Action:For Test- Type: SERVER - url: ('www.google.com', None, '') - Interval: 60 s
+    >>2024-11-18 13:29:12.712108 - For Test - Service/Server Available, Remarks: Socket
+
+>>2024-11-18 13:30:12.913252(Timezone: -7)
+    >>Action:SERVER
+    Result: (True, 'Socket')
+>>2024-11-18 13:30:12.915245(Timezone: -7)
+    >>Action:For Test- Type: SERVER - url: ('www.google.com', None, '') - Interval: 60 s
+    >>2024-11-18 13:30:12.837790 - For Test - Service/Server Available, Remarks: Socket
+
+>>2024-11-18 13:31:13.027092(Timezone: -7)
+    >>Action:SERVER
+    Result: (True, 'Socket')
+>>2024-11-18 13:31:13.028985(Timezone: -7)
+    >>Action:For Test- Type: SERVER - url: ('www.google.com', None, '') - Interval: 60 s
+    >>2024-11-18 13:31:12.931420 - For Test - Service/Server Available, Remarks: Socket
+
+>>2024-11-18 13:32:13.125094(Timezone: -7)
+    >>Action:SERVER
+    Result: (True, 'Socket')
+>>2024-11-18 13:32:13.126073(Timezone: -7)
+    >>Action:For Test- Type: SERVER - url: ('www.google.com', None, '') - Interval: 60 s
+    >>2024-11-18 13:32:13.042041 - For Test - Service/Server Available, Remarks: Socket
+
+>>2024-11-18 13:33:13.427451(Timezone: -7)
+    >>Action:SERVER
+    Result: (True, 'Socket')
+>>2024-11-18 13:33:13.429452(Timezone: -7)
+    >>Action:For Test- Type: SERVER - url: ('www.google.com', None, '') - Interval: 60 s
+    >>2024-11-18 13:33:13.135292 - For Test - Service/Server Available, Remarks: Socket
+
+>>2024-11-18 13:34:13.513262(Timezone: -7)
+    >>Action:SERVER
+    Result: (True, 'Socket')
+>>2024-11-18 13:34:13.514259(Timezone: -7)
+    >>Action:For Test- Type: SERVER - url: ('www.google.com', None, '') - Interval: 60 s
+    >>2024-11-18 13:34:13.439079 - For Test - Service/Server Available, Remarks: Socket
+
+>>2024-11-18 13:35:13.619918(Timezone: -7)
+    >>Action:SERVER
+    Result: (True, 'Socket')
+>>2024-11-18 13:35:13.621405(Timezone: -7)
+    >>Action:For Test- Type: SERVER - url: ('www.google.com', None, '') - Interval: 60 s
+    >>2024-11-18 13:35:13.525304 - For Test - Service/Server Available, Remarks: Socket
+
+>>2024-11-18 15:35:40.531406(Timezone: -5)
+    >>Action:Start Monitor
+    Read 3 Monitor Items
+>>2024-11-18 15:35:40.532406(Timezone: -5)
+    >>Action:Read Configuration
+    1.For Test - Type:SERVER - url:http://www.google.com - Interval:60s
+>>2024-11-18 15:35:40.533435(Timezone: -5)
+    >>Action:Read Configuration
+    2.NCTCOG - Type:GET - url:nctcog.traffictechservices.com:5833/APhA/Services/GeoReferencedPredictions?username=john.monitor&password=tWXnIftK&latitude=27.944893&longitude=-82.511942&heading=270&bearingType=Compass&includeTopology=yes&asTurns=yes&includeAmber=no&returnJSON=yes&version=1.0.8 - Interval:900s
+>>2024-11-18 15:35:40.533435(Timezone: -5)
+    >>Action:Read Configuration
+    3.CEVE - Type:GET - url:ceve.traffictechservices.com:5833/APhA/Services/GeoReferencedPredictions?username=john.monitor&password=tWXnIftK&latitude=27.944893&longitude=-82.511942&heading=270&bearingType=Compass&includeTopology=yes&asTurns=yes&includeAmber=no&returnJSON=yes&version=1.0.8 - Interval:900s
+>>2024-11-18 15:37:22.919215(Timezone: -5)
+    >>Action:SERVER
+    Result: (True, 'Socket')
+>>2024-11-18 15:37:22.920210(Timezone: -5)
+    >>Action:For Test- Type: SERVER - url: ('www.google.com', None, '') - Interval: 60 s
+    >>2024-11-18 15:37:22.820395 - For Test - Service/Server Available, Remarks: Socket
+
+>>2024-11-18 15:37:23.296354(Timezone: -5)
+    >>Action:GET
+    Result: (True, 200)
+>>2024-11-18 15:37:23.297354(Timezone: -5)
+    >>Action:NCTCOG- Type: GET - url: ('nctcog.traffictechservices.com', 5833, 'APhA/Services/GeoReferencedPredictions?username=john.monitor&password=tWXnIftK&latitude=27.944893&longitude=-82.511942&heading=270&bearingType=Compass&includeTopology=yes&asTurns=yes&includeAmber=no&returnJSON=yes&version=1.0.8') - Interval: 900 s
+    >>2024-11-18 15:37:22.821409 - NCTCOG - Service/Server Available, Remarks: 200
+
+>>2024-11-18 15:37:24.409623(Timezone: -5)
+    >>Action:GET
+    Result: (True, 200)
+>>2024-11-18 15:37:24.411623(Timezone: -5)
+    >>Action:CEVE- Type: GET - url: ('ceve.traffictechservices.com', 5833, 'APhA/Services/GeoReferencedPredictions?username=john.monitor&password=tWXnIftK&latitude=27.944893&longitude=-82.511942&heading=270&bearingType=Compass&includeTopology=yes&asTurns=yes&includeAmber=no&returnJSON=yes&version=1.0.8') - Interval: 900 s
+    >>2024-11-18 15:37:22.821409 - CEVE - Service/Server Available, Remarks: 200
+
+>>2024-11-18 15:38:23.288014(Timezone: -5)
+    >>Action:SERVER
+    Result: (True, 'Socket')
+>>2024-11-18 15:38:23.288997(Timezone: -5)
+    >>Action:For Test- Type: SERVER - url: ('www.google.com', None, '') - Interval: 60 s
+    >>2024-11-18 15:38:22.925258 - For Test - Service/Server Available, Remarks: Socket
+
+>>2024-11-18 15:39:23.391072(Timezone: -5)
+    >>Action:SERVER
+    Result: (True, 'Socket')
+>>2024-11-18 15:39:23.392073(Timezone: -5)
+    >>Action:For Test- Type: SERVER - url: ('www.google.com', None, '') - Interval: 60 s
+    >>2024-11-18 15:39:23.295763 - For Test - Service/Server Available, Remarks: Socket
+
+>>2024-11-18 15:40:23.504651(Timezone: -5)
+    >>Action:SERVER
+    Result: (True, 'Socket')
+>>2024-11-18 15:40:23.505648(Timezone: -5)
+    >>Action:For Test- Type: SERVER - url: ('www.google.com', None, '') - Interval: 60 s
+    >>2024-11-18 15:40:23.409424 - For Test - Service/Server Available, Remarks: Socket
+
+>>2024-11-18 15:41:23.600016(Timezone: -5)
+    >>Action:SERVER
+    Result: (True, 'Socket')
+>>2024-11-18 15:41:23.602017(Timezone: -5)
+    >>Action:For Test- Type: SERVER - url: ('www.google.com', None, '') - Interval: 60 s
+    >>2024-11-18 15:41:23.524056 - For Test - Service/Server Available, Remarks: Socket
+
+>>2024-11-18 15:42:23.695253(Timezone: -5)
+    >>Action:SERVER
+    Result: (True, 'Socket')
+>>2024-11-18 15:42:23.696252(Timezone: -5)
+    >>Action:For Test- Type: SERVER - url: ('www.google.com', None, '') - Interval: 60 s
+    >>2024-11-18 15:42:23.617991 - For Test - Service/Server Available, Remarks: Socket
+
+>>2024-11-18 15:43:24.047441(Timezone: -5)
+    >>Action:SERVER
+    Result: (True, 'Socket')
+>>2024-11-18 15:43:24.049609(Timezone: -5)
+    >>Action:For Test- Type: SERVER - url: ('www.google.com', None, '') - Interval: 60 s
+    >>2024-11-18 15:43:23.716615 - For Test - Service/Server Available, Remarks: Socket
+
+>>2024-11-18 15:44:24.133806(Timezone: -5)
+    >>Action:SERVER
+    Result: (True, 'Socket')
+>>2024-11-18 15:44:24.135805(Timezone: -5)
+    >>Action:For Test- Type: SERVER - url: ('www.google.com', None, '') - Interval: 60 s
+    >>2024-11-18 15:44:24.056543 - For Test - Service/Server Available, Remarks: Socket
+
+>>2024-11-18 15:45:24.227169(Timezone: -5)
+    >>Action:SERVER
+    Result: (True, 'Socket')
+>>2024-11-18 15:45:24.229170(Timezone: -5)
+    >>Action:For Test- Type: SERVER - url: ('www.google.com', None, '') - Interval: 60 s
+    >>2024-11-18 15:45:24.147809 - For Test - Service/Server Available, Remarks: Socket
+
+>>2024-11-18 15:46:24.318712(Timezone: -5)
+    >>Action:SERVER
+    Result: (True, 'Socket')
+>>2024-11-18 15:46:24.320712(Timezone: -5)
+    >>Action:For Test- Type: SERVER - url: ('www.google.com', None, '') - Interval: 60 s
+    >>2024-11-18 15:46:24.242389 - For Test - Service/Server Available, Remarks: Socket
+
+>>2024-11-18 15:47:24.412827(Timezone: -5)
+    >>Action:SERVER
+    Result: (True, 'Socket')
+>>2024-11-18 15:47:24.414824(Timezone: -5)
+    >>Action:For Test- Type: SERVER - url: ('www.google.com', None, '') - Interval: 60 s
+    >>2024-11-18 15:47:24.334023 - For Test - Service/Server Available, Remarks: Socket
+
+>>2024-11-18 15:48:24.738172(Timezone: -5)
+    >>Action:SERVER
+    Result: (True, 'Socket')
+>>2024-11-18 15:48:24.740171(Timezone: -5)
+    >>Action:For Test- Type: SERVER - url: ('www.google.com', None, '') - Interval: 60 s
+    >>2024-11-18 15:48:24.422690 - For Test - Service/Server Available, Remarks: Socket
+
+>>2024-11-18 15:49:24.827314(Timezone: -5)
+    >>Action:SERVER
+    Result: (True, 'Socket')
+>>2024-11-18 15:49:24.829312(Timezone: -5)
+    >>Action:For Test- Type: SERVER - url: ('www.google.com', None, '') - Interval: 60 s
+    >>2024-11-18 15:49:24.751855 - For Test - Service/Server Available, Remarks: Socket
+
+>>2024-11-18 15:50:24.910813(Timezone: -5)
+    >>Action:SERVER
+    Result: (True, 'Socket')
+>>2024-11-18 15:50:24.911814(Timezone: -5)
+    >>Action:For Test- Type: SERVER - url: ('www.google.com', None, '') - Interval: 60 s
+    >>2024-11-18 15:50:24.836092 - For Test - Service/Server Available, Remarks: Socket
+
+>>2024-11-18 15:51:25.004383(Timezone: -5)
+    >>Action:SERVER
+    Result: (True, 'Socket')
+>>2024-11-18 15:51:25.006382(Timezone: -5)
+    >>Action:For Test- Type: SERVER - url: ('www.google.com', None, '') - Interval: 60 s
+    >>2024-11-18 15:51:24.923595 - For Test - Service/Server Available, Remarks: Socket
+
+>>2024-11-18 15:52:24.133882(Timezone: -5)
+    >>Action:GET
+    Result: (True, 200)
+>>2024-11-18 15:52:24.135882(Timezone: -5)
+    >>Action:NCTCOG- Type: GET - url: ('nctcog.traffictechservices.com', 5833, 'APhA/Services/GeoReferencedPredictions?username=john.monitor&password=tWXnIftK&latitude=27.944893&longitude=-82.511942&heading=270&bearingType=Compass&includeTopology=yes&asTurns=yes&includeAmber=no&returnJSON=yes&version=1.0.8') - Interval: 900 s
+    >>2024-11-18 15:52:23.329792 - NCTCOG - Service/Server Available, Remarks: 200
+
+>>2024-11-18 15:52:25.112645(Timezone: -5)
+    >>Action:SERVER
+    Result: (True, 'Socket')
+>>2024-11-18 15:52:25.113801(Timezone: -5)
+    >>Action:For Test- Type: SERVER - url: ('www.google.com', None, '') - Interval: 60 s
+    >>2024-11-18 15:52:25.017475 - For Test - Service/Server Available, Remarks: Socket
+
+>>2024-11-18 15:52:25.691710(Timezone: -5)
+    >>Action:GET
+    Result: (True, 200)
+>>2024-11-18 15:52:25.693710(Timezone: -5)
+    >>Action:CEVE- Type: GET - url: ('ceve.traffictechservices.com', 5833, 'APhA/Services/GeoReferencedPredictions?username=john.monitor&password=tWXnIftK&latitude=27.944893&longitude=-82.511942&heading=270&bearingType=Compass&includeTopology=yes&asTurns=yes&includeAmber=no&returnJSON=yes&version=1.0.8') - Interval: 900 s
+    >>2024-11-18 15:52:24.454961 - CEVE - Service/Server Available, Remarks: 200
+
+>>2024-11-18 15:53:25.201405(Timezone: -5)
+    >>Action:SERVER
+    Result: (True, 'Socket')
+>>2024-11-18 15:53:25.202403(Timezone: -5)
+    >>Action:For Test- Type: SERVER - url: ('www.google.com', None, '') - Interval: 60 s
+    >>2024-11-18 15:53:25.122030 - For Test - Service/Server Available, Remarks: Socket
+
+>>2024-11-18 15:54:25.543137(Timezone: -5)
+    >>Action:SERVER
+    Result: (True, 'Socket')
+>>2024-11-18 15:54:25.545128(Timezone: -5)
+    >>Action:For Test- Type: SERVER - url: ('www.google.com', None, '') - Interval: 60 s
+    >>2024-11-18 15:54:25.221597 - For Test - Service/Server Available, Remarks: Socket
+
+>>2024-11-18 15:55:25.636673(Timezone: -5)
+    >>Action:SERVER
+    Result: (True, 'Socket')
+>>2024-11-18 15:55:25.638673(Timezone: -5)
+    >>Action:For Test- Type: SERVER - url: ('www.google.com', None, '') - Interval: 60 s
+    >>2024-11-18 15:55:25.562770 - For Test - Service/Server Available, Remarks: Socket
+
+>>2024-11-18 15:56:25.747813(Timezone: -5)
+    >>Action:SERVER
+    Result: (True, 'Socket')
+>>2024-11-18 15:56:25.749815(Timezone: -5)
+    >>Action:For Test- Type: SERVER - url: ('www.google.com', None, '') - Interval: 60 s
+    >>2024-11-18 15:56:25.652100 - For Test - Service/Server Available, Remarks: Socket
+
+>>2024-11-18 15:57:25.859660(Timezone: -5)
+    >>Action:SERVER
+    Result: (True, 'Socket')
+>>2024-11-18 15:57:25.861660(Timezone: -5)
+    >>Action:For Test- Type: SERVER - url: ('www.google.com', None, '') - Interval: 60 s
+    >>2024-11-18 15:57:25.763652 - For Test - Service/Server Available, Remarks: Socket
+

@@ -6,16 +6,19 @@
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from typing import Dict
+
 import configuration
 
 
-def send_email(subject: str, body: str) -> None:
+def send_email(subject: str, body: str, to_addrs: str) -> None:
     """
     Send an email with the given subject and body.
 
     Args:
         subject (str): The subject of the email.
         body (str): The body of the email.
+        to_addrs (str): The comma-separated list of recipients.
 
     Returns:
         None
@@ -23,12 +26,11 @@ def send_email(subject: str, body: str) -> None:
 
     # Get Mail info
     mailconfig = configuration.read_mail_configuration()
-    smtp_server = mailconfig['smtp_server']
-    smtp_port = mailconfig['smtp_port']
-    username = mailconfig['username']
-    password = mailconfig['password']
-    from_addr = mailconfig['from_addr']
-    to_addrs = mailconfig['to_addrs']
+    smtp_server: str = mailconfig['smtp_server']
+    smtp_port: int = int(mailconfig['smtp_port'])
+    username: str = mailconfig['username']
+    password: str = mailconfig['password']
+    from_addr: str = mailconfig['from_addr']
 
     # Create the message
     message = MIMEMultipart()
@@ -51,38 +53,40 @@ def send_email(subject: str, body: str) -> None:
         print("An error occurred: ", e)
 
 
-def send_email_test(subject: str, mail_type: str) -> None:
+def send_email_test(subject: str, mail_type: str, to_addrs: str) -> None:
     """
-    Send an email to the recipients in the configuration file
-    using the given subject and mail type.
+    Send an email to the recipients using the given subject and mail type.
 
     Args:
         subject (str): The subject of the email.
         mail_type (str): The type of the email. Supported types
-        are 'Outage', 'Outage Resolution', 'Phase Incomplete',
-        'Phase Incomplete Resolution'.
+                         are 'Outage', 'Outage Resolution', 'Phase Incomplete',
+                         'Phase Incomplete Resolution'.
+        to_addrs (str): The comma-separated list of recipients.
 
     Returns:
         None
     """
 
     # Get Mail info
-    mailconfig = configuration.read_mail_configuration()
-    smtp_server = mailconfig['smtp_server']
-    smtp_port = mailconfig['smtp_port']
-    username = mailconfig['username']
-    password = mailconfig['password']
-    from_addr = mailconfig['from_addr']
-    to_addrs = mailconfig['to_addrs']
+    mailconfig: Dict[str, str] = configuration.read_mail_configuration()
+    smtp_server: str = mailconfig['smtp_server']
+    smtp_port: int = int(mailconfig['smtp_port'])
+    username: str = mailconfig['username']
+    password: str = mailconfig['password']
+    from_addr: str = mailconfig['from_addr']
 
+    body: str
     if mail_type == 'Outage':
-        body = data_outage_massage()
+        body = data_outage_massage(mail_type)
     elif mail_type == 'Outage Resolution':
-        body = outage_resolution_massage()
+        body = outage_resolution_massage(mail_type)
     elif mail_type == 'Phase Incomplete':
-        body = outage_resolution_massage()
+        body = phase_incomplete(mail_type)
     elif mail_type == 'Phase Incomplete Resolution':
-        body = outage_resolution_massage()
+        body = phase_incomplete_resolution(mail_type)
+    else:
+        raise ValueError("Unsupported mail type")
 
     # Create the message
     message = MIMEMultipart()

@@ -35,7 +35,7 @@ class monitor_window(QtWidgets.QMainWindow, MainWindow):
         set up the connections between buttons and their corresponding
         functions.
         It will also set the title of the window based on the configuration in
-        the json file.
+        the Config.ini file.
 
         :return: None
         """
@@ -198,7 +198,7 @@ class monitor_window(QtWidgets.QMainWindow, MainWindow):
             QtWidgets.QApplication.processEvents()
 
     def perform_task(self, url: str, request_type: str, name: str,
-                     email: str) -> Tuple[bool, str]:
+                     to_addrs: str) -> Tuple[bool, str]:
         """
         Perform a request to the specified url with the specified request type.
 
@@ -207,7 +207,7 @@ class monitor_window(QtWidgets.QMainWindow, MainWindow):
             request_type (str): The type of request to make, one of "GET",
             "POST", or "SERVER".
             name (str): The name of the request.
-            email (str): The email to send result to.
+            to_addrs (str): The email to send result to.
 
         Returns:
             Tuple[bool, str]: A tuple  containing the result of the request as
@@ -299,12 +299,12 @@ class monitor_window(QtWidgets.QMainWindow, MainWindow):
             url = monitor_info['url']
             mtype = monitor_info['type']
             interval = int(monitor_info['interval'])
-            email = monitor_info['email']
+            to_addrs = monitor_info['email']
 
             # format the url, port, suffix
             url = self.parse_network_address(url)
             # start the monitoring process, return value: bool, string
-            result = self.perform_task(url, mtype, name, email)
+            result = self.perform_task(url, mtype, name, to_addrs)
 
             # when the result is True and the last status is True
             # the server/service is running well.
@@ -360,8 +360,8 @@ class monitor_window(QtWidgets.QMainWindow, MainWindow):
             elif response_code[0] == 2:
                 send_email.send_email(
                     f"{timenow}: The {name} service were restored!",
-                    f"{name} Service Restored\nRestored Time: {timenow}\nRemark: {remark}"
-                )
+                    f"{name} Service Restored\nRestored Time: {timenow}\nRemark: {remark}",
+                    to_addrs)
                 print(
                     f"{i}: {timenow} - {name} - Status: Service/Server were restored"
                 )
@@ -379,7 +379,8 @@ class monitor_window(QtWidgets.QMainWindow, MainWindow):
             elif response_code[0] == 3:
                 send_email.send_email(
                     f"{timenow}: The {name} server outage!",
-                    f"{name} Outage\nTime: {timenow}\nRemark: {remark}")
+                    f"{name} Outage\nTime: {timenow}\nRemark: {remark}",
+                    to_addrs)
                 print(
                     f"{i}: {timenow} - {name} - Status: Service/Server Outage")
                 # >>>Log and Output<<<
@@ -396,8 +397,8 @@ class monitor_window(QtWidgets.QMainWindow, MainWindow):
             elif response_code[0] == 4:
                 send_email.send_email(
                     f"{timenow}: The {name} server outage!",
-                    f"{name} Continuous Server/Service Outage\nSignal outage occurred: {timenow}\nRemark: {remark}"
-                )
+                    f"{name} Continuous Server/Service Outage\nSignal outage occurred: {timenow}\nRemark: {remark}",
+                    to_addrs)
                 print(
                     f"\n{i}: {timenow} - {name} - Status: Continuous Server/Service Outage"
                 )
