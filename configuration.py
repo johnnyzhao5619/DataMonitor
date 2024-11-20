@@ -75,7 +75,7 @@ def read_mail_configuration():
         'username': config.get('Mail', 'username'),
         'password': config.get('Mail', 'password'),
         'from_addr': config.get('Mail', 'from_addr'),
-        'to_addrs': config.get('Mail', 'to_addrs'),
+        # 'to_addrs': config.get('Mail', 'to_addrs'),
     }
     print("mailconfig:", mailconfig)
     return mailconfig
@@ -189,7 +189,7 @@ def write_config(config_dir: str):
     info = configparser.ConfigParser()
     info.add_section("General")
     info.set("General", "app_name", "API Monitor")
-    info.set("General", "version", "1.0")
+    info.set("General", "version", "1.1")
 
     info.add_section("Logging")
     info.set("Logging", "log_level", "info")
@@ -197,7 +197,7 @@ def write_config(config_dir: str):
     info.set("Logging", "auto_update_signal_num", "0")
 
     info.add_section("TimeZone")
-    info.set("TimeZone", "timezone", "-7")
+    info.set("TimeZone", "timezone", "8")
 
     info.add_section("Server_IP")
     # info.set("Server_IP", "Beijing", "49.233.41.147")
@@ -218,11 +218,11 @@ def write_config(config_dir: str):
     info.add_section("Mail")
     info.set("Mail", "smtp_server", "smtp-mail.outlook.com")
     info.set("Mail", "smtp_port", "587")
-    info.set("Mail", "username", "OperationTeam_tds@outlook.com")
-    info.set("Mail", "password", "1qaz2wsx#EDC")
-    info.set("Mail", "from_addr", "OperationTeam_tds@outlook.com")
-    info.set("Mail", "to_addrs", "john.zhao@miovision.com")
-    info.set("Mail", "subject", "Outage Warning")
+    info.set("Mail", "username", "support@traffictechservices.com")
+    info.set("Mail", "password", "")
+    info.set("Mail", "from_addr", "support@traffictechservices.com")
+    # info.set("Mail", "to_addrs", "john.zhao@miovision.com")
+    # info.set("Mail", "subject", "Outage Warning")
     info.write(open((config_dir + "/Config.ini"), "w"))
 
 
@@ -236,7 +236,8 @@ def write_monitor_list(config_dir: str):
     info.set("Monitor1", "type", "SERVER")
     info.set("Monitor1", "format", "HTTP")
     info.set("Monitor1", "interval", "60")
-    info.set("Monitor1", "email", "john.zhao@miovision.com")
+    info.set("Monitor1", "email",
+             "john.zhao@miovision.com,support@traffictechservices.com")
 
     info.add_section("Monitor2")
     info.set("Monitor2", "name", "NCTCOG")
@@ -247,7 +248,8 @@ def write_monitor_list(config_dir: str):
     info.set("Monitor2", "type", "GET")
     info.set("Monitor2", "format", "JSON")
     info.set("Monitor2", "interval", "900")
-    info.set("Monitor2", "email", "john.zhao@miovision.com")
+    info.set("Monitor2", "email",
+             "john.zhao@miovision.com,support@traffictechservices.com")
 
     info.add_section("Monitor3")
     info.set("Monitor3", "name", "CEVE")
@@ -258,7 +260,8 @@ def write_monitor_list(config_dir: str):
     info.set("Monitor3", "type", "GET")
     info.set("Monitor3", "format", "JSON")
     info.set("Monitor3", "interval", "900")
-    info.set("Monitor3", "email", "john.zhao@miovision.com")
+    info.set("Monitor3", "email",
+             "john.zhao@miovision.com,support@traffictechservices.com")
 
     # info.add_section("Monitor2")
     # info.set("Monitor2", "name", "Wuxi Phase Continuity")
