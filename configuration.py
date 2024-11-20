@@ -197,7 +197,7 @@ def write_config(config_dir: str):
     info.set("Logging", "auto_update_signal_num", "0")
 
     info.add_section("TimeZone")
-    info.set("TimeZone", "timezone", "8")
+    info.set("TimeZone", "timezone", "-8")
 
     info.add_section("Server_IP")
     # info.set("Server_IP", "Beijing", "49.233.41.147")
