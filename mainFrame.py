@@ -99,12 +99,12 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
                 QtWidgets.QApplication.processEvents()
 
 
-    def perform_task(self, url, parsed_address, type, email):
+    def perform_task(self, url, parsed_address, type, email, payload=None, headers=None):
         # 发送请求
         if type == "GET":
             result = apiMonitor.monitor_get(url)
         elif type == "POST":
-            result = apiMonitor.monitor_post(url, "1")
+            result = apiMonitor.monitor_post(url, payload, headers)
         elif type == "SERVER":
             if parsed_address is None:
                 parsed_address = self.parse_network_address(url)

@@ -4,6 +4,7 @@
 # @File : configuration.py
 # @Software: PyCharm
 import configparser
+import json
 import os
 from functools import lru_cache
 from pathlib import Path
@@ -45,6 +46,12 @@ def read_monitor_list():
         monitordir['type'] = config.get(f'Monitor{i+1}', 'type')
         monitordir['interval'] = config.get(f'Monitor{i+1}', 'interval')
         monitordir['email'] = config.get(f'Monitor{i+1}', 'email')
+        payload = _load_optional_payload(config, f'Monitor{i+1}')
+        headers = _load_optional_headers(config, f'Monitor{i+1}')
+        if payload is not None:
+            monitordir['payload'] = payload
+        if headers is not None:
+            monitordir['headers'] = headers
         monitorlist.append(monitordir)
         del monitordir
 
