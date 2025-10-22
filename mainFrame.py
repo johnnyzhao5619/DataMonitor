@@ -3,19 +3,59 @@ from PyQt5.QtWidgets import QInputDialog, QMessageBox
 
 from ui.main_window import MainWindowUI
 import apiMonitor
-import sendEmail
-import time
-import threading
 import configuration
 from configuration import SUPPORTED_MONITOR_TYPES
 import datetime
-import sys
 import logRecorder
+import sys
 import queue
 from pathlib import Path
+from typing import Optional
+
+from monitoring.service import MonitorScheduler, ServerMonitorStrategy
+from monitoring.state_machine import MonitorEvent
+
+NOTIFICATION_STATES = {
+    "normal": {
+        "code": 1,
+        "status_label": "服务正常",
+        "status_text": "正常",
+        "status_action": "正常",
+        "event_description": "监控检测到服务保持正常状态",
+        "time_label": "检测时间",
+        "mail_event": None,
+    },
+    "recovery": {
+        "code": 2,
+        "status_label": "服务恢复",
+        "status_text": "恢复",
+        "status_action": "恢复",
+        "event_description": "监控检测到服务恢复至正常状态",
+        "time_label": "恢复时间",
+        "mail_event": "recovery",
+    },
+    "alert": {
+        "code": 3,
+        "status_label": "服务异常",
+        "status_text": "异常",
+        "status_action": "告警",
+        "event_description": "监控检测到服务不可达",
+        "time_label": "发生时间",
+        "mail_event": "alert",
+    },
+    "ongoing": {
+        "code": 4,
+        "status_label": "服务持续异常",
+        "status_text": "持续异常",
+        "status_action": "告警",
+        "event_description": "监控检测到服务持续处于异常状态",
+        "time_label": "检测时间",
+        "mail_event": None,
+    },
+}
 
 
-class toolsetWindow(QtWidgets.QMainWindow):
+class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
     def __init__(self):
         super().__init__()
         self.ui = MainWindowUI()
@@ -38,29 +78,34 @@ class toolsetWindow(QtWidgets.QMainWindow):
         self._reload_monitors()
         self._update_timezone_display()
         self.update_clock()
+        self.scheduler: Optional[MonitorScheduler] = None
 
     def start_monitor(self):
         if self.switch_status is True:
-            monitorList = configuration.read_monitor_list()
-            self.printf_queue.put(f"目前读取到{len(monitorList)}个监控项，分别是：")
-            logRecorder.record("Start Monitor", f"目前读取到{len(monitorList)}个监控项")
-            for i in range(len(monitorList)):
-                name = monitorList[i]['name']
-                url = monitorList[i]['url']
-                interval = monitorList[i]['interval']
-                mtype = monitorList[i]['type']
-                print("name:", name)
+            monitor_list = configuration.read_monitor_list()
+            self.printf_queue.put(f"目前读取到{len(monitor_list)}个监控项，分别是：")
+            for index, monitor in enumerate(monitor_list, start=1):
+                self.printf_queue.put(
+                    f"{index}. {monitor.name} --- 类型: {monitor.monitor_type} --- 地址: {monitor.url} --- 周期: {monitor.interval}秒"
+                )
 
-                self.printf_queue.put(f"{i+1}. {name} --- 类型: {mtype} --- 地址: {url} --- 周期: {interval}秒")
-                logRecorder.record("读取配置 Read Configuration", f"{i+1}.{name} --- 类型 Type: {mtype} --- 地址 url: {url} --- 周期 Interval: {interval}秒\n")
+            if not monitor_list:
+                self.status.showMessage('未读取到有效的监控配置')
+                return
 
-            self.run_with_threads(len(monitorList), monitorList)
+            self.scheduler = MonitorScheduler(
+                event_handler=self._handle_monitor_event,
+                timezone_getter=lambda: self.time_zone,
+            )
+            self.scheduler.start(monitor_list)
 
             self.ui.show_monitor_page()
             self.ui.switchButton.setText('关闭 Close')
             self.switch_status = False
         elif self.switch_status is False:
-            sys.exit()
+            if self.scheduler:
+                self.scheduler.stop()
+            QtWidgets.QApplication.quit()
 
     def show_configuration(self):
         self._reload_monitors()
@@ -94,20 +139,25 @@ class toolsetWindow(QtWidgets.QMainWindow):
                 self.ui.monitorBrowser.moveCursor(cursor.End)
                 QtWidgets.QApplication.processEvents()
 
-    def perform_task(self, url, parsed_address, type, email, payload=None, *, headers=None):
-        # 发送请求
-        if type == "GET":
-            result = apiMonitor.monitor_get(url)
-        elif type == "POST":
-            result = apiMonitor.monitor_post(url, payload, headers=headers)
-        elif type == "SERVER":
-            if parsed_address is None:
-                parsed_address = self.parse_network_address(url)
-            result = apiMonitor.monitor_server(parsed_address)
-        else:
-            self._log_unsupported_type(type, url)
-            return False
-        return result
+    def _handle_monitor_event(self, event: MonitorEvent):
+        self.printf_queue.put(event.message)
+        if event.status_bar_message:
+            self.status.showMessage(event.status_bar_message)
+
+    def perform_task(self, url, parsed_address, monitor_type, email, payload=None, *, headers=None):
+        monitor_type_normalised = str(monitor_type).strip().upper() if monitor_type else ""
+        if monitor_type_normalised == "GET":
+            return apiMonitor.monitor_get(url)
+        if monitor_type_normalised == "POST":
+            return apiMonitor.monitor_post(url, payload, headers=headers)
+        if monitor_type_normalised == "SERVER":
+            address = parsed_address
+            if address is None:
+                address = ServerMonitorStrategy._parse_network_address(url)
+            return apiMonitor.monitor_server(address)
+
+        self._log_unsupported_type(monitor_type, url)
+        return False
 
     def _log_unsupported_type(self, monitor_type, url, name=None):
         monitor_name = f"[{name}]" if name else ""
@@ -198,70 +248,69 @@ class toolsetWindow(QtWidgets.QMainWindow):
                 headers=monitorInfo.get('headers'),
             )
             timenow = datetime.datetime.utcnow() + datetime.timedelta(hours=self.time_zone)
+            timestamp_text = timenow.strftime('%Y-%m-%d %H:%M:%S')
+            interval_value = int(interval)
 
-            # 判断结果
-            # 当状态正常，且跟上一次状态一致时，无操作，等待下一次
-            if result == True and result == lastStatus:
-                responseCode = 1  # 服务正常
-            # 当状态正常，且跟上一次状态不一致时，发送数据恢复邮件
-            elif result == True and result != lastStatus:
-                responseCode = 2  # 服务恢复
-            # 当状态不正常，且跟上一次状态不一致时，发送数据中断告警邮件
-            elif result == False and result != lastStatus:
-                responseCode = 3  # 服务异常
-            # 当状态不正常，且跟上一次状态一致时，数据持续异常
-            elif result == False and result == lastStatus:
-                responseCode = 4  # 服务持续异常
+            is_success = bool(result)
+            state_changed = is_success != bool(lastStatus)
 
-            # 给予结果进行处理
-            if responseCode == 1:
-                print(f"\n第{i}次：{timenow} --> 状态：{name}服务正常")
-                # Log和输出————————————————————————————————————————————————————————————————————————
-                self.printf_queue.put(f"时间：{timenow} --> 状态：{name}服务正常")
-                # 记录Log日志
-                logRecorder.record(f"{name} --- 类型 Type: {mtype} --- 地址 url: {url} --- 周期 Interval: {interval}秒", f">>>{timenow}: {name}服务正常\n")
-                logRecorder.saveToFile([timenow, name, mtype, url, interval, responseCode, '正常'], name)
+            if is_success and not state_changed:
+                state_key = "normal"
+            elif is_success and state_changed:
+                state_key = "recovery"
+            elif not is_success and state_changed:
+                state_key = "alert"
+            else:
+                state_key = "ongoing"
 
-            elif responseCode == 2:
-                subject, body = sendEmail.build_outage_recovery_message(name, timenow)
+            profile = NOTIFICATION_STATES[state_key]
+            context = {
+                "service_name": name,
+                "monitor_type": mtype,
+                "url": url,
+                "interval": interval_value,
+                "status_code": profile["code"],
+                "status_key": state_key,
+                "status_label": profile["status_label"],
+                "status_text": profile["status_text"],
+                "status_action": profile["status_action"],
+                "event_description": profile["event_description"],
+                "time_label": profile["time_label"],
+                "event_timestamp": timestamp_text,
+            }
+
+            if profile["mail_event"]:
+                subject, body = sendEmail.render_email(profile["mail_event"], context)
                 sendEmail.send_email(subject, body, recipients=recipients)
-                print(f"\n第{i}次：{timenow}状态 --> {name}服务恢复")
-                # Log和输出————————————————————————————————————————————————————————————————————————
-                self.printf_queue.put(f"时间：{timenow} --> 状态：{name}服务恢复")
-                # 记录Log日志
-                logRecorder.record(f"{name} --- 类型 Type: {mtype} --- 地址 url: {url} --- 周期 Interval: {interval}秒", f">>>{timenow}: {name}服务恢复\n")
-                logRecorder.saveToFile([timenow, name, mtype, url, interval, responseCode, '恢复'], name)
 
-            elif responseCode == 3:
-                subject, body = sendEmail.build_outage_alert_message(name, timenow)
-                sendEmail.send_email(subject, body, recipients=recipients)
-                print(f"\n第{i}次：{timenow}状态 --> {name}服务异常")
-                # Log和输出————————————————————————————————————————————————————————————————————————
-                self.printf_queue.put(f"时间：{timenow} --> 状态：{name}服务异常")
-                # 记录Log日志
-                logRecorder.record(f"{name} --- 类型 Type: {mtype} --- 地址 url: {url} --- 周期 Interval: {interval}秒", f">>>{timenow}: {name}服务异常\n")
-                logRecorder.saveToFile([timenow, name, mtype, url, interval, responseCode, '异常'], name)
+            ui_message = configuration.render_template("ui", "status_line", context)
+            print(f"\n第{i}次：{ui_message}")
+            self.printf_queue.put(ui_message)
 
-            elif responseCode == 4:
-                print(f"\n第{i}次：{timenow}状态 --> {name}服务持续异常")
-                # Log和输出————————————————————————————————————————————————————————————————————————
-                # self.printf(f"时间：{timenow} --> 状态：{name}服务持续异常")
-                self.printf_queue.put(f"时间：{timenow} --> 状态：{name}服务持续异常")
+            action_line = configuration.render_template("log", "action_line", context)
+            detail_line = configuration.render_template("log", "detail_line", context)
+            logRecorder.record(action_line, detail_line)
+            logRecorder.saveToFile(
+                [
+                    timestamp_text,
+                    name,
+                    mtype,
+                    url,
+                    interval_value,
+                    profile["code"],
+                    profile["status_text"],
+                ],
+                name,
+            )
 
-                # 记录Log日志
-                logRecorder.record(f"{name} --- 类型 Type: {mtype} --- 地址 url: {url} --- 周期 Interval: {interval}秒", f">>>{timenow}: {name}服务持续异常\n")
-                logRecorder.saveToFile([timenow, name, mtype, url, interval, responseCode, '持续异常'], name)
-
-            if responseCode == 1 or responseCode == 2:
-                # 将提示信息显示在状态栏中showMessage（‘提示信息’，显示时间（单位毫秒））
+            if profile["code"] in (1, 2):
                 self.status.showMessage('>>>运行中...')
             else:
-                # 将提示信息显示在状态栏中showMessage（‘提示信息’，显示时间（单位毫秒））
-                self.status.showMessage(f'{name}服务异常')
-            print(f"\n等待{interval}秒")
+                self.status.showMessage(f'{name}{profile["status_label"]}')
+            print(f"\n等待{interval_value}秒")
             i += 1
-            lastStatus = result
-            time.sleep(interval)
+            lastStatus = is_success
+            time.sleep(interval_value)
 
     def _handle_monitors_saved(self, monitors):
         try:
@@ -288,14 +337,10 @@ class toolsetWindow(QtWidgets.QMainWindow):
     def _update_timezone_display(self):
         self.ui.localTimeGroupBox.setTitle(f'本地时间 Local Time(时区 Time Zone: {self.time_zone})')
 
-    # 根据需求，为每个监控项启动独立的线程
-    def run_with_threads(self, num_threads:int, monitorList:list):
-        for i in range(num_threads):
-            monitorInfo = monitorList[i]
-            t = threading.Thread(name=monitorInfo['name'], target=self.run_periodically, args=(monitorInfo,))
-            # t = threading.Thread(target=super().run_periodically, args=(monitorInfo,))
-            t.setDaemon(True)
-            t.start()
+    def closeEvent(self, event):
+        if self.scheduler:
+            self.scheduler.stop()
+        super().closeEvent(event)
 
 
 if __name__ == '__main__':

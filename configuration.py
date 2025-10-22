@@ -8,9 +8,10 @@ import json
 import logging
 import os
 import re
+from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import Dict, Mapping, Optional, Union
 
 
 LOGGER = logging.getLogger(__name__)
@@ -33,10 +34,140 @@ REQUEST_TIMEOUT_ENV = "REQUEST_TIMEOUT"
 DEFAULT_REQUEST_TIMEOUT = 10.0
 
 
+SUPPORTED_MONITOR_TYPES = frozenset({"GET", "POST", "SERVER"})
+
+
+@dataclass(frozen=True)
+class MonitorItem:
+    """用于描述单个监控项的配置。"""
+
+    name: str
+    url: str
+    monitor_type: str
+    interval: int
+    email: Optional[str] = None
+    payload: Optional[Dict[str, str]] = None
+    headers: Optional[Dict[str, str]] = None
+
+    def normalised_email(self) -> Optional[str]:
+        if self.email:
+            stripped = self.email.strip()
+            return stripped or None
+        return None
+
+
 DEFAULT_TIMEZONE = "0"
 
 
 LOG_DIR_ENV = "APIMONITOR_HOME"
+
+TEMPLATE_CONFIG_NAME = "Templates.ini"
+
+TEMPLATE_DEFAULTS: Dict[str, Dict[str, str]] = {
+    "mail": {
+        "alert_subject": "Outage Alert | {service_name}",
+        "alert_body": (
+            "状态：{status_action}\n"
+            "服务：{service_name}\n"
+            "说明：{event_description}\n"
+            "{time_label}：{event_timestamp}"
+        ),
+        "recovery_subject": "Outage Recovery | {service_name}",
+        "recovery_body": (
+            "状态：{status_action}\n"
+            "服务：{service_name}\n"
+            "说明：{event_description}\n"
+            "{time_label}：{event_timestamp}"
+        ),
+    },
+    "ui": {
+        "status_line": "时间：{event_timestamp} --> 状态：{service_name}{status_label}",
+    },
+    "log": {
+        "action_line": (
+            "{service_name} --- 类型 Type: {monitor_type} --- 地址 url: {url} --- 周期 Interval: {interval}秒"
+        ),
+        "detail_line": ">>>{event_timestamp}: {service_name}{status_label}",
+        "record_entry": (
+            ">>{log_timestamp}(China Time)----------------------------------------------\n"
+            ">>Action:{action}\n"
+            "{details}"
+        ),
+        "csv_header": "Time,API,Type,url,Interval,Code,Status",
+    },
+}
+
+
+class TemplateManager:
+    """负责加载与渲染通知模版。"""
+
+    def __init__(self):
+        self._templates: Optional[Dict[str, Dict[str, str]]] = None
+
+    def _load_templates(self) -> None:
+        templates: Dict[str, Dict[str, str]] = {
+            category: values.copy() for category, values in TEMPLATE_DEFAULTS.items()
+        }
+
+        config_dir = get_config_directory()
+        config_path = config_dir / TEMPLATE_CONFIG_NAME
+
+        parser = configparser.RawConfigParser()
+        parser.optionxform = str  # 保留键大小写
+
+        if config_path.is_file():
+            parser.read(os.fspath(config_path), encoding="utf-8")
+            for section in parser.sections():
+                section_key = section.strip().lower()
+                if not section_key:
+                    continue
+                section_templates = templates.setdefault(section_key, {})
+                for option, value in parser.items(section):
+                    option_key = option.strip()
+                    if not option_key:
+                        continue
+                    section_templates[option_key] = value
+
+        self._templates = templates
+
+    def get_template(self, category: str, key: str) -> str:
+        if self._templates is None:
+            self._load_templates()
+
+        category_key = category.strip().lower()
+        key_name = key.strip()
+        try:
+            category_templates = self._templates[category_key]
+        except KeyError as exc:
+            raise KeyError(f"未找到模板类别：{category}") from exc
+
+        try:
+            return category_templates[key_name]
+        except KeyError as exc:
+            raise KeyError(f"模板缺失：{category}.{key}") from exc
+
+    def reload(self) -> None:
+        """在测试或配置更新后重新加载模版。"""
+
+        self._templates = None
+
+
+@lru_cache(maxsize=1)
+def get_template_manager() -> TemplateManager:
+    return TemplateManager()
+
+
+def render_template(category: str, key: str, context: Mapping[str, object]) -> str:
+    """渲染指定类别与键的模版。"""
+
+    template = get_template_manager().get_template(category, key)
+    try:
+        return template.format(**context)
+    except KeyError as exc:
+        missing = exc.args[0]
+        raise ValueError(
+            f"模板 {category}.{key} 渲染时缺少变量：{missing}"
+        ) from exc
 
 
 SUPPORTED_MONITOR_TYPES = {"GET", "POST", "SERVER"}
@@ -115,35 +246,84 @@ def get_logdir():
     default_dir = Path(__file__).resolve().parent / "APIMonitor"
     return _normalise_directory(default_dir)
 
+
+def get_config_directory() -> Path:
+    """返回配置目录路径。"""
+
+    return Path(get_logdir()).resolve() / "Config"
+
 def read_monitor_list():
     logdir = get_logdir()
-    monitorlist = []
+    monitorlist: List[MonitorItem] = []
     config = configparser.RawConfigParser()
-    config.read(logdir+"Config/Config.ini")
-    totalNumber = config.get('MonitorNum', 'total')
-    for i in range(int(totalNumber)):
-        section_name = f'Monitor{i+1}'
+    config.read(logdir + "Config/Config.ini")
+
+    try:
+        total_number = config.getint("MonitorNum", "total")
+    except (configparser.NoSectionError, configparser.NoOptionError, ValueError):
+        LOGGER.error("缺少 MonitorNum.total 配置或值无效")
+        return monitorlist
+
+    for i in range(total_number):
+        section_name = f"Monitor{i + 1}"
         try:
-            monitordir = {}
-            monitordir['name'] = config.get(section_name, 'name')
-            monitordir['url'] = config.get(section_name, 'url')
-            monitordir['type'] = config.get(section_name, 'type')
-            monitordir['interval'] = config.get(section_name, 'interval')
-            monitordir['email'] = config.get(section_name, 'email')
-            payload = _load_optional_payload(config, section_name)
-            headers = _load_optional_headers(config, section_name)
-            if payload is not None:
-                monitordir['payload'] = payload
-            if headers is not None:
-                monitordir['headers'] = headers
+            monitor = _build_monitor_item(config, section_name)
         except ValueError as exc:
             LOGGER.error("监控项 %s 解析失败: %s", section_name, exc)
             continue
 
-        monitorlist.append(monitordir)
-        del monitordir
+        monitorlist.append(monitor)
 
     return monitorlist
+
+
+def _build_monitor_item(config: configparser.RawConfigParser, section_name: str) -> MonitorItem:
+    if not config.has_section(section_name):
+        raise ValueError("缺少配置节")
+
+    name = _require_non_empty(config, section_name, "name")
+    url = _require_non_empty(config, section_name, "url")
+
+    raw_type = _require_non_empty(config, section_name, "type").upper()
+    if raw_type not in SUPPORTED_MONITOR_TYPES:
+        raise ValueError(f"不支持的监控类型: {raw_type}")
+
+    interval_value = _require_non_empty(config, section_name, "interval")
+    try:
+        interval = int(interval_value)
+    except ValueError as exc:
+        raise ValueError("interval 必须为整数") from exc
+    if interval <= 0:
+        raise ValueError("interval 必须为正数")
+
+    email = config.get(section_name, "email", fallback=None)
+    email = email.strip() if isinstance(email, str) else None
+    if not email:
+        email = None
+
+    payload = _load_optional_payload(config, section_name)
+    headers = _load_optional_headers(config, section_name)
+
+    return MonitorItem(
+        name=name,
+        url=url,
+        monitor_type=raw_type,
+        interval=interval,
+        email=email,
+        payload=payload,
+        headers=headers,
+    )
+
+
+def _require_non_empty(config: configparser.RawConfigParser, section: str, option: str) -> str:
+    value = config.get(section, option, fallback="")
+    if value is None:
+        raise ValueError(f"{section}.{option} 不能为空")
+
+    stripped = str(value).strip()
+    if not stripped:
+        raise ValueError(f"{section}.{option} 不能为空")
+    return stripped
 
 
 def _load_optional_payload(config: configparser.RawConfigParser, section: str):
