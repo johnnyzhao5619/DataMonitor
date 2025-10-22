@@ -5,9 +5,14 @@
 # @Software: PyCharm
 import configparser
 import json
+import logging
 import os
+import re
 from functools import lru_cache
 from pathlib import Path
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 MAIL_ENV_PREFIX = "MAIL_"
@@ -40,22 +45,92 @@ def read_monitor_list():
     config.read(logdir+"Config/Config.ini")
     totalNumber = config.get('MonitorNum', 'total')
     for i in range(int(totalNumber)):
-        monitordir = {}
-        monitordir['name'] = config.get(f'Monitor{i+1}', 'name')
-        monitordir['url'] = config.get(f'Monitor{i+1}', 'url')
-        monitordir['type'] = config.get(f'Monitor{i+1}', 'type')
-        monitordir['interval'] = config.get(f'Monitor{i+1}', 'interval')
-        monitordir['email'] = config.get(f'Monitor{i+1}', 'email')
-        payload = _load_optional_payload(config, f'Monitor{i+1}')
-        headers = _load_optional_headers(config, f'Monitor{i+1}')
-        if payload is not None:
-            monitordir['payload'] = payload
-        if headers is not None:
-            monitordir['headers'] = headers
+        section_name = f'Monitor{i+1}'
+        try:
+            monitordir = {}
+            monitordir['name'] = config.get(section_name, 'name')
+            monitordir['url'] = config.get(section_name, 'url')
+            monitordir['type'] = config.get(section_name, 'type')
+            monitordir['interval'] = config.get(section_name, 'interval')
+            monitordir['email'] = config.get(section_name, 'email')
+            payload = _load_optional_payload(config, section_name)
+            headers = _load_optional_headers(config, section_name)
+            if payload is not None:
+                monitordir['payload'] = payload
+            if headers is not None:
+                monitordir['headers'] = headers
+        except ValueError as exc:
+            LOGGER.error("监控项 %s 解析失败: %s", section_name, exc)
+            continue
+
         monitorlist.append(monitordir)
         del monitordir
 
     return monitorlist
+
+
+def _load_optional_payload(config: configparser.RawConfigParser, section: str):
+    return _load_optional_mapping(config, section, "payload")
+
+
+def _load_optional_headers(config: configparser.RawConfigParser, section: str):
+    return _load_optional_mapping(config, section, "headers")
+
+
+def _load_optional_mapping(config: configparser.RawConfigParser, section: str, option: str):
+    if not config.has_option(section, option):
+        return None
+
+    raw_value = config.get(section, option, fallback="")
+    if raw_value is None:
+        return None
+
+    raw_value = raw_value.strip()
+    if not raw_value:
+        return None
+
+    # 首选 JSON 格式
+    try:
+        parsed = json.loads(raw_value)
+    except json.JSONDecodeError:
+        parsed = _parse_key_value_pairs(raw_value)
+    else:
+        if not isinstance(parsed, dict):
+            raise ValueError(f"{section}.{option} 需要为 JSON 对象或键值对")
+    return parsed
+
+
+def _parse_key_value_pairs(raw_value: str):
+    pairs = {}
+    segments = []
+    for line in raw_value.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        segments.extend(
+            sub.strip()
+            for sub in re.split(r"[;,]", line)
+            if sub.strip()
+        )
+
+    for segment in segments:
+        if "=" in segment:
+            key, value = segment.split("=", 1)
+        elif ":" in segment:
+            key, value = segment.split(":", 1)
+        else:
+            raise ValueError(f"无法解析键值对: '{segment}'")
+
+        key = key.strip()
+        value = value.strip()
+        if not key:
+            raise ValueError("键不能为空")
+        pairs[key] = value
+
+    if not pairs:
+        raise ValueError("未解析到有效的键值对")
+
+    return pairs
 
 
 @lru_cache(maxsize=1)

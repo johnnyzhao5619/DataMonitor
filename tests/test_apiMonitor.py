@@ -1,3 +1,4 @@
+import textwrap
 import types
 import sys
 from pathlib import Path
@@ -44,6 +45,12 @@ class DummyResponse:
 @pytest.fixture(autouse=True)
 def stub_request_timeout(monkeypatch):
     monkeypatch.setattr(configuration, "get_request_timeout", lambda: 5.0)
+
+
+@pytest.fixture(autouse=True)
+def stub_resolve_timeout(monkeypatch):
+    monkeypatch.setattr(apiMonitor, "_resolve_timeout", lambda timeout=None: 5.0, raising=False)
+    monkeypatch.setattr(apiMonitor, "resolved_timeout", 5.0, raising=False)
 
 
 @pytest.mark.parametrize("status_code", [200, 204, 301, 302])
