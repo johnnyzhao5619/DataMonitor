@@ -1,9 +1,20 @@
+import sys
+from pathlib import Path
+
 import pytest
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+import configuration
+import logRecorder
+import sendEmail
+import time
 
 pytest.importorskip("PyQt5")
 from PyQt5 import QtCore
 
-import configuration
 from mainFrame import toolsetWindow
 
 
@@ -45,3 +56,50 @@ def test_configuration_wizard_round_trip(qtbot, tmp_path, monkeypatch):
     assert saved["email"] == "ops@example.com"
 
     assert window.ui.contentStack.currentIndex() == window.ui.monitor_view_index
+
+
+@pytest.mark.qt
+def test_run_periodically_single_iteration(qtbot, tmp_path, monkeypatch):
+    monkeypatch.setenv("APIMONITOR_HOME", str(tmp_path))
+    config_dir = tmp_path / "Config"
+    configuration.writeconfig(str(config_dir))
+    configuration.write_monitor_list([])
+
+    window = toolsetWindow()
+    qtbot.addWidget(window)
+
+    monkeypatch.setattr(
+        sendEmail,
+        "render_email",
+        lambda event, context: (f"subject-{event}", f"body-{event}"),
+    )
+    monkeypatch.setattr(sendEmail, "send_email", lambda *args, **kwargs: None)
+    monkeypatch.setattr(configuration, "render_template", lambda *args, **kwargs: "mock")
+    monkeypatch.setattr(logRecorder, "record", lambda *args, **kwargs: None)
+    monkeypatch.setattr(logRecorder, "saveToFile", lambda *args, **kwargs: None)
+
+    call_count = {"perform": 0}
+
+    def fake_perform(*args, **kwargs):
+        call_count["perform"] += 1
+        return True
+
+    window.perform_task = fake_perform
+
+    def fake_sleep(interval):
+        raise StopIteration
+
+    monkeypatch.setattr(time, "sleep", fake_sleep)
+
+    monitor_info = {
+        "name": "测试服务",
+        "url": "http://example.com",
+        "type": "GET",
+        "interval": 1,
+        "email": "ops@example.com",
+    }
+
+    with pytest.raises(StopIteration):
+        window.run_periodically(monitor_info)
+
+    assert call_count["perform"] == 1

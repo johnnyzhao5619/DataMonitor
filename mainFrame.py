@@ -7,8 +7,10 @@ import configuration
 from configuration import SUPPORTED_MONITOR_TYPES
 import datetime
 import logRecorder
+import sendEmail
 import sys
 import queue
+import time
 from pathlib import Path
 from typing import Optional
 
@@ -55,7 +57,7 @@ NOTIFICATION_STATES = {
 }
 
 
-class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
+class toolsetWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
         self.ui = MainWindowUI()
