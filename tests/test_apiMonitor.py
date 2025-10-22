@@ -82,6 +82,24 @@ def test_monitor_get_exception(monkeypatch, capsys):
     assert "request timed out" in captured.out
 
 
+def test_monitor_get_reads_configuration_timeout(monkeypatch):
+    calls = {"count": 0}
+
+    def fake_get_timeout():
+        calls["count"] += 1
+        return 3.5
+
+    def fake_get(url, timeout):
+        assert timeout == 3.5
+        raise requests.RequestException("boom")
+
+    monkeypatch.setattr(configuration, "get_request_timeout", fake_get_timeout)
+    monkeypatch.setattr(apiMonitor.requests, "get", fake_get)
+
+    assert apiMonitor.monitor_get("http://example.com") is False
+    assert calls["count"] == 1
+
+
 @pytest.mark.parametrize("status_code", [200, 204, 302])
 def test_monitor_post_success_for_valid_status(monkeypatch, status_code):
     def fake_post(url, data, timeout):
@@ -116,3 +134,21 @@ def test_monitor_post_exception(monkeypatch, capsys):
 
     captured = capsys.readouterr()
     assert "connection aborted" in captured.out
+
+
+def test_monitor_post_reads_configuration_timeout(monkeypatch):
+    calls = {"count": 0}
+
+    def fake_get_timeout():
+        calls["count"] += 1
+        return 2.5
+
+    def fake_post(url, data, timeout):
+        assert timeout == 2.5
+        raise requests.RequestException("boom")
+
+    monkeypatch.setattr(configuration, "get_request_timeout", fake_get_timeout)
+    monkeypatch.setattr(apiMonitor.requests, "post", fake_post)
+
+    assert apiMonitor.monitor_post("http://example.com", payload={}) is False
+    assert calls["count"] == 1
