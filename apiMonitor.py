@@ -69,7 +69,11 @@ def monitor_get(url, timeout=None):
 
 
 def monitor_post(url, payload=None, *, headers=None, timeout=None):
-    resolved_timeout = _resolve_timeout(timeout)
+    try:
+        resolved_timeout = _resolve_timeout(timeout)
+    except ValueError as exc:
+        print(f"POST request to {url} failed with error: {exc}")
+        return False
     try:
         response = requests.post(
             url,

@@ -182,6 +182,22 @@ def test_monitor_post_exception(monkeypatch, capsys):
     assert "connection aborted" in captured.out
 
 
+def test_monitor_post_handles_timeout_configuration_error(monkeypatch, capsys):
+    def fake_get_timeout():
+        raise ValueError("invalid timeout")
+
+    def fail_post(*args, **kwargs):  # pragma: no cover - should not be called
+        raise AssertionError("requests.post should not be invoked")
+
+    monkeypatch.setattr(configuration, "get_request_timeout", fake_get_timeout)
+    monkeypatch.setattr(apiMonitor.requests, "post", fail_post)
+
+    assert apiMonitor.monitor_post("http://example.com", payload={}) is False
+
+    captured = capsys.readouterr()
+    assert "invalid timeout" in captured.out
+
+
 def test_monitor_post_forwards_payload_and_headers(monkeypatch):
     observed = {}
 
