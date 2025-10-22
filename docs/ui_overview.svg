@@ -21,7 +21,7 @@
   <text x="350" y="95" class="navtext">配置 Configuration</text>
   <rect x="580" y="50" width="220" height="70" class="navbtn" opacity="0.7"/>
   <text x="610" y="95" class="navtext">时区 Time Zone</text>
-  <text x="60" y="150" class="title">Monitor Everything - Teams 风格总览</text>
+  <text x="60" y="150" class="title">Monitor Everything - Workspace 风格总览</text>
 
   <rect x="60" y="180" width="540" height="150" class="section"/>
   <text x="90" y="220" class="subtitle">本地时间 Local Time (UTC+8)</text>
