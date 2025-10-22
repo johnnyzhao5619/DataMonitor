@@ -5,6 +5,7 @@
 # @Software: PyCharm
 import configparser
 import os
+from functools import lru_cache
 from pathlib import Path
 
 
@@ -19,6 +20,10 @@ MAIL_ENV_MAP = {
 }
 MAIL_SECTION = "Mail"
 EXTERNAL_MAIL_CONFIG_ENV = "MAIL_CONFIG_PATH"
+REQUEST_SECTION = "Request"
+REQUEST_TIMEOUT_KEY = "timeout"
+REQUEST_TIMEOUT_ENV = "REQUEST_TIMEOUT"
+DEFAULT_REQUEST_TIMEOUT = 10.0
 
 
 def get_logdir():
@@ -44,6 +49,43 @@ def read_monitor_list():
         del monitordir
 
     return monitorlist
+
+
+@lru_cache(maxsize=1)
+def get_request_timeout():
+    """返回请求超时时间，优先使用环境变量，其次读取配置文件，最后回退到默认值。"""
+
+    env_timeout = os.environ.get(REQUEST_TIMEOUT_ENV)
+    if env_timeout:
+        try:
+            timeout_value = float(env_timeout)
+            if timeout_value <= 0:
+                raise ValueError
+            return timeout_value
+        except ValueError as exc:
+            raise ValueError(
+                f"环境变量 {REQUEST_TIMEOUT_ENV} 的值无效，需为正数。"
+            ) from exc
+
+    config_paths = []
+    logdir = get_logdir()
+    config_paths.append(os.path.join(logdir, "Config", "Config.ini"))
+    config_paths.append("config.ini")
+
+    for path in config_paths:
+        if not os.path.isfile(path):
+            continue
+        config = configparser.RawConfigParser()
+        config.read(path)
+        if config.has_option(REQUEST_SECTION, REQUEST_TIMEOUT_KEY):
+            timeout_value = config.getfloat(REQUEST_SECTION, REQUEST_TIMEOUT_KEY)
+            if timeout_value <= 0:
+                raise ValueError(
+                    f"配置文件 {path} 中的 {REQUEST_SECTION}.{REQUEST_TIMEOUT_KEY} 必须为正数"
+                )
+            return timeout_value
+
+    return DEFAULT_REQUEST_TIMEOUT
 
 def read_mail_configuration():
     """读取邮件配置，优先使用环境变量，其次使用外部配置文件，最后回退到项目配置。"""
