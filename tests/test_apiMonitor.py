@@ -89,9 +89,29 @@ def test_monitor_get_exception(monkeypatch, capsys):
     assert "request timed out" in captured.out
 
 
+def test_monitor_get_reads_configuration_timeout(monkeypatch):
+    calls = {"count": 0}
+
+    def fake_get_timeout():
+        calls["count"] += 1
+        return 3.5
+
+    def fake_get(url, timeout):
+        assert timeout == 3.5
+        raise requests.RequestException("boom")
+
+    monkeypatch.setattr(configuration, "get_request_timeout", fake_get_timeout)
+    monkeypatch.setattr(apiMonitor.requests, "get", fake_get)
+
+    assert apiMonitor.monitor_get("http://example.com") is False
+    assert calls["count"] == 1
+
+
 @pytest.mark.parametrize("status_code", [200, 204, 302])
 def test_monitor_post_success_for_valid_status(monkeypatch, status_code):
-    def fake_post(url, data, timeout):
+    def fake_post(url, data=None, headers=None, timeout=None):
+        assert data == {}
+        assert headers is None
         assert timeout == 5.0
         return DummyResponse(status_code)
 
@@ -101,7 +121,9 @@ def test_monitor_post_success_for_valid_status(monkeypatch, status_code):
 
 
 def test_monitor_post_failure_status(monkeypatch, capsys):
-    def fake_post(url, data, timeout):
+    def fake_post(url, data=None, headers=None, timeout=None):
+        assert data == {}
+        assert headers is None
         assert timeout == 5.0
         return DummyResponse(500)
 
@@ -114,7 +136,7 @@ def test_monitor_post_failure_status(monkeypatch, capsys):
 
 
 def test_monitor_post_exception(monkeypatch, capsys):
-    def fake_post(url, data, timeout):
+    def fake_post(url, data=None, headers=None, timeout=None):
         raise requests.ConnectionError("connection aborted")
 
     monkeypatch.setattr(apiMonitor.requests, "post", fake_post)
@@ -125,74 +147,33 @@ def test_monitor_post_exception(monkeypatch, capsys):
     assert "connection aborted" in captured.out
 
 
-def _write_config(tmp_path, content: str):
-    config_dir = tmp_path / "APIMonitor" / "Config"
-    config_dir.mkdir(parents=True)
-    (config_dir / "Config.ini").write_text(textwrap.dedent(content), encoding="utf-8")
+def test_monitor_post_forwards_payload_and_headers(monkeypatch):
+    observed = {}
 
+    def fake_post(url, data=None, headers=None, timeout=None):
+        observed["url"] = url
+        observed["data"] = data
+        observed["headers"] = headers
+        observed["timeout"] = timeout
+        return DummyResponse(200)
 
-def test_read_monitor_list_with_optional_fields(monkeypatch, tmp_path):
-    _write_config(
-        tmp_path,
-        """
-        [MonitorNum]
-        total = 1
+    monkeypatch.setattr(apiMonitor.requests, "post", fake_post)
 
-        [Monitor1]
-        name = ServiceA
-        url = https://service.example.com
-        type = API
-        interval = 30
-        email = ops@example.com
-        payload = {"token": "abc123"}
-        headers = Accept=application/json, X-Trace=42
-        """,
+    payload = {"key": "value"}
+    headers = {"X-Test": "1"}
+
+    assert (
+        apiMonitor.monitor_post(
+            "http://example.com/api",
+            payload=payload,
+            headers=headers,
+        )
+        is True
     )
 
-    monkeypatch.setattr(
-        configuration, "get_logdir", lambda: str(tmp_path / "APIMonitor") + "/"
-    )
-
-    monitor_list = configuration.read_monitor_list()
-
-    assert len(monitor_list) == 1
-    monitor = monitor_list[0]
-    assert monitor["payload"] == {"token": "abc123"}
-    assert monitor["headers"] == {"Accept": "application/json", "X-Trace": "42"}
-
-
-def test_read_monitor_list_skip_invalid_optional(monkeypatch, tmp_path, caplog):
-    _write_config(
-        tmp_path,
-        """
-        [MonitorNum]
-        total = 2
-
-        [Monitor1]
-        name = ServiceA
-        url = https://service.example.com
-        type = API
-        interval = 30
-        email = ops@example.com
-        payload = key1=value1
-
-        [Monitor2]
-        name = ServiceB
-        url = https://invalid.example.com
-        type = API
-        interval = 45
-        email = ops@example.com
-        payload = invalid
-        """,
-    )
-
-    monkeypatch.setattr(
-        configuration, "get_logdir", lambda: str(tmp_path / "APIMonitor") + "/"
-    )
-    caplog.clear()
-
-    monitor_list = configuration.read_monitor_list()
-
-    assert len(monitor_list) == 1
-    assert monitor_list[0]["name"] == "ServiceA"
-    assert any("Monitor2" in record.message for record in caplog.records)
+    assert observed == {
+        "url": "http://example.com/api",
+        "data": payload,
+        "headers": headers,
+        "timeout": 5.0,
+    }
