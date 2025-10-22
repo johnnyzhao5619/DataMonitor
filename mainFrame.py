@@ -10,18 +10,16 @@ from PyQt5.QtWidgets import QInputDialog
 
 from GUI_Windows_New import MainWindow
 import apiMonitor
-import sendEmail
-import time
-import threading
 import configuration
 import datetime
-import sys
 import logRecorder
+import sys
 import queue
 from pathlib import Path
+from typing import Optional
 
-
-SUPPORTED_MONITOR_TYPES = {"GET", "POST", "SERVER"}
+from monitoring.service import MonitorScheduler, ServerMonitorStrategy
+from monitoring.state_machine import MonitorEvent
 
 
 class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
@@ -43,32 +41,33 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
         self.time_zone = self._read_config_timezone()
         self._update_timezone_display()
         self.update_clock()
+        self.scheduler: Optional[MonitorScheduler] = None
 
     def start_monitor(self):
         if self.switch_status is True:
-            monitorList = configuration.read_monitor_list()
-            # self.printf(f"目前读取到{len(monitorList)}个监控项，分别是：")
-            self.printf_queue.put(f"目前读取到{len(monitorList)}个监控项，分别是：")
-            logRecorder.record("Start Monitor", f"目前读取到{len(monitorList)}个监控项")
-            for i in range(len(monitorList)):
-                name = monitorList[i]['name']
-                url = monitorList[i]['url']
-                interval = monitorList[i]['interval']
-                mtype = monitorList[i]['type']
-                print("name:", name)
+            monitor_list = configuration.read_monitor_list()
+            self.printf_queue.put(f"目前读取到{len(monitor_list)}个监控项，分别是：")
+            for index, monitor in enumerate(monitor_list, start=1):
+                self.printf_queue.put(
+                    f"{index}. {monitor.name} --- 类型: {monitor.monitor_type} --- 地址: {monitor.url} --- 周期: {monitor.interval}秒"
+                )
 
-                # Log和输出————————————————————————————————————————————————————————————————————————
-                # self.printf(f"{i+1}. {name} --- 类型: {mtype} --- 地址: {url} --- 周期: {interval}秒")
-                self.printf_queue.put(f"{i+1}. {name} --- 类型: {mtype} --- 地址: {url} --- 周期: {interval}秒")
-                # 记录Log日志
-                logRecorder.record("读取配置 Read Configuration", f"{i+1}.{name} --- 类型 Type: {mtype} --- 地址 url: {url} --- 周期 Interval: {interval}秒\n")
+            if not monitor_list:
+                self.status.showMessage('未读取到有效的监控配置')
+                return
 
-            self.run_with_threads(len(monitorList), monitorList)
+            self.scheduler = MonitorScheduler(
+                event_handler=self._handle_monitor_event,
+                timezone_getter=lambda: self.time_zone,
+            )
+            self.scheduler.start(monitor_list)
 
             self.switchButton.setText('关闭 Close')
             self.switch_status = False
         elif self.switch_status is False:
-            sys.exit()
+            if self.scheduler:
+                self.scheduler.stop()
+            QtWidgets.QApplication.quit()
 
     def configuration(self):
         return
@@ -101,21 +100,25 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
                 self.monitorBrowser.moveCursor(self.cursot.End)
                 QtWidgets.QApplication.processEvents()
 
+    def _handle_monitor_event(self, event: MonitorEvent):
+        self.printf_queue.put(event.message)
+        if event.status_bar_message:
+            self.status.showMessage(event.status_bar_message)
 
-    def perform_task(self, url, parsed_address, type, email, payload=None, *, headers=None):
-        # 发送请求
-        if type == "GET":
-            result = apiMonitor.monitor_get(url)
-        elif type == "POST":
-            result = apiMonitor.monitor_post(url, payload, headers=headers)
-        elif type == "SERVER":
-            if parsed_address is None:
-                parsed_address = self.parse_network_address(url)
-            result = apiMonitor.monitor_server(parsed_address)
-        else:
-            self._log_unsupported_type(type, url)
-            return False
-        return result
+    def perform_task(self, url, parsed_address, monitor_type, email, payload=None, *, headers=None):
+        monitor_type_normalised = str(monitor_type).strip().upper() if monitor_type else ""
+        if monitor_type_normalised == "GET":
+            return apiMonitor.monitor_get(url)
+        if monitor_type_normalised == "POST":
+            return apiMonitor.monitor_post(url, payload, headers=headers)
+        if monitor_type_normalised == "SERVER":
+            address = parsed_address
+            if address is None:
+                address = ServerMonitorStrategy._parse_network_address(url)
+            return apiMonitor.monitor_server(address)
+
+        self._log_unsupported_type(monitor_type, url)
+        return False
 
     def _log_unsupported_type(self, monitor_type, url, name=None):
         monitor_name = f"[{name}]" if name else ""
@@ -131,146 +134,6 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
                 pass
         return message
 
-    # 格式化url
-    def parse_network_address(self, address):
-        """
-        解析网络地址字符串，返回协议、主机、端口和路径后缀。
-        """
-        protocol = 'http'
-        url_port_suffix = address
-
-        if address.startswith("http://"):
-            url_port_suffix = address[len("http://"):]
-        elif address.startswith("https://"):
-            protocol = 'https'
-            url_port_suffix = address[len("https://"):]
-
-        print("url_port_suffix:", url_port_suffix)
-
-        if '/' in url_port_suffix:
-            url_port, suffix = url_port_suffix.split('/', 1)
-        else:
-            url_port = url_port_suffix
-            suffix = ''
-
-        if ':' in url_port:
-            url, port_str = url_port.split(':', 1)
-            try:
-                port = int(port_str)
-            except ValueError:
-                port = None
-        else:
-            url = url_port
-            port = None
-
-        return [protocol, url, port, suffix]
-
-    # 周期性运行
-    def run_periodically(self, monitorInfo):
-        i = 1
-        lastStatus = True
-        while True:
-            # 获取配置信息
-            name = monitorInfo['name']
-            url = monitorInfo['url']
-            raw_type = monitorInfo.get('type')
-            if isinstance(raw_type, str):
-                mtype = raw_type.strip().upper()
-            elif raw_type is None:
-                mtype = ""
-            else:
-                self._log_unsupported_type(raw_type, url, name=name)
-                return
-
-            if mtype not in SUPPORTED_MONITOR_TYPES:
-                self._log_unsupported_type(mtype or raw_type, url, name=name)
-                return
-            interval = int(monitorInfo['interval'])
-            email = monitorInfo.get('email')
-            recipients = email.strip() if isinstance(email, str) else None
-            if not recipients:
-                recipients = None
-
-            # 仅在SERVER类型下解析地址
-            parsed_address = None
-            if mtype == "SERVER":
-                parsed_address = self.parse_network_address(url)
-
-            # 触发状态监控监控流程
-            result = self.perform_task(
-                url,
-                parsed_address,
-                mtype,
-                email,
-                payload=monitorInfo.get('payload'),
-                headers=monitorInfo.get('headers'),
-            )
-            timenow = datetime.datetime.utcnow() + datetime.timedelta(hours=self.time_zone)
-
-            # 判断结果
-            # 当状态正常，且跟上一次状态一致时，无操作，等待下一次
-            if result == True and result == lastStatus:
-                responseCode = 1  # 服务正常
-            # 当状态正常，且跟上一次状态不一致时，发送数据恢复邮件
-            elif result == True and result != lastStatus:
-                responseCode = 2  # 服务恢复
-            # 当状态不正常，且跟上一次状态不一致时，发送数据中断告警邮件
-            elif result == False and result != lastStatus:
-                responseCode = 3  # 服务异常
-            # 当状态不正常，且跟上一次状态一致时，数据持续异常
-            elif result == False and result == lastStatus:
-                responseCode = 4  # 服务持续异常
-
-            # 给予结果进行处理
-            if responseCode == 1:
-                print(f"\n第{i}次：{timenow} --> 状态：{name}服务正常")
-                # Log和输出————————————————————————————————————————————————————————————————————————
-                self.printf_queue.put(f"时间：{timenow} --> 状态：{name}服务正常")
-                # 记录Log日志
-                logRecorder.record(f"{name} --- 类型 Type: {mtype} --- 地址 url: {url} --- 周期 Interval: {interval}秒", f">>>{timenow}: {name}服务正常\n")
-                logRecorder.saveToFile([timenow, name, mtype, url, interval, responseCode, '正常'], name)
-
-            elif responseCode == 2:
-                subject, body = sendEmail.build_outage_recovery_message(name, timenow)
-                sendEmail.send_email(subject, body, recipients=recipients)
-                print(f"\n第{i}次：{timenow}状态 --> {name}服务恢复")
-                # Log和输出————————————————————————————————————————————————————————————————————————
-                self.printf_queue.put(f"时间：{timenow} --> 状态：{name}服务恢复")
-                # 记录Log日志
-                logRecorder.record(f"{name} --- 类型 Type: {mtype} --- 地址 url: {url} --- 周期 Interval: {interval}秒", f">>>{timenow}: {name}服务恢复\n")
-                logRecorder.saveToFile([timenow, name, mtype, url, interval, responseCode, '恢复'], name)
-
-            elif responseCode == 3:
-                subject, body = sendEmail.build_outage_alert_message(name, timenow)
-                sendEmail.send_email(subject, body, recipients=recipients)
-                print(f"\n第{i}次：{timenow}状态 --> {name}服务异常")
-                # Log和输出————————————————————————————————————————————————————————————————————————
-                self.printf_queue.put(f"时间：{timenow} --> 状态：{name}服务异常")
-                # 记录Log日志
-                logRecorder.record(f"{name} --- 类型 Type: {mtype} --- 地址 url: {url} --- 周期 Interval: {interval}秒", f">>>{timenow}: {name}服务异常\n")
-                logRecorder.saveToFile([timenow, name, mtype, url, interval, responseCode, '异常'], name)
-
-            elif responseCode == 4:
-                print(f"\n第{i}次：{timenow}状态 --> {name}服务持续异常")
-                # Log和输出————————————————————————————————————————————————————————————————————————
-                # self.printf(f"时间：{timenow} --> 状态：{name}服务持续异常")
-                self.printf_queue.put(f"时间：{timenow} --> 状态：{name}服务持续异常")
-
-                # 记录Log日志
-                logRecorder.record(f"{name} --- 类型 Type: {mtype} --- 地址 url: {url} --- 周期 Interval: {interval}秒", f">>>{timenow}: {name}服务持续异常\n")
-                logRecorder.saveToFile([timenow, name, mtype, url, interval, responseCode, '持续异常'], name)
-
-            if responseCode == 1 or responseCode == 2:
-                # 将提示信息显示在状态栏中showMessage（‘提示信息’，显示时间（单位毫秒））
-                self.status.showMessage('>>>运行中...')
-            else:
-                # 将提示信息显示在状态栏中showMessage（‘提示信息’，显示时间（单位毫秒））
-                self.status.showMessage(f'{name}服务异常')
-            print(f"\n等待{interval}秒")
-            i += 1
-            lastStatus = result
-            time.sleep(interval)
-
     def _read_config_timezone(self):
         raw_value = configuration.get_timezone()
         try:
@@ -281,14 +144,10 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
     def _update_timezone_display(self):
         self.localTimeGroupBox.setTitle(f'本地时间 Local Time(时区 Time Zone: {self.time_zone})')
 
-    # 根据需求，为每个监控项启动独立的线程
-    def run_with_threads(self, num_threads:int, monitorList:list):
-        for i in range(num_threads):
-            monitorInfo = monitorList[i]
-            t = threading.Thread(name=monitorInfo['name'], target=self.run_periodically, args=(monitorInfo,))
-            # t = threading.Thread(target=super().run_periodically, args=(monitorInfo,))
-            t.setDaemon(True)
-            t.start()
+    def closeEvent(self, event):
+        if self.scheduler:
+            self.scheduler.stop()
+        super().closeEvent(event)
 
 
 if __name__ == '__main__':
