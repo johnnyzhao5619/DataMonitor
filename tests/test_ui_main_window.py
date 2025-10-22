@@ -17,9 +17,9 @@ import threading
 pytest.importorskip("PyQt5")
 from PyQt5 import QtCore
 
-from mainFrame import toolsetWindow
+from mainFrame import MainWindowController, toolsetWindow
 from monitoring.service import parse_network_address as service_parse_network_address
-from ui.main_window import ConfigWizard
+from ui.main_window import ConfigWizard, NavigationBar
 
 
 @pytest.mark.qt
@@ -310,3 +310,24 @@ def test_run_periodically_with_duplicate_names(qtbot, tmp_path, monkeypatch):
     assert window._running_periodic == set()
 
     window._stop_periodic_monitors()
+
+
+@pytest.mark.qt
+def test_main_window_uses_navigation_bar(qtbot):
+    window = toolsetWindow()
+    qtbot.addWidget(window)
+
+    assert isinstance(window.controller, MainWindowController)
+    assert isinstance(window.ui.navigationBar, NavigationBar)
+    assert window.ui.switchButton is window.ui.navigationBar.monitorButton
+    assert window.ui.configButton is window.ui.navigationBar.configButton
+    assert window.ui.locationButton is window.ui.navigationBar.locationButton
+    assert window.ui.navigationBar.monitorButton.isCheckable()
+    assert window.ui.navigationBar.configButton.isCheckable()
+    assert not window.ui.navigationBar.locationButton.isCheckable()
+    assert window.ui.navigationBar.monitorButton.isChecked()
+
+    window.controller.show_configuration()
+    assert window.ui.navigationBar.configButton.isChecked()
+    assert not window.ui.navigationBar.monitorButton.isChecked()
+
