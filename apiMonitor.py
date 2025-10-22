@@ -126,10 +126,12 @@ def monitor_server(address, timeout=None):
     print("port:", port)
     print("url:", url)
 
+    socket_success = False
     try:
         # Method 1: Use socket to connect to a well-known port
         with socket.create_connection((host, port), timeout=5):
             pass
+        socket_success = True
         print(f"{host} is online (Socket)")
     except OSError as exc:
         print(f"{host} is offline (Socket): {exc}")
@@ -152,7 +154,7 @@ def monitor_server(address, timeout=None):
     #     print(f"{host} is offline (Ping)")
     #     pass
 
-    ping_success = None
+    ping_success = False
     try:
         # Method 2: Use subprocess to send a ping request
         # 使用Ping方法
@@ -238,7 +240,7 @@ def monitor_server(address, timeout=None):
         print(f"{host} is offline (ICMP): {exc}")
 
     # request
-    http_success = None
+    http_success = False
     try:
         resolved_timeout = _resolve_timeout(timeout)
     except ValueError as exc:
@@ -258,10 +260,17 @@ def monitor_server(address, timeout=None):
             print(f"{url} request failed (Get Requests): {exc}")
             http_success = False
 
+    print(
+        f"探测结果: socket={socket_success}, ping={ping_success}, http={http_success}"
+    )
+
     if http_success:
         return True
 
-    # If HTTP check fails, consider server offline regardless of lower-level reachability
+    if socket_success or ping_success:
+        print(f"{host} 网络层可达，但 HTTP 检测失败，返回回退成功。")
+        return True
+
     print(f"{host} is offline")
     return False
 

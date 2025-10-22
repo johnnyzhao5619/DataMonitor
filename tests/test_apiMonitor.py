@@ -275,6 +275,7 @@ def test_monitor_server_handles_socket_gaierror(monkeypatch, capsys):
     captured = capsys.readouterr()
     assert "offline (Socket)" in captured.out
     assert "503" in captured.out
+    assert "探测结果: socket=False, ping=False, http=False" in captured.out
     assert ping_calls["subprocess"] == 1
 
 
