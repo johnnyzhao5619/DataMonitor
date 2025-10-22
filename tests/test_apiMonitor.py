@@ -222,8 +222,9 @@ def test_monitor_server_handles_socket_gaierror(monkeypatch, capsys):
 
     ping_calls = {"subprocess": 0}
 
-    def fake_subprocess_ping(host):
+    def fake_subprocess_ping(host, timeout):
         ping_calls["subprocess"] += 1
+        assert timeout == 5.0
         return False
 
     monkeypatch.setattr(apiMonitor, "_subprocess_ping", fake_subprocess_ping)
@@ -251,7 +252,8 @@ def test_monitor_server_handles_socket_gaierror(monkeypatch, capsys):
             def sendto(self, *args, **kwargs):
                 return None
 
-            def settimeout(self, *args, **kwargs):
+            def settimeout(self, timeout):
+                assert timeout == 5.0
                 return None
 
             def recv(self, *args, **kwargs):
@@ -305,7 +307,7 @@ def stub_monitor_server_dependencies(monkeypatch):
             return 0
 
     monkeypatch.setattr(apiMonitor, "MyPing", DummyPing)
-    monkeypatch.setattr(apiMonitor, "_subprocess_ping", lambda host: False)
+    monkeypatch.setattr(apiMonitor, "_subprocess_ping", lambda host, timeout: False)
 
     class DummySocket:
         def __enter__(self):

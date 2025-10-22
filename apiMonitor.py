@@ -3,6 +3,7 @@
 # @Author: weijiazhao
 # @File : apiMonitor.py
 # @Software: PyCharm
+import math
 import os
 import socket
 import subprocess
@@ -21,11 +22,15 @@ def _resolve_timeout(explicit_timeout=None):
     return configuration.get_request_timeout()
 
 
-def _subprocess_ping(host):
+def _subprocess_ping(host, timeout):
     """Fallback ping using system command. Returns True on success."""
-    ping_cmd = ['ping', '-c', '1', '-W', '5', host]
+    timeout = max(float(timeout), 0.0)
     if os.name == 'nt':
-        ping_cmd = ['ping', '-n', '1', '-w', '5000', host]
+        wait_ms = max(int(math.ceil(timeout * 1000)), 1)
+        ping_cmd = ['ping', '-n', '1', '-w', str(wait_ms), host]
+    else:
+        wait_seconds = max(int(math.ceil(timeout)), 1)
+        ping_cmd = ['ping', '-c', '1', '-W', str(wait_seconds), host]
 
     if shutil.which(ping_cmd[0]) is None:
         print(f"警告: 系统未找到 ping 命令，跳过子进程 Ping 检测。")
@@ -113,6 +118,12 @@ def monitor_server(address, timeout=None):
     explicit_port = port is not None
     port = port if explicit_port else default_port
 
+    try:
+        resolved_timeout = _resolve_timeout(timeout)
+    except ValueError as exc:
+        print(f"{host} request failed: {exc}")
+        return False
+
     base_url = f"{protocol}://{host}"
     if explicit_port:
         url = f"{base_url}:{port}"
@@ -129,7 +140,7 @@ def monitor_server(address, timeout=None):
     socket_success = False
     try:
         # Method 1: Use socket to connect to a well-known port
-        with socket.create_connection((host, port), timeout=5):
+        with socket.create_connection((host, port), timeout=resolved_timeout):
             pass
         socket_success = True
         print(f"{host} is online (Socket)")
@@ -215,10 +226,10 @@ def monitor_server(address, timeout=None):
 
     except (PermissionError, OSError) as exc:
         print(f"警告: 原始 Ping 需要管理员权限或发生套接字错误，已跳过。详情: {exc}")
-        ping_success = _subprocess_ping(host)
+        ping_success = _subprocess_ping(host, resolved_timeout)
     except Exception as exc:
         print(f"警告: 原始 Ping 发生未知异常，尝试回退子进程 Ping。详情: {exc}")
-        ping_success = _subprocess_ping(host)
+        ping_success = _subprocess_ping(host, resolved_timeout)
 
 
     # ICMP
@@ -230,7 +241,7 @@ def monitor_server(address, timeout=None):
             # Send the ICMP packet to the server
             sock.sendto(dummy_packet, (host, 0))
             # Wait for a response packet
-            sock.settimeout(5)
+            sock.settimeout(resolved_timeout)
             response_packet = sock.recv(1024)
             # If a response packet is received, the server is online
             print(f"{host} is online (ICMP)")
@@ -242,23 +253,17 @@ def monitor_server(address, timeout=None):
     # request
     http_success = False
     try:
-        resolved_timeout = _resolve_timeout(timeout)
-    except ValueError as exc:
+        response = requests.get(url, timeout=resolved_timeout)
+        status_code = response.status_code
+        if 200 <= status_code < 400:
+            print(f"{url} responded with status code {status_code} (Get Requests)")
+            http_success = True
+        else:
+            print(f"{url} returned status code {status_code} (Get Requests)")
+            http_success = False
+    except requests.RequestException as exc:
         print(f"{url} request failed (Get Requests): {exc}")
         http_success = False
-    else:
-        try:
-            response = requests.get(url, timeout=resolved_timeout)
-            status_code = response.status_code
-            if 200 <= status_code < 400:
-                print(f"{url} responded with status code {status_code} (Get Requests)")
-                http_success = True
-            else:
-                print(f"{url} returned status code {status_code} (Get Requests)")
-                http_success = False
-        except requests.RequestException as exc:
-            print(f"{url} request failed (Get Requests): {exc}")
-            http_success = False
 
     print(
         f"探测结果: socket={socket_success}, ping={ping_success}, http={http_success}"
