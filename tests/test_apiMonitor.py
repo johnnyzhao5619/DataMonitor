@@ -221,8 +221,9 @@ def test_monitor_server_handles_socket_gaierror(monkeypatch, capsys):
 
     ping_calls = {"subprocess": 0}
 
-    def fake_subprocess_ping(host):
+    def fake_subprocess_ping(host, timeout):
         ping_calls["subprocess"] += 1
+        assert timeout == 5.0
         return False
 
     monkeypatch.setattr(apiMonitor, "_subprocess_ping", fake_subprocess_ping)
@@ -250,7 +251,8 @@ def test_monitor_server_handles_socket_gaierror(monkeypatch, capsys):
             def sendto(self, *args, **kwargs):
                 return None
 
-            def settimeout(self, *args, **kwargs):
+            def settimeout(self, timeout):
+                assert timeout == 5.0
                 return None
 
             def recv(self, *args, **kwargs):
@@ -303,7 +305,7 @@ def stub_monitor_server_dependencies(monkeypatch):
             return 0
 
     monkeypatch.setattr(apiMonitor, "MyPing", DummyPing)
-    monkeypatch.setattr(apiMonitor, "_subprocess_ping", lambda host: False)
+    monkeypatch.setattr(apiMonitor, "_subprocess_ping", lambda host, timeout: False)
 
     class DummySocket:
         def __enter__(self):
@@ -389,3 +391,160 @@ def test_monitor_server_uses_timeout_from_config_file(
     }
 
     ORIGINAL_GET_REQUEST_TIMEOUT.cache_clear()
+
+
+def test_monitor_server_propagates_explicit_timeout(monkeypatch):
+    explicit_timeout = 1.75
+    observed = {
+        "socket": None,
+        "ping_reply": None,
+        "ping_socket": None,
+        "icmp": None,
+        "http": None,
+    }
+
+    class DummyConnection:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    def fake_create_connection(address, timeout):
+        observed["socket"] = timeout
+        return DummyConnection()
+
+    monkeypatch.setattr(apiMonitor.socket, "create_connection", fake_create_connection)
+    monkeypatch.setattr(apiMonitor.socket, "gethostbyname", lambda host: "127.0.0.1")
+    monkeypatch.setattr(apiMonitor.time, "sleep", lambda *args, **kwargs: None)
+
+    class DummyRawSocket:
+        def __init__(self):
+            self.timeout = None
+            self.closed = False
+
+        def settimeout(self, value):
+            observed["ping_socket"] = value
+
+        def close(self):
+            self.closed = True
+
+    class DummyPing:
+        def request_ping(self, *args, **kwargs):
+            return b"icmp"
+
+        def raw_socket(self, *args, **kwargs):
+            return 0.0, DummyRawSocket()
+
+        def reply_ping(self, send_request_ping_time, rawsocket, data_sequence, timeout):
+            observed["ping_reply"] = timeout
+            return -1
+
+    monkeypatch.setattr(apiMonitor, "MyPing", DummyPing)
+
+    class DummyICMPSocket:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def sendto(self, *args, **kwargs):
+            return None
+
+        def settimeout(self, timeout):
+            observed["icmp"] = timeout
+
+        def recv(self, *args, **kwargs):
+            raise socket.timeout("no icmp reply")
+
+    def fake_socket_factory(*args, **kwargs):
+        return DummyICMPSocket()
+
+    monkeypatch.setattr(apiMonitor.socket, "socket", fake_socket_factory)
+
+    def fake_get(url, timeout):
+        observed["http"] = timeout
+        return DummyResponse(200)
+
+    monkeypatch.setattr(apiMonitor.requests, "get", fake_get)
+
+    assert (
+        apiMonitor.monitor_server(("https", "example.com", None, "status"), timeout=explicit_timeout)
+        is True
+    )
+
+    assert observed == {
+        "socket": explicit_timeout,
+        "ping_reply": explicit_timeout,
+        "ping_socket": explicit_timeout,
+        "icmp": explicit_timeout,
+        "http": explicit_timeout,
+    }
+
+
+def test_monitor_server_fallback_ping_uses_timeout(monkeypatch):
+    observed = {"timeout": None}
+
+    class DummyConnection:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    monkeypatch.setattr(
+        apiMonitor.socket,
+        "create_connection",
+        lambda *args, **kwargs: DummyConnection(),
+    )
+    monkeypatch.setattr(apiMonitor.socket, "gethostbyname", lambda host: "127.0.0.1")
+    monkeypatch.setattr(apiMonitor.time, "sleep", lambda *args, **kwargs: None)
+
+    class DummyPing:
+        def request_ping(self, *args, **kwargs):
+            return b"icmp"
+
+        def raw_socket(self, *args, **kwargs):
+            raise PermissionError("raw sockets not permitted")
+
+        def reply_ping(self, *args, **kwargs):
+            return -1
+
+    monkeypatch.setattr(apiMonitor, "MyPing", DummyPing)
+
+    class DummyICMPSocket:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def sendto(self, *args, **kwargs):
+            return None
+
+        def settimeout(self, timeout):
+            return None
+
+        def recv(self, *args, **kwargs):
+            raise socket.timeout("no icmp reply")
+
+    monkeypatch.setattr(apiMonitor.socket, "socket", lambda *args, **kwargs: DummyICMPSocket())
+
+    def fake_get(url, timeout):
+        return DummyResponse(200)
+
+    monkeypatch.setattr(apiMonitor.requests, "get", fake_get)
+
+    def fake_subprocess_ping(host, timeout):
+        observed["timeout"] = timeout
+        return False
+
+    monkeypatch.setattr(apiMonitor, "_subprocess_ping", fake_subprocess_ping)
+
+    assert (
+        apiMonitor.monitor_server(("http", "fallback.local", None, None), timeout=2.25)
+        is True
+    )
+
+    assert observed["timeout"] == 2.25

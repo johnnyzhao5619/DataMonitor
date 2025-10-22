@@ -3,6 +3,7 @@
 # @Author: weijiazhao
 # @File : apiMonitor.py
 # @Software: PyCharm
+import math
 import os
 import socket
 import subprocess
@@ -20,11 +21,15 @@ def _resolve_timeout(explicit_timeout=None):
     return configuration.get_request_timeout()
 
 
-def _subprocess_ping(host):
+def _subprocess_ping(host, timeout):
     """Fallback ping using system command. Returns True on success."""
-    ping_cmd = ['ping', '-c', '1', '-W', '5', host]
+    timeout = max(float(timeout), 0.0)
     if os.name == 'nt':
-        ping_cmd = ['ping', '-n', '1', '-w', '5000', host]
+        wait_ms = max(int(math.ceil(timeout * 1000)), 1)
+        ping_cmd = ['ping', '-n', '1', '-w', str(wait_ms), host]
+    else:
+        wait_seconds = max(int(math.ceil(timeout)), 1)
+        ping_cmd = ['ping', '-c', '1', '-W', str(wait_seconds), host]
 
     if shutil.which(ping_cmd[0]) is None:
         print(f"警告: 系统未找到 ping 命令，跳过子进程 Ping 检测。")
@@ -112,6 +117,12 @@ def monitor_server(address, timeout=None):
     explicit_port = port is not None
     port = port if explicit_port else default_port
 
+    try:
+        resolved_timeout = _resolve_timeout(timeout)
+    except ValueError as exc:
+        print(f"{host} request failed: {exc}")
+        return False
+
     base_url = f"{protocol}://{host}"
     if explicit_port:
         url = f"{base_url}:{port}"
@@ -127,7 +138,7 @@ def monitor_server(address, timeout=None):
 
     try:
         # Method 1: Use socket to connect to a well-known port
-        with socket.create_connection((host, port), timeout=5):
+        with socket.create_connection((host, port), timeout=resolved_timeout):
             pass
         print(f"{host} is online (Socket)")
     except OSError as exc:
@@ -174,12 +185,29 @@ def monitor_server(address, timeout=None):
         # 发送3次
         for i in range(0, 3):
             # 请求ping数据包的二进制转换
-            icmp_packet = ping.request_ping(data_type, data_code, data_checksum, data_ID, data_Sequence + i,
-                                            payload_body)
+            icmp_packet = ping.request_ping(
+                data_type,
+                data_code,
+                data_checksum,
+                data_ID,
+                data_Sequence + i,
+                payload_body,
+            )
             # 连接套接字,并将数据发送到套接字
             send_request_ping_time, rawsocket = ping.raw_socket(dst_addr, icmp_packet)
-            # 数据包传输时间
-            times = ping.reply_ping(send_request_ping_time, rawsocket, data_Sequence + i)
+            if hasattr(rawsocket, "settimeout"):
+                rawsocket.settimeout(resolved_timeout)
+            try:
+                # 数据包传输时间
+                times = ping.reply_ping(
+                    send_request_ping_time,
+                    rawsocket,
+                    data_Sequence + i,
+                    timeout=resolved_timeout,
+                )
+            finally:
+                if hasattr(rawsocket, "close"):
+                    rawsocket.close()
             if times > 0:
                 print("来自 {0} 的回复: 字节=32 时间={1}ms".format(dst_addr, int(times * 1000)))
                 return_time = int(times * 1000)
@@ -202,10 +230,10 @@ def monitor_server(address, timeout=None):
 
     except (PermissionError, OSError) as exc:
         print(f"警告: 原始 Ping 需要管理员权限或发生套接字错误，已跳过。详情: {exc}")
-        ping_success = _subprocess_ping(host)
+        ping_success = _subprocess_ping(host, resolved_timeout)
     except Exception as exc:
         print(f"警告: 原始 Ping 发生未知异常，尝试回退子进程 Ping。详情: {exc}")
-        ping_success = _subprocess_ping(host)
+        ping_success = _subprocess_ping(host, resolved_timeout)
 
 
     # ICMP
@@ -217,7 +245,7 @@ def monitor_server(address, timeout=None):
             # Send the ICMP packet to the server
             sock.sendto(dummy_packet, (host, 0))
             # Wait for a response packet
-            sock.settimeout(5)
+            sock.settimeout(resolved_timeout)
             response_packet = sock.recv(1024)
             # If a response packet is received, the server is online
             print(f"{host} is online (ICMP)")
@@ -229,23 +257,17 @@ def monitor_server(address, timeout=None):
     # request
     http_success = None
     try:
-        resolved_timeout = _resolve_timeout(timeout)
-    except ValueError as exc:
+        response = requests.get(url, timeout=resolved_timeout)
+        status_code = response.status_code
+        if 200 <= status_code < 400:
+            print(f"{url} responded with status code {status_code} (Get Requests)")
+            http_success = True
+        else:
+            print(f"{url} returned status code {status_code} (Get Requests)")
+            http_success = False
+    except requests.RequestException as exc:
         print(f"{url} request failed (Get Requests): {exc}")
         http_success = False
-    else:
-        try:
-            response = requests.get(url, timeout=resolved_timeout)
-            status_code = response.status_code
-            if 200 <= status_code < 400:
-                print(f"{url} responded with status code {status_code} (Get Requests)")
-                http_success = True
-            else:
-                print(f"{url} returned status code {status_code} (Get Requests)")
-                http_success = False
-        except requests.RequestException as exc:
-            print(f"{url} request failed (Get Requests): {exc}")
-            http_success = False
 
     if http_success:
         return True
