@@ -80,9 +80,8 @@ def monitor_server(address):
     try:
         # Method 1: Use socket to connect to a well-known port
         with socket.create_connection((host, port), timeout=5):
-            pass  # If no exception is raised, the connection was successful
+            pass
         print(f"{host} is online (Socket)")
-        return True
     except (ConnectionRefusedError, socket.timeout):
         print(f"{host} is offline (Socket)")
         pass
@@ -149,7 +148,6 @@ def monitor_server(address):
 
         if any(status):
             print(f"{host} is online (Ping)")
-            return True
         else:
             print(f"{host} is offline (Ping)")
             pass
@@ -172,26 +170,29 @@ def monitor_server(address):
             response_packet = sock.recv(1024)
             # If a response packet is received, the server is online
             print(f"{host} is online (ICMP)")
-            return True
     except (socket.timeout, socket.error):
         print(f"{host} is offline (ICMP)")
         pass
 
     # request
+    http_success = None
     try:
         response = requests.get(url, timeout=10)
-        if response.status_code == 200:
-            print(f"{url} is online (Get Requests)")
-            print(response)
-            return True
+        status_code = response.status_code
+        if 200 <= status_code < 400:
+            print(f"{url} responded with status code {status_code} (Get Requests)")
+            http_success = True
         else:
-            print(f"{url} is offline (Get Requests)")
-            return True
-    except:
-        print(f"{url} is offline (Get Requests)")
-        pass
+            print(f"{url} returned status code {status_code} (Get Requests)")
+            http_success = False
+    except requests.RequestException as exc:
+        print(f"{url} request failed (Get Requests): {exc}")
+        http_success = False
 
-    # If none of the methods succeed, the server is offline
+    if http_success:
+        return True
+
+    # If HTTP check fails, consider server offline regardless of lower-level reachability
     print(f"{host} is offline")
     return False
 
