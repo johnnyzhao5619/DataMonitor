@@ -2,6 +2,7 @@ from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtWidgets import QInputDialog, QMessageBox
 
 from ui.main_window import MainWindowUI
+from ui.theme import ThemeManager, teams_dark, teams_light
 import apiMonitor
 import configuration
 from configuration import SUPPORTED_MONITOR_TYPES
@@ -26,10 +27,16 @@ PeriodicMonitorKey = Tuple[str, str, str]
 class MainWindowController(QtCore.QObject):
     """协调主窗口 UI 与业务逻辑的控制器。"""
 
-    def __init__(self, window: QtWidgets.QMainWindow, ui: MainWindowUI) -> None:
+    def __init__(
+        self,
+        window: QtWidgets.QMainWindow,
+        ui: MainWindowUI,
+        theme_manager: ThemeManager,
+    ) -> None:
         super().__init__(window)
         self.window = window
         self.ui = ui
+        self.theme_manager = theme_manager
 
         self.status = self.window.statusBar()
         self.status.showMessage('>>初始化...', 4000)
@@ -56,6 +63,8 @@ class MainWindowController(QtCore.QObject):
         self.ui.locationButton.clicked.connect(self.set_location)
         self.ui.configWizard.monitorsSaved.connect(self._handle_monitors_saved)
         self.ui.configWizard.requestReload.connect(self._reload_monitors)
+
+        self._initialise_theme_selector()
 
         self._reload_monitors()
         self._update_timezone_display()
@@ -125,6 +134,57 @@ class MainWindowController(QtCore.QObject):
                 cursor = self.ui.monitorBrowser.textCursor()
                 self.ui.monitorBrowser.moveCursor(cursor.End)
                 QtWidgets.QApplication.processEvents()
+
+    def _initialise_theme_selector(self) -> None:
+        selector = self.ui.themeSelector
+        names = self.theme_manager.available_themes()
+        selector.blockSignals(True)
+        selector.clear()
+        selector.addItems(names)
+
+        current = self.theme_manager.current_theme_name()
+        if current is None and names:
+            current = names[0]
+            self.theme_manager.apply_theme(current)
+
+        if current:
+            index = selector.findText(current)
+            if index >= 0:
+                selector.setCurrentIndex(index)
+
+        selector.blockSignals(False)
+        selector.currentTextChanged.connect(self._on_theme_changed)
+        self._refresh_theme_widgets()
+
+    def _on_theme_changed(self, name: str) -> None:
+        if not name:
+            return
+
+        previous = self.theme_manager.current_theme_name()
+        if previous != name:
+            self.theme_manager.apply_theme(name)
+
+        self._refresh_theme_widgets()
+        self.status.showMessage(f'已切换至主题: {name}', 3000)
+
+    def _refresh_theme_widgets(self) -> None:
+        app = QtWidgets.QApplication.instance()
+        if app is None:
+            return
+
+        for widget in (
+            self.window,
+            self.ui.central_widget,
+            self.ui.navigationBar,
+            self.ui.contentStack,
+            self.ui.monitorBrowser,
+            self.ui.configWizard,
+        ):
+            if widget is None:
+                continue
+            app.style().unpolish(widget)
+            app.style().polish(widget)
+            widget.update()
 
     def _handle_monitor_event(self, event: MonitorEvent) -> None:
         self.printf_queue.put(event.message)
@@ -313,7 +373,10 @@ class toolsetWindow(QtWidgets.QMainWindow):
         super().__init__()
         self.ui = MainWindowUI()
         self.ui.setup_ui(self)
-        self.controller = MainWindowController(self, self.ui)
+        self.theme_manager = ThemeManager()
+        self.theme_manager.register_many((teams_light, teams_dark))
+        self.theme_manager.apply_theme(teams_light.name)
+        self.controller = MainWindowController(self, self.ui, self.theme_manager)
 
     def __getattr__(self, item):
         try:

@@ -12,103 +12,6 @@ import configuration
 import sendEmail
 
 
-BASE_STYLESHEET = """
-QMainWindow {
-    background-color: #F3F2F1;
-}
-QWidget {
-    font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
-    color: #201F1E;
-}
-QPushButton {
-    background-color: #6264A7;
-    color: white;
-    border: none;
-    border-radius: 6px;
-    padding: 8px 18px;
-}
-QPushButton[category="navigation"] {
-    background-color: transparent;
-    color: #201F1E;
-    border-radius: 8px;
-    font-weight: 600;
-    text-align: left;
-    padding: 10px 14px;
-}
-QPushButton[category="navigation"]:hover {
-    background-color: #E1DFDD;
-    color: #201F1E;
-}
-QPushButton[category="navigation"]:checked {
-    background-color: #C8C6C4;
-    color: #201F1E;
-}
-QPushButton:pressed {
-    background-color: #33344A;
-}
-QPushButton:disabled {
-    background-color: #E1DFDD;
-    color: #A19F9D;
-}
-QFrame#navigationBar {
-    background-color: #F3F2F1;
-    border-right: 1px solid #E1DFDD;
-}
-QFrame[role="card"], QWidget[role="card"] {
-    background: white;
-    border: 1px solid #E1DFDD;
-    border-radius: 10px;
-}
-QFrame[role="card"] QLabel[role="cardTitle"], QWidget[role="card"] QLabel[role="cardTitle"] {
-    font-size: 14px;
-    font-weight: 600;
-    margin-bottom: 8px;
-}
-QLabel[role="heading"] {
-    font-size: 18px;
-    font-weight: 600;
-}
-QLabel[role="hint"] {
-    color: #605E5C;
-}
-QLabel[role="error"] {
-    color: #C50F1F;
-}
-QLineEdit, QComboBox, QSpinBox, QPlainTextEdit {
-    background: white;
-    border: 1px solid #C8C6C4;
-    border-radius: 6px;
-    padding: 6px;
-}
-QListWidget {
-    background: white;
-    border: 1px solid #C8C6C4;
-    border-radius: 6px;
-}
-QStatusBar {
-    background: #E1DFDD;
-    border-top: 1px solid #C8C6C4;
-}
-QTabWidget::pane {
-    border: 1px solid #C8C6C4;
-    border-radius: 6px;
-}
-QTabBar::tab {
-    background: #E9E9F0;
-    border: 1px solid #C8C6C4;
-    border-bottom: none;
-    padding: 6px 12px;
-    margin-right: 4px;
-    border-top-left-radius: 6px;
-    border-top-right-radius: 6px;
-}
-QTabBar::tab:selected {
-    background: white;
-    color: #201F1E;
-}
-"""
-
-
 class NavigationBar(QtWidgets.QFrame):
     """遵循 Teams 视觉规范的侧边导航栏。"""
 
@@ -137,6 +40,15 @@ class NavigationBar(QtWidgets.QFrame):
 
         self.locationButton = self._create_button("时区 Time Zone", checkable=False)
         layout.addWidget(self.locationButton)
+
+        theme_label = QtWidgets.QLabel("主题 Theme")
+        theme_label.setProperty("role", "hint")
+        layout.addWidget(theme_label)
+
+        self.themeSelector = QtWidgets.QComboBox()
+        self.themeSelector.setObjectName("themeSelector")
+        self.themeSelector.setSizeAdjustPolicy(QtWidgets.QComboBox.AdjustToContents)
+        layout.addWidget(self.themeSelector)
 
     def set_active(self, button: QtWidgets.QPushButton) -> None:
         for item in self._iter_nav_buttons():
@@ -241,6 +153,7 @@ class MainWindowUI(QtCore.QObject):
         self.switchButton: QtWidgets.QPushButton
         self.configButton: QtWidgets.QPushButton
         self.locationButton: QtWidgets.QPushButton
+        self.themeSelector: QtWidgets.QComboBox
         self.localTimeGroupBox: QtWidgets.QGroupBox
         self.localTimeLabel: QtWidgets.QLabel
         self.utcTimeGroupBox: QtWidgets.QGroupBox
@@ -252,8 +165,6 @@ class MainWindowUI(QtCore.QObject):
     def setup_ui(self, window: QtWidgets.QMainWindow) -> None:
         window.resize(1080, 700)
         window.setMinimumSize(920, 600)
-        window.setStyleSheet(BASE_STYLESHEET)
-
         self.central_widget = QtWidgets.QWidget(window)
         self.central_widget.setObjectName("centralWidget")
         window.setCentralWidget(self.central_widget)
@@ -286,6 +197,7 @@ class MainWindowUI(QtCore.QObject):
         self.switchButton = self.navigationBar.monitorButton
         self.configButton = self.navigationBar.configButton
         self.locationButton = self.navigationBar.locationButton
+        self.themeSelector = self.navigationBar.themeSelector
 
         self.localTimeGroupBox = monitor_page.localTimeGroupBox
         self.localTimeLabel = monitor_page.localTimeLabel
