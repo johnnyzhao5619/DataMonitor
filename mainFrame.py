@@ -21,6 +21,9 @@ import queue
 from pathlib import Path
 
 
+SUPPORTED_MONITOR_TYPES = {"GET", "POST", "SERVER"}
+
+
 class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
     def __init__(self):
         super().__init__()
@@ -109,7 +112,24 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
             if parsed_address is None:
                 parsed_address = self.parse_network_address(url)
             result = apiMonitor.monitor_server(parsed_address)
+        else:
+            self._log_unsupported_type(type, url)
+            return False
         return result
+
+    def _log_unsupported_type(self, monitor_type, url, name=None):
+        monitor_name = f"[{name}]" if name else ""
+        readable_type = monitor_type if monitor_type not in (None, "") else "<empty>"
+        message = f"监控项{monitor_name}类型 '{readable_type}' 未被支持，URL: {url}"
+        logRecorder.record("Unsupported Monitor Type", message)
+        if hasattr(self, "printf_queue"):
+            self.printf_queue.put(message)
+        if hasattr(self, "status"):
+            try:
+                self.status.showMessage(message)
+            except Exception:
+                pass
+        return message
 
     # 格式化url
     def parse_network_address(self, address):
@@ -153,7 +173,18 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
             # 获取配置信息
             name = monitorInfo['name']
             url = monitorInfo['url']
-            mtype = monitorInfo['type']
+            raw_type = monitorInfo.get('type')
+            if isinstance(raw_type, str):
+                mtype = raw_type.strip().upper()
+            elif raw_type is None:
+                mtype = ""
+            else:
+                self._log_unsupported_type(raw_type, url, name=name)
+                return
+
+            if mtype not in SUPPORTED_MONITOR_TYPES:
+                self._log_unsupported_type(mtype or raw_type, url, name=name)
+                return
             interval = int(monitorInfo['interval'])
             email = monitorInfo.get('email')
             recipients = email.strip() if isinstance(email, str) else None
