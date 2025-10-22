@@ -11,10 +11,12 @@ if str(PROJECT_ROOT) not in sys.path:
 import configuration
 import logRecorder
 import sendEmail
-import time
+import threading
 
 pytest.importorskip("PyQt5")
 from PyQt5 import QtCore
+
+import apiMonitor
 
 from mainFrame import toolsetWindow
 from monitoring.service import parse_network_address as service_parse_network_address
@@ -130,7 +132,10 @@ def test_run_periodically_single_iteration(qtbot, tmp_path, monkeypatch, monitor
 
     monkeypatch.setattr(sendEmail, "send_email", fake_send_email)
 
-    monkeypatch.setattr(configuration, "render_template", lambda *args, **kwargs: "mock")
+    def fake_render_template(category, key, context):
+        return f"{category}.{key}|{context['service_name']}|{context['status_text']}"
+
+    monkeypatch.setattr(configuration, "render_template", fake_render_template)
 
     recorded_logs = []
 
@@ -178,13 +183,25 @@ def test_run_periodically_single_iteration(qtbot, tmp_path, monkeypatch, monitor
     with pytest.raises(StopIteration):
         window.run_periodically(monitor_info)
 
-    assert call_count["perform"] == 1
     assert send_calls == []
-    assert recorded_logs == [("mock", "mock")]
+    assert recorded_logs == [
+        (
+            "log.action_line|测试服务|正常",
+            "log.detail_line|测试服务|正常",
+        )
+    ]
     assert saved_rows and saved_rows[0][1] == "测试服务"
     row = list(saved_rows[0][0])
     assert row[1] == "测试服务"
     assert row[2] == monitor_type
     assert row[5] == 1
     assert row[6] == "正常"
-    assert window.printf_queue.get_nowait() == "mock"
+    assert window.printf_queue.get_nowait() == "ui.status_line|测试服务|正常"
+
+    qtbot.waitUntil(lambda: len(thread_names) >= 2, timeout=3000)
+    assert all(name.startswith("Monitor:") for name in thread_names)
+
+    timer = window._periodic_timers[monitor_info["name"]]
+    assert timer.isActive()
+
+    window._stop_periodic_monitors()
