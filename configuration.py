@@ -54,7 +54,11 @@ def set_timezone(timezone):
     logdir = get_logdir()
     config = configparser.RawConfigParser()
     config.read(logdir+"Config/Config.ini")
+    if not config.has_section('TimeZone'):
+        config.add_section('TimeZone')
     config.set('TimeZone', 'timezone', timezone)
+    with open(logdir + "Config/Config.ini", "w") as configfile:
+        config.write(configfile)
 
 
 
