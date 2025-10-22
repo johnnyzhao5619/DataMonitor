@@ -1,3 +1,4 @@
+import socket
 import textwrap
 import types
 import sys
@@ -94,7 +95,17 @@ def test_monitor_get_reads_configuration_timeout(monkeypatch):
         assert timeout == 3.5
         raise requests.RequestException("boom")
 
+    cached_timeout = {"value": None}
+
+    def fake_resolve_timeout(explicit_timeout=None):
+        if explicit_timeout is not None:
+            return explicit_timeout
+        if cached_timeout["value"] is None:
+            cached_timeout["value"] = configuration.get_request_timeout()
+        return cached_timeout["value"]
+
     monkeypatch.setattr(configuration, "get_request_timeout", fake_get_timeout)
+    monkeypatch.setattr(apiMonitor, "_resolve_timeout", fake_resolve_timeout)
     monkeypatch.setattr(apiMonitor.requests, "get", fake_get)
 
     assert apiMonitor.monitor_get("http://example.com") is False
@@ -197,3 +208,66 @@ def test_monitor_post_forwards_payload_and_headers(monkeypatch):
         "headers": headers,
         "timeout": 5.0,
     }
+
+
+def test_monitor_server_handles_socket_gaierror(monkeypatch, capsys):
+    def fake_create_connection(*args, **kwargs):
+        raise socket.gaierror("name or service not known")
+
+    monkeypatch.setattr(apiMonitor.socket, "create_connection", fake_create_connection)
+
+    ping_calls = {"subprocess": 0}
+
+    def fake_subprocess_ping(host):
+        ping_calls["subprocess"] += 1
+        return False
+
+    monkeypatch.setattr(apiMonitor, "_subprocess_ping", fake_subprocess_ping)
+
+    class DummyPing:
+        def request_ping(self, *args, **kwargs):
+            return b"icmp"
+
+        def raw_socket(self, *args, **kwargs):
+            raise PermissionError("raw sockets not permitted")
+
+        def reply_ping(self, *args, **kwargs):
+            return 0
+
+    monkeypatch.setattr(apiMonitor, "MyPing", DummyPing)
+
+    def fake_socket_factory(*args, **kwargs):
+        class DummySocket:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return False
+
+            def sendto(self, *args, **kwargs):
+                return None
+
+            def settimeout(self, *args, **kwargs):
+                return None
+
+            def recv(self, *args, **kwargs):
+                raise socket.timeout("no icmp reply")
+
+        return DummySocket()
+
+    monkeypatch.setattr(apiMonitor.socket, "socket", fake_socket_factory)
+
+    def fake_get(url, timeout):
+        assert url == "http://invalid.host"
+        return DummyResponse(503)
+
+    monkeypatch.setattr(apiMonitor.requests, "get", fake_get)
+
+    result = apiMonitor.monitor_server(("http", "invalid.host", None, None))
+
+    assert result is False
+
+    captured = capsys.readouterr()
+    assert "offline (Socket)" in captured.out
+    assert "503" in captured.out
+    assert ping_calls["subprocess"] == 1
