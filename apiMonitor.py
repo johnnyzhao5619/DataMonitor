@@ -8,6 +8,7 @@ import socket
 import subprocess
 import time
 import shutil
+from contextlib import closing
 import requests
 
 import configuration
@@ -176,12 +177,22 @@ def monitor_server(address, timeout=None):
         # 发送3次
         for i in range(0, 3):
             # 请求ping数据包的二进制转换
-            icmp_packet = ping.request_ping(data_type, data_code, data_checksum, data_ID, data_Sequence + i,
-                                            payload_body)
+            icmp_packet = ping.request_ping(
+                data_type,
+                data_code,
+                data_checksum,
+                data_ID,
+                data_Sequence + i,
+                payload_body,
+            )
             # 连接套接字,并将数据发送到套接字
-            send_request_ping_time, rawsocket = ping.raw_socket(dst_addr, icmp_packet)
-            # 数据包传输时间
-            times = ping.reply_ping(send_request_ping_time, rawsocket, data_Sequence + i)
+            send_request_ping_time, rawsocket_resource = ping.raw_socket(dst_addr, icmp_packet)
+            if not hasattr(rawsocket_resource, "__enter__") or not hasattr(rawsocket_resource, "__exit__"):
+                rawsocket_resource = closing(rawsocket_resource)
+
+            with rawsocket_resource as rawsocket:
+                # 数据包传输时间
+                times = ping.reply_ping(send_request_ping_time, rawsocket, data_Sequence + i)
             if times > 0:
                 print("来自 {0} 的回复: 字节=32 时间={1}ms".format(dst_addr, int(times * 1000)))
                 return_time = int(times * 1000)
