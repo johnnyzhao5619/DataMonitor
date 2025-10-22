@@ -186,7 +186,8 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
                 logRecorder.saveToFile([timenow, name, mtype, url, interval, responseCode, '正常'], name)
 
             elif responseCode == 2:
-                sendEmail.send_email(f"{timenow}: {name} Server Outage Recovery!", f"{name}服务已恢复\n恢复时间：{timenow}\n")
+                subject, body = sendEmail.build_outage_recovery_message(name, timenow)
+                sendEmail.send_email(subject, body)
                 print(f"\n第{i}次：{timenow}状态 --> {name}服务恢复")
                 # Log和输出————————————————————————————————————————————————————————————————————————
                 self.printf_queue.put(f"时间：{timenow} --> 状态：{name}服务恢复")
@@ -195,7 +196,8 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
                 logRecorder.saveToFile([timenow, name, mtype, url, interval, responseCode, '恢复'], name)
 
             elif responseCode == 3:
-                sendEmail.send_email(f"{timenow}: {name} Server Outage Recovery!", f"{name}服务异常\n发生时间：{timenow}")
+                subject, body = sendEmail.build_outage_alert_message(name, timenow)
+                sendEmail.send_email(subject, body)
                 print(f"\n第{i}次：{timenow}状态 --> {name}服务异常")
                 # Log和输出————————————————————————————————————————————————————————————————————————
                 self.printf_queue.put(f"时间：{timenow} --> 状态：{name}服务异常")
