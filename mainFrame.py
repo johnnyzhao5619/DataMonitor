@@ -110,15 +110,16 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
     # 格式化url
     def parse_network_address(self, address):
         """
-        Parses a network address string in the format "http(s)://url:port/suffix" and returns a list
-        containing the URL, port, and suffix.
+        解析网络地址字符串，返回协议、主机、端口和路径后缀。
         """
+        protocol = 'http'
+        url_port_suffix = address
+
         if address.startswith("http://"):
             url_port_suffix = address[len("http://"):]
         elif address.startswith("https://"):
+            protocol = 'https'
             url_port_suffix = address[len("https://"):]
-        else:
-            url_port_suffix = address
 
         print("url_port_suffix:", url_port_suffix)
 
@@ -129,13 +130,16 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
             suffix = ''
 
         if ':' in url_port:
-            url, port = url_port.split(':')
-            port = int(port)
+            url, port_str = url_port.split(':', 1)
+            try:
+                port = int(port_str)
+            except ValueError:
+                port = None
         else:
             url = url_port
-            port = ''
+            port = None
 
-        return [url, port, suffix]
+        return [protocol, url, port, suffix]
 
     # 周期性运行
     def run_periodically(self, monitorInfo):

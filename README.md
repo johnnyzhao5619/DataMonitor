@@ -47,3 +47,22 @@ chmod 600 /etc/datamonitor/mail.ini
 - 通过 CI/CD 将凭证注入环境变量或安全的密钥管理服务。
 - 定期轮换邮箱密码，并在更新后同步环境变量或外部配置文件。
 - 核查部署节点的日志与备份策略，避免凭证被意外写入日志或备份。
+
+## 协议解析手工验证
+
+更新后的服务监控会根据 URL 中的协议选择默认端口，并保持 HTTP/HTTPS 一致。可以按照以下步骤在本地进行一次端到端验证：
+
+1. **启动 HTTP 测试服务**：
+   ```bash
+   python -m http.server 8000 --bind 127.0.0.1
+   ```
+   在监控配置中填入 `http://127.0.0.1:8000`，确认探测端口为 8000，浏览器或命令行可返回 200。
+2. **启动 HTTPS 测试服务**：
+   ```bash
+   openssl req -x509 -nodes -days 1 -newkey rsa:2048 -keyout server.key -out server.crt -subj "/CN=localhost"
+   openssl s_server -quiet -accept 8443 -cert server.crt -key server.key -www
+   ```
+   将监控地址设置为 `https://127.0.0.1:8443`，确认请求会自动使用 443 作为默认端口；若需访问非默认端口，继续使用显式端口号即可。
+3. **查看日志输出**：监控面板与日志会同时打印协议、端口与访问 URL，确保 HTTP 与 HTTPS 场景均未出现协议错配。
+
+完成后可删除临时生成的 `server.key` 和 `server.crt` 文件。

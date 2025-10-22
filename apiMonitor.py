@@ -60,19 +60,23 @@ def monitor_post(url, payload):
 
 
 def monitor_server(address):
-    host = address[0]
-    if(address[1] == '' and address[2] == '' ):
-        url = 'https://' + address[0]
-        port = 80
-    elif(address[1] != '' and address[2] == ''):
-        url = 'https://' + address[0] + ':' + str(address[1])
-        port = address[1]
-    elif(address[1] != '' and address[2] != ''):
-        url = 'https://' + address[0] + ':' + str(address[1]) + '/' + address[2]
-        port = address[1]
-    elif (address[1] == '' and address[2] != ''):
-        url = 'https://' + address[0] + '/' + address[2]
-        port = 80
+    protocol, host, port, suffix = address
+    if protocol not in ('http', 'https'):
+        protocol = 'http'
+
+    default_port = 80 if protocol == 'http' else 443
+    explicit_port = port is not None
+    port = port if explicit_port else default_port
+
+    base_url = f"{protocol}://{host}"
+    if explicit_port:
+        url = f"{base_url}:{port}"
+    else:
+        url = base_url
+
+    if suffix:
+        url = f"{url}/{suffix}"
+
     print("host:", host)
     print("port:", port)
     print("url:", url)
