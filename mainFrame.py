@@ -37,6 +37,9 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
 
         self.switch_status = True
         self.printf_queue = queue.Queue()
+        self.time_zone = self._read_config_timezone()
+        self._update_timezone_display()
+        self.update_clock()
 
     def start_monitor(self):
         if self.switch_status is True:
@@ -68,18 +71,19 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
         return
 
     def set_location(self):
-        time_zone = int(configuration.get_timezone())
         # 后面四个数字的作用依次是 初始值 最小值 最大值 步幅
-        time_zone, ok = QInputDialog.getInt(self, "输入时区", "请输入所在时区(整数):", time_zone, -12, 14, 1)
-        self.localTimeGroupBox.setTitle(f'本地时间 Local Time(时区 Time Zone: {time_zone})')
-        configuration.set_timezone(time_zone)
+        time_zone, ok = QInputDialog.getInt(self, "输入时区", "请输入所在时区(整数):", self.time_zone, -12, 14, 1)
+        if ok:
+            self.time_zone = time_zone
+            configuration.set_timezone(str(time_zone))
+            self._update_timezone_display()
+            self.update_clock()
         # self.echo(time_zone)
 
     def update_clock(self):
-        time_zone = int(configuration.get_timezone())
         # current_time = QTime.currentTime().toString("Y-M-D hh:mm:ss")
         utc_time = datetime.datetime.utcnow()
-        current_time = datetime.datetime.utcnow() + datetime.timedelta(hours=time_zone)
+        current_time = utc_time + datetime.timedelta(hours=self.time_zone)
         self.localTimeLabel.setText(current_time.strftime('%Y-%m-%d %H:%M:%S'))
         self.utcTimeLabel.setText(utc_time.strftime('%Y-%m-%d %H:%M:%S'))
 
@@ -110,15 +114,16 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
     # 格式化url
     def parse_network_address(self, address):
         """
-        Parses a network address string in the format "http(s)://url:port/suffix" and returns a list
-        containing the URL, port, and suffix.
+        解析网络地址字符串，返回协议、主机、端口和路径后缀。
         """
+        protocol = 'http'
+        url_port_suffix = address
+
         if address.startswith("http://"):
             url_port_suffix = address[len("http://"):]
         elif address.startswith("https://"):
+            protocol = 'https'
             url_port_suffix = address[len("https://"):]
-        else:
-            url_port_suffix = address
 
         print("url_port_suffix:", url_port_suffix)
 
@@ -129,17 +134,19 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
             suffix = ''
 
         if ':' in url_port:
-            url, port = url_port.split(':')
-            port = int(port)
+            url, port_str = url_port.split(':', 1)
+            try:
+                port = int(port_str)
+            except ValueError:
+                port = None
         else:
             url = url_port
-            port = ''
+            port = None
 
-        return [url, port, suffix]
+        return [protocol, url, port, suffix]
 
     # 周期性运行
     def run_periodically(self, monitorInfo):
-        time_zone = int(configuration.get_timezone())
         i = 1
         lastStatus = True
         while True:
@@ -156,10 +163,8 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
                 parsed_address = self.parse_network_address(url)
 
             # 触发状态监控监控流程
-            payload = monitorInfo.get('payload')
-            headers = monitorInfo.get('headers')
-            result = self.perform_task(url, parsed_address, mtype, email, payload, headers)
-            timenow = datetime.datetime.utcnow() + datetime.timedelta(hours=time_zone)
+            result = self.perform_task(url, parsed_address, mtype, email)
+            timenow = datetime.datetime.utcnow() + datetime.timedelta(hours=self.time_zone)
 
             # 判断结果
             # 当状态正常，且跟上一次状态一致时，无操作，等待下一次
@@ -185,7 +190,8 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
                 logRecorder.saveToFile([timenow, name, mtype, url, interval, responseCode, '正常'], name)
 
             elif responseCode == 2:
-                sendEmail.send_email(f"{timenow}: {name} Server Outage Recovery!", f"{name}服务已恢复\n恢复时间：{timenow}\n")
+                subject, body = sendEmail.build_outage_recovery_message(name, timenow)
+                sendEmail.send_email(subject, body)
                 print(f"\n第{i}次：{timenow}状态 --> {name}服务恢复")
                 # Log和输出————————————————————————————————————————————————————————————————————————
                 self.printf_queue.put(f"时间：{timenow} --> 状态：{name}服务恢复")
@@ -194,7 +200,8 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
                 logRecorder.saveToFile([timenow, name, mtype, url, interval, responseCode, '恢复'], name)
 
             elif responseCode == 3:
-                sendEmail.send_email(f"{timenow}: {name} Server Outage Recovery!", f"{name}服务异常\n发生时间：{timenow}")
+                subject, body = sendEmail.build_outage_alert_message(name, timenow)
+                sendEmail.send_email(subject, body)
                 print(f"\n第{i}次：{timenow}状态 --> {name}服务异常")
                 # Log和输出————————————————————————————————————————————————————————————————————————
                 self.printf_queue.put(f"时间：{timenow} --> 状态：{name}服务异常")
@@ -222,6 +229,15 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
             i += 1
             lastStatus = result
             time.sleep(interval)
+
+    def _read_config_timezone(self):
+        try:
+            return int(configuration.get_timezone())
+        except (TypeError, ValueError):
+            return 0
+
+    def _update_timezone_display(self):
+        self.localTimeGroupBox.setTitle(f'本地时间 Local Time(时区 Time Zone: {self.time_zone})')
 
     # 根据需求，为每个监控项启动独立的线程
     def run_with_threads(self, num_threads:int, monitorList:list):

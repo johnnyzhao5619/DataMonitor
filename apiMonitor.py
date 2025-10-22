@@ -7,45 +7,63 @@ import os
 import socket
 import subprocess
 import time
+import shutil
 import requests
+
+import configuration
 from myPing import *
+
+
+def _subprocess_ping(host):
+    """Fallback ping using system command. Returns True on success."""
+    ping_cmd = ['ping', '-c', '1', '-W', '5', host]
+    if os.name == 'nt':
+        ping_cmd = ['ping', '-n', '1', '-w', '5000', host]
+
+    if shutil.which(ping_cmd[0]) is None:
+        print(f"警告: 系统未找到 ping 命令，跳过子进程 Ping 检测。")
+        return False
+
+    try:
+        subprocess.check_output(ping_cmd, stderr=subprocess.STDOUT)
+        print(f"{host} is online (Subprocess Ping)")
+        return True
+    except subprocess.CalledProcessError as exc:
+        print(f"{host} is offline (Subprocess Ping): {exc}")
+        return False
 
 
 def monitor_get(url):
     try:
-        response = requests.get(url)
-        if response.status_code == 200:
-            print(f"GET request to {url} successful")
+        response = requests.get(url, timeout=resolved_timeout)
+        if 200 <= response.status_code < 400:
+            print(f"GET request to {url} successful with status code: {response.status_code}")
             return True
         else:
-            print(f"GET request to {url} failed with status code: {response.status_code}")
+            print(
+                f"GET request to {url} failed with status code: {response.status_code}"
+            )
             return False
-    except:
-        print(f"GET request to {url} failed")
+    except requests.RequestException as exc:
+        print(f"GET request to {url} failed with error: {exc}")
         return False
 
 
 
-def monitor_post(url, payload=None, headers=None):
+def monitor_post(url, payload, timeout=None):
+    resolved_timeout = _resolve_timeout(timeout)
     try:
-        request_kwargs = {}
-        if headers:
-            request_kwargs['headers'] = headers
-
-        if isinstance(payload, (dict, list)):
-            response = requests.post(url, json=payload, **request_kwargs)
-        elif payload is None:
-            response = requests.post(url, **request_kwargs)
-        else:
-            response = requests.post(url, data=payload, **request_kwargs)
-        if response.status_code == 200:
-            print(f"POST request to {url} successful")
+        response = requests.post(url, data=payload, timeout=resolved_timeout)
+        if 200 <= response.status_code < 400:
+            print(f"POST request to {url} successful with status code: {response.status_code}")
             return True
         else:
-            print(f"POST request to {url} failed with status code: {response.status_code}")
+            print(
+                f"POST request to {url} failed with status code: {response.status_code}"
+            )
             return False
-    except Exception as exc:
-        print(f"POST request to {url} failed: {exc}")
+    except requests.RequestException as exc:
+        print(f"POST request to {url} failed with error: {exc}")
         return False
 
 # def monitor_server(host: str, timeout: float = 2.0) -> bool:
@@ -69,19 +87,23 @@ def monitor_post(url, payload=None, headers=None):
 
 
 def monitor_server(address):
-    host = address[0]
-    if(address[1] == '' and address[2] == '' ):
-        url = 'https://' + address[0]
-        port = 80
-    elif(address[1] != '' and address[2] == ''):
-        url = 'https://' + address[0] + ':' + str(address[1])
-        port = address[1]
-    elif(address[1] != '' and address[2] != ''):
-        url = 'https://' + address[0] + ':' + str(address[1]) + '/' + address[2]
-        port = address[1]
-    elif (address[1] == '' and address[2] != ''):
-        url = 'https://' + address[0] + '/' + address[2]
-        port = 80
+    protocol, host, port, suffix = address
+    if protocol not in ('http', 'https'):
+        protocol = 'http'
+
+    default_port = 80 if protocol == 'http' else 443
+    explicit_port = port is not None
+    port = port if explicit_port else default_port
+
+    base_url = f"{protocol}://{host}"
+    if explicit_port:
+        url = f"{base_url}:{port}"
+    else:
+        url = base_url
+
+    if suffix:
+        url = f"{url}/{suffix}"
+
     print("host:", host)
     print("port:", port)
     print("url:", url)
@@ -113,6 +135,7 @@ def monitor_server(address):
     #     print(f"{host} is offline (Ping)")
     #     pass
 
+    ping_success = None
     try:
         # Method 2: Use subprocess to send a ping request
         # 使用Ping方法
@@ -155,15 +178,18 @@ def monitor_server(address):
                 status.append(False)
                 print("请求超时")
 
-        if any(status):
+        ping_success = any(status)
+        if ping_success:
             print(f"{host} is online (Ping)")
         else:
             print(f"{host} is offline (Ping)")
-            pass
 
-    except subprocess.CalledProcessError:
-        print(f"{host} is offline (Ping)")
-        pass
+    except (PermissionError, OSError) as exc:
+        print(f"警告: 原始 Ping 需要管理员权限或发生套接字错误，已跳过。详情: {exc}")
+        ping_success = _subprocess_ping(host)
+    except Exception as exc:
+        print(f"警告: 原始 Ping 发生未知异常，尝试回退子进程 Ping。详情: {exc}")
+        ping_success = _subprocess_ping(host)
 
 
     # ICMP
@@ -179,9 +205,10 @@ def monitor_server(address):
             response_packet = sock.recv(1024)
             # If a response packet is received, the server is online
             print(f"{host} is online (ICMP)")
-    except (socket.timeout, socket.error):
-        print(f"{host} is offline (ICMP)")
-        pass
+    except PermissionError as exc:
+        print(f"警告: 原始 ICMP 检测需要管理员权限，已跳过。详情: {exc}")
+    except (socket.timeout, socket.error) as exc:
+        print(f"{host} is offline (ICMP): {exc}")
 
     # request
     http_success = None

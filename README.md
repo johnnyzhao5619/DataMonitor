@@ -37,6 +37,33 @@ chmod 600 /etc/datamonitor/mail.ini
 
 若环境变量或外部配置文件缺少任意字段，程序会抛出明确异常并停止发送邮件，以防使用不完整的配置。确保每次变更后执行冒烟测试，验证告警邮件功能正常。
 
+### 邮件主题与正文示例
+
+监控程序根据不同事件类型生成固定的邮件主题前缀，便于运维在收件箱中快速筛选：
+
+- 服务异常告警：`Outage Alert | <服务名称>`
+- 服务恢复通知：`Outage Recovery | <服务名称>`
+
+邮件正文首行会明确标注事件状态，常见示例如下：
+
+```
+主题: Outage Alert | <服务名称>
+
+状态：告警
+服务：<服务名称>
+说明：监控检测到服务不可达
+发生时间：[UTC 时间戳]
+```
+
+```
+主题: Outage Recovery | <服务名称>
+
+状态：恢复
+服务：<服务名称>
+说明：监控检测到服务恢复至正常状态
+恢复时间：[UTC 时间戳]
+```
+
 ### 生成配置模板
 
 调用 `configuration.writeconfig` 会在 `APIMonitor/Config/Config.ini` 中生成示例模板。模板仅包含占位符，运维需要手工覆盖为真实值或提供独立的外部配置文件。
@@ -48,34 +75,7 @@ chmod 600 /etc/datamonitor/mail.ini
 - 定期轮换邮箱密码，并在更新后同步环境变量或外部配置文件。
 - 核查部署节点的日志与备份策略，避免凭证被意外写入日志或备份。
 
-## 配置 POST 监控
+## 网络检测权限说明
 
-当监控项的 `type` 为 `POST` 时，可在 `APIMonitor/Config/Config.ini` 中为该任务增加可选字段：
-
-- `payload`：请求体内容。若配置为 JSON 对象或数组（如 `{"message": "hello"}`），程序会以 `application/json` 方式发送；若填写普通字符串，则按原文作为请求体。
-- `headers`：自定义请求头，需填写 JSON 对象，例如 `{"Content-Type": "application/json", "X-Token": "demo"}`。
-
-示例配置如下：
-
-```ini
-[MonitorPostDemo]
-name = HTTPBin POST Demo
-url = https://httpbin.org/post
-type = POST
-interval = 60
-email = ops-team@example.com
-payload = {"message": "ping"}
-headers = {"Content-Type": "application/json"}
-```
-
-保存配置后，可运行以下命令进行快速验证，确认示例任务能够成功发起 POST 请求：
-
-```bash
-python - <<'PY'
-from apiMonitor import monitor_post
-
-monitor_post("https://httpbin.org/post", {"message": "ping"}, {"Content-Type": "application/json"})
-PY
-```
-
-终端应打印 `POST request to https://httpbin.org/post successful`，表示任务配置生效。
+- `monitor_server` 在检测网络连通性时会优先尝试原始 ICMP Ping。如需启用该功能，运行程序的账户必须具备管理员或 root 权限，否则程序会自动回退到系统 `ping` 命令或仅执行 HTTP 检查。
+- 在缺少权限的环境中，无需额外配置即可继续使用 HTTP 检查结果，函数会返回布尔值而非抛出异常。
