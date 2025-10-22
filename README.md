@@ -92,6 +92,8 @@ chmod 600 /etc/datamonitor/mail.ini
   - `record_entry`：文本日志整体格式。
   - `csv_header`：CSV 文件首行标题（以逗号分隔）。
 
+监控状态机（`monitoring/state_machine.py`）在生成 `MonitorEvent` 时同样使用以上 UI 与日志模版，因此修改模版即可同步影响 CLI/GUI 提示、日志记录等所有渠道的输出。
+
 所有模版均支持 Python `str.format` 占位符，常用字段包括：
 
 - `{service_name}`：监控项名称。

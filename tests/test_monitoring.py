@@ -15,6 +15,8 @@ if "requests" not in sys.modules:
         post=lambda *args, **kwargs: types.SimpleNamespace(status_code=200),
     )
 
+import pytest
+
 import configuration  # noqa: E402  pylint: disable=wrong-import-position
 import logRecorder  # noqa: E402  pylint: disable=wrong-import-position
 from monitoring.service import (  # noqa: E402
@@ -27,6 +29,13 @@ from monitoring.state_machine import (  # noqa: E402
     MonitorStateMachine,
     NotificationTemplates,
 )
+
+
+@pytest.fixture(autouse=True)
+def reset_template_manager():
+    configuration.get_template_manager.cache_clear()
+    yield
+    configuration.get_template_manager.cache_clear()
 
 
 class SequenceStrategy(MonitorStrategy):
@@ -76,6 +85,36 @@ def test_state_machine_transitions_and_notifications():
     event4 = machine.transition(True, base_time, base_time)
     assert event4.status is MonitorState.RECOVERED
     assert event4.notification.subject.startswith("Recovery")
+
+
+def test_state_machine_respects_template_overrides(tmp_path, monkeypatch):
+    templates_content = """[ui]\nstatus_line = [{event_timestamp}] {service_name}::{status_label}\n[log]\naction_line = ACTION {service_name} {monitor_type}\ndetail_line = DETAIL {status_text} @ {event_timestamp}\n"""
+    monkeypatch.setenv(configuration.LOG_DIR_ENV, str(tmp_path))
+    config_dir = tmp_path / "Config"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    template_path = config_dir / configuration.TEMPLATE_CONFIG_NAME
+    template_path.write_text(templates_content, encoding="utf-8")
+
+    monitor = configuration.MonitorItem(
+        name="ServiceA",
+        url="http://example.com",
+        monitor_type="GET",
+        interval=30,
+        email="ops@example.com",
+    )
+    templates = NotificationTemplates(
+        channel="email",
+        build_outage=lambda name, ts: (f"Outage {name}", ts.isoformat()),
+        build_recovery=lambda name, ts: (f"Recovery {name}", ts.isoformat()),
+    )
+    machine = MonitorStateMachine(monitor, templates)
+    base_time = datetime.datetime(2023, 1, 1, 8, 30, 0)
+
+    event = machine.transition(False, base_time, base_time)
+
+    assert event.message == "[2023-01-01 08:30:00] ServiceA::服务异常"
+    assert event.log_action == "ACTION ServiceA GET"
+    assert event.log_detail == "DETAIL 异常 @ 2023-01-01 08:30:00"
 
 
 def test_scheduler_runs_strategies_and_emits_events(monkeypatch):

@@ -5,8 +5,9 @@ from __future__ import annotations
 import datetime as _dt
 from dataclasses import dataclass
 from enum import Enum
-from typing import Callable, Optional, Tuple
+from typing import Callable, Dict, Optional, Tuple
 
+import configuration
 from configuration import MonitorItem
 
 
@@ -117,17 +118,18 @@ class MonitorStateMachine:
             state = MonitorState.OUTAGE_ONGOING
             notification = None
 
-        message = self._build_message(state, local_time)
-        log_action = self._build_log_action()
-        log_detail = self._build_log_detail(state, local_time)
+        context = self._build_context(state, local_time)
+        message = self._build_message(context)
+        log_action = self._build_log_action(context)
+        log_detail = self._build_log_detail(context)
         csv_row = (
             local_time,
-            self._monitor.name,
-            self._monitor.monitor_type,
-            self._monitor.url,
-            self._monitor.interval,
-            state.response_code,
-            state.csv_label,
+            context["service_name"],
+            context["monitor_type"],
+            context["url"],
+            context["interval"],
+            context["status_code"],
+            context["status_text"],
         )
         status_bar_message = self._build_status_bar_message(state)
 
@@ -145,6 +147,21 @@ class MonitorStateMachine:
             notification=notification,
             is_status_change=success != previous_success,
         )
+
+    def _build_context(
+        self, state: MonitorState, local_time: _dt.datetime
+    ) -> Dict[str, object]:
+        timestamp_text = local_time.strftime("%Y-%m-%d %H:%M:%S")
+        return {
+            "service_name": self._monitor.name,
+            "monitor_type": self._monitor.monitor_type,
+            "url": self._monitor.url,
+            "interval": self._monitor.interval,
+            "status_code": state.response_code,
+            "status_label": state.display_text,
+            "status_text": state.csv_label,
+            "event_timestamp": timestamp_text,
+        }
 
     def _build_notification(
         self, state: MonitorState, local_time: _dt.datetime
@@ -164,17 +181,14 @@ class MonitorStateMachine:
             recipients=recipients,
         )
 
-    def _build_message(self, state: MonitorState, local_time: _dt.datetime) -> str:
-        return f"时间：{local_time} --> 状态：{self._monitor.name}{state.display_text}"
+    def _build_message(self, context: Dict[str, object]) -> str:
+        return configuration.render_template("ui", "status_line", context)
 
-    def _build_log_action(self) -> str:
-        return (
-            f"{self._monitor.name} --- 类型 Type: {self._monitor.monitor_type} --- "
-            f"地址 url: {self._monitor.url} --- 周期 Interval: {self._monitor.interval}秒"
-        )
+    def _build_log_action(self, context: Dict[str, object]) -> str:
+        return configuration.render_template("log", "action_line", context)
 
-    def _build_log_detail(self, state: MonitorState, local_time: _dt.datetime) -> str:
-        return f">>>{local_time}: {self._monitor.name}{state.display_text}"
+    def _build_log_detail(self, context: Dict[str, object]) -> str:
+        return configuration.render_template("log", "detail_line", context)
 
     def _build_status_bar_message(self, state: MonitorState) -> str:
         if state in (MonitorState.HEALTHY, MonitorState.RECOVERED):
