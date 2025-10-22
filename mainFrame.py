@@ -155,7 +155,10 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
             url = monitorInfo['url']
             mtype = monitorInfo['type']
             interval = int(monitorInfo['interval'])
-            email = monitorInfo['email']
+            email = monitorInfo.get('email')
+            recipients = email.strip() if isinstance(email, str) else None
+            if not recipients:
+                recipients = None
 
             # 仅在SERVER类型下解析地址
             parsed_address = None
@@ -198,7 +201,7 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
 
             elif responseCode == 2:
                 subject, body = sendEmail.build_outage_recovery_message(name, timenow)
-                sendEmail.send_email(subject, body)
+                sendEmail.send_email(subject, body, recipients=recipients)
                 print(f"\n第{i}次：{timenow}状态 --> {name}服务恢复")
                 # Log和输出————————————————————————————————————————————————————————————————————————
                 self.printf_queue.put(f"时间：{timenow} --> 状态：{name}服务恢复")
@@ -208,7 +211,7 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
 
             elif responseCode == 3:
                 subject, body = sendEmail.build_outage_alert_message(name, timenow)
-                sendEmail.send_email(subject, body)
+                sendEmail.send_email(subject, body, recipients=recipients)
                 print(f"\n第{i}次：{timenow}状态 --> {name}服务异常")
                 # Log和输出————————————————————————————————————————————————————————————————————————
                 self.printf_queue.put(f"时间：{timenow} --> 状态：{name}服务异常")
