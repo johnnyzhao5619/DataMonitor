@@ -10,7 +10,7 @@ import os
 import re
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional, Union
+from typing import Dict, List, Optional, Union
 
 
 LOGGER = logging.getLogger(__name__)
@@ -37,6 +37,9 @@ DEFAULT_TIMEZONE = "0"
 
 
 LOG_DIR_ENV = "APIMONITOR_HOME"
+
+
+SUPPORTED_MONITOR_TYPES = {"GET", "POST", "SERVER"}
 
 
 def _normalise_directory(
@@ -156,22 +159,38 @@ def _load_optional_mapping(config: configparser.RawConfigParser, section: str, o
         return None
 
     raw_value = config.get(section, option, fallback="")
+    return parse_mapping_string(raw_value)
+
+
+def parse_mapping_string(raw_value: Optional[str]):
+    """解析映射字符串，支持 JSON 或 key=value 对列表。"""
+
     if raw_value is None:
         return None
 
-    raw_value = raw_value.strip()
-    if not raw_value:
+    text = str(raw_value).strip()
+    if not text:
         return None
 
-    # 首选 JSON 格式
     try:
-        parsed = json.loads(raw_value)
+        parsed = json.loads(text)
     except json.JSONDecodeError:
-        parsed = _parse_key_value_pairs(raw_value)
+        parsed = _parse_key_value_pairs(text)
     else:
         if not isinstance(parsed, dict):
-            raise ValueError(f"{section}.{option} 需要为 JSON 对象或键值对")
+            raise ValueError("映射内容必须为 JSON 对象")
     return parsed
+
+
+def _prepare_mapping_for_write(value):
+    if value is None:
+        return None
+    if isinstance(value, str):
+        text = value.strip()
+        return text or None
+    if isinstance(value, dict):
+        return json.dumps(value, ensure_ascii=False)
+    raise TypeError("映射值必须为 dict 或字符串")
 
 
 def _parse_key_value_pairs(raw_value: str):
@@ -376,6 +395,65 @@ def set_timezone(timezone):
         config.add_section('TimeZone')
     config.set('TimeZone', 'timezone', str(timezone))
     with open(logdir + "Config/Config.ini", "w") as configfile:
+        config.write(configfile)
+
+
+def write_monitor_list(monitors: List[Dict[str, object]]) -> None:
+    """将监控项列表写入配置文件。"""
+
+    logdir = get_logdir()
+    config_dir = Path(logdir) / "Config"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    config_path = config_dir / "Config.ini"
+
+    config = configparser.RawConfigParser()
+    if config_path.exists():
+        config.read(os.fspath(config_path))
+
+    if not config.has_section("MonitorNum"):
+        config.add_section("MonitorNum")
+
+    for section in list(config.sections()):
+        if section.lower().startswith("monitor") and section != "MonitorNum":
+            config.remove_section(section)
+
+    config.set("MonitorNum", "total", str(len(monitors)))
+
+    for index, monitor in enumerate(monitors, start=1):
+        section = f"Monitor{index}"
+        config.add_section(section)
+
+        name = str(monitor.get("name", "")).strip()
+        url = str(monitor.get("url", "")).strip()
+        monitor_type = str(monitor.get("type", "")).strip().upper()
+        interval = int(monitor.get("interval", 0))
+        email = str(monitor.get("email", "")).strip()
+
+        if not name:
+            raise ValueError(f"{section} 名称不能为空")
+        if not url:
+            raise ValueError(f"{section} URL 不能为空")
+        if monitor_type not in SUPPORTED_MONITOR_TYPES:
+            raise ValueError(
+                f"{section} 类型必须为 {sorted(SUPPORTED_MONITOR_TYPES)} 之一"
+            )
+        if interval <= 0:
+            raise ValueError(f"{section} 轮询周期必须为正整数")
+
+        config.set(section, "name", name)
+        config.set(section, "url", url)
+        config.set(section, "type", monitor_type)
+        config.set(section, "interval", str(interval))
+        config.set(section, "email", email)
+
+        payload_text = _prepare_mapping_for_write(monitor.get("payload"))
+        headers_text = _prepare_mapping_for_write(monitor.get("headers"))
+        if payload_text:
+            config.set(section, "payload", payload_text)
+        if headers_text:
+            config.set(section, "headers", headers_text)
+
+    with config_path.open("w") as configfile:
         config.write(configfile)
 
 

@@ -1,19 +1,13 @@
-# -*- codeing = utf-8 -*-
-# @Time : 2023-03-29 3:22 p.m.
-# @Author: weijiazhao
-# @File : mainFrame.py
-# @Software: PyCharm
+from PyQt5 import QtCore, QtWidgets
+from PyQt5.QtWidgets import QInputDialog, QMessageBox
 
-
-from PyQt5 import QtWidgets
-from PyQt5.QtWidgets import QInputDialog
-
-from GUI_Windows_New import MainWindow
+from ui.main_window import MainWindowUI
 import apiMonitor
 import sendEmail
 import time
 import threading
 import configuration
+from configuration import SUPPORTED_MONITOR_TYPES
 import datetime
 import sys
 import logRecorder
@@ -21,33 +15,33 @@ import queue
 from pathlib import Path
 
 
-SUPPORTED_MONITOR_TYPES = {"GET", "POST", "SERVER"}
-
-
-class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
+class toolsetWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setupUi(self)
-        # 实例化创建状态栏
+        self.ui = MainWindowUI()
+        self.ui.setup_ui(self)
         self.status = self.statusBar()
-        # 将提示信息显示在状态栏中showMessage（‘提示信息’，显示时间（单位毫秒））
         self.status.showMessage('>>初始化...', 4000)
-        # 创建窗口标题
         self.setWindowTitle('Monitor Everything v0.2')
-        self.switchButton.clicked.connect(self.start_monitor)
-        self.configButton.clicked.connect(self.configuration)
-        self.locationButton.clicked.connect(self.set_location)
+        self.ui.switchButton.clicked.connect(self.start_monitor)
+        self.ui.configButton.clicked.connect(self.show_configuration)
+        self.ui.locationButton.clicked.connect(self.set_location)
+        self.ui.configWizard.monitorsSaved.connect(self._handle_monitors_saved)
+        self.ui.configWizard.requestReload.connect(self._reload_monitors)
 
         self.switch_status = True
         self.printf_queue = queue.Queue()
         self.time_zone = self._read_config_timezone()
+        self._clock_timer = QtCore.QTimer(self)
+        self._clock_timer.timeout.connect(self.update_clock)
+        self._clock_timer.start(1000)
+        self._reload_monitors()
         self._update_timezone_display()
         self.update_clock()
 
     def start_monitor(self):
         if self.switch_status is True:
             monitorList = configuration.read_monitor_list()
-            # self.printf(f"目前读取到{len(monitorList)}个监控项，分别是：")
             self.printf_queue.put(f"目前读取到{len(monitorList)}个监控项，分别是：")
             logRecorder.record("Start Monitor", f"目前读取到{len(monitorList)}个监控项")
             for i in range(len(monitorList)):
@@ -57,21 +51,21 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
                 mtype = monitorList[i]['type']
                 print("name:", name)
 
-                # Log和输出————————————————————————————————————————————————————————————————————————
-                # self.printf(f"{i+1}. {name} --- 类型: {mtype} --- 地址: {url} --- 周期: {interval}秒")
                 self.printf_queue.put(f"{i+1}. {name} --- 类型: {mtype} --- 地址: {url} --- 周期: {interval}秒")
-                # 记录Log日志
                 logRecorder.record("读取配置 Read Configuration", f"{i+1}.{name} --- 类型 Type: {mtype} --- 地址 url: {url} --- 周期 Interval: {interval}秒\n")
 
             self.run_with_threads(len(monitorList), monitorList)
 
-            self.switchButton.setText('关闭 Close')
+            self.ui.show_monitor_page()
+            self.ui.switchButton.setText('关闭 Close')
             self.switch_status = False
         elif self.switch_status is False:
             sys.exit()
 
-    def configuration(self):
-        return
+    def show_configuration(self):
+        self._reload_monitors()
+        self.ui.show_configuration_page()
+        self.status.showMessage('>>配置模式', 3000)
 
     def set_location(self):
         # 后面四个数字的作用依次是 初始值 最小值 最大值 步幅
@@ -84,11 +78,10 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
         # self.echo(time_zone)
 
     def update_clock(self):
-        # current_time = QTime.currentTime().toString("Y-M-D hh:mm:ss")
         utc_time = datetime.datetime.utcnow()
         current_time = utc_time + datetime.timedelta(hours=self.time_zone)
-        self.localTimeLabel.setText(current_time.strftime('%Y-%m-%d %H:%M:%S'))
-        self.utcTimeLabel.setText(utc_time.strftime('%Y-%m-%d %H:%M:%S'))
+        self.ui.localTimeLabel.setText(current_time.strftime('%Y-%m-%d %H:%M:%S'))
+        self.ui.utcTimeLabel.setText(utc_time.strftime('%Y-%m-%d %H:%M:%S'))
 
         while True:
             try:
@@ -96,11 +89,10 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
             except queue.Empty:
                 break
             else:
-                self.monitorBrowser.append(message)  # 在指定的区域显示提示信息
-                self.cursot = self.monitorBrowser.textCursor()
-                self.monitorBrowser.moveCursor(self.cursot.End)
+                self.ui.monitorBrowser.append(message)
+                cursor = self.ui.monitorBrowser.textCursor()
+                self.ui.monitorBrowser.moveCursor(cursor.End)
                 QtWidgets.QApplication.processEvents()
-
 
     def perform_task(self, url, parsed_address, type, email, payload=None, *, headers=None):
         # 发送请求
@@ -271,6 +263,21 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
             lastStatus = result
             time.sleep(interval)
 
+    def _handle_monitors_saved(self, monitors):
+        try:
+            configuration.write_monitor_list(monitors)
+        except Exception as exc:
+            QMessageBox.critical(self, '保存失败', str(exc))
+            self.status.showMessage(f'保存失败: {exc}', 5000)
+        else:
+            self.status.showMessage('配置已保存', 4000)
+            self._reload_monitors()
+            self.ui.show_monitor_page()
+
+    def _reload_monitors(self):
+        monitors = configuration.read_monitor_list()
+        self.ui.configWizard.load_monitors(monitors)
+
     def _read_config_timezone(self):
         raw_value = configuration.get_timezone()
         try:
@@ -279,7 +286,7 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
             return 0
 
     def _update_timezone_display(self):
-        self.localTimeGroupBox.setTitle(f'本地时间 Local Time(时区 Time Zone: {self.time_zone})')
+        self.ui.localTimeGroupBox.setTitle(f'本地时间 Local Time(时区 Time Zone: {self.time_zone})')
 
     # 根据需求，为每个监控项启动独立的线程
     def run_with_threads(self, num_threads:int, monitorList:list):
