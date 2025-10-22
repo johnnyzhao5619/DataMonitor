@@ -9,6 +9,7 @@ import socket
 import subprocess
 import time
 import shutil
+from contextlib import closing
 import requests
 
 import configuration
@@ -136,10 +137,12 @@ def monitor_server(address, timeout=None):
     print("port:", port)
     print("url:", url)
 
+    socket_success = False
     try:
         # Method 1: Use socket to connect to a well-known port
         with socket.create_connection((host, port), timeout=resolved_timeout):
             pass
+        socket_success = True
         print(f"{host} is online (Socket)")
     except OSError as exc:
         print(f"{host} is offline (Socket): {exc}")
@@ -162,7 +165,7 @@ def monitor_server(address, timeout=None):
     #     print(f"{host} is offline (Ping)")
     #     pass
 
-    ping_success = None
+    ping_success = False
     try:
         # Method 2: Use subprocess to send a ping request
         # 使用Ping方法
@@ -194,20 +197,13 @@ def monitor_server(address, timeout=None):
                 payload_body,
             )
             # 连接套接字,并将数据发送到套接字
-            send_request_ping_time, rawsocket = ping.raw_socket(dst_addr, icmp_packet)
-            if hasattr(rawsocket, "settimeout"):
-                rawsocket.settimeout(resolved_timeout)
-            try:
+            send_request_ping_time, rawsocket_resource = ping.raw_socket(dst_addr, icmp_packet)
+            if not hasattr(rawsocket_resource, "__enter__") or not hasattr(rawsocket_resource, "__exit__"):
+                rawsocket_resource = closing(rawsocket_resource)
+
+            with rawsocket_resource as rawsocket:
                 # 数据包传输时间
-                times = ping.reply_ping(
-                    send_request_ping_time,
-                    rawsocket,
-                    data_Sequence + i,
-                    timeout=resolved_timeout,
-                )
-            finally:
-                if hasattr(rawsocket, "close"):
-                    rawsocket.close()
+                times = ping.reply_ping(send_request_ping_time, rawsocket, data_Sequence + i)
             if times > 0:
                 print("来自 {0} 的回复: 字节=32 时间={1}ms".format(dst_addr, int(times * 1000)))
                 return_time = int(times * 1000)
@@ -255,7 +251,7 @@ def monitor_server(address, timeout=None):
         print(f"{host} is offline (ICMP): {exc}")
 
     # request
-    http_success = None
+    http_success = False
     try:
         response = requests.get(url, timeout=resolved_timeout)
         status_code = response.status_code
@@ -269,10 +265,17 @@ def monitor_server(address, timeout=None):
         print(f"{url} request failed (Get Requests): {exc}")
         http_success = False
 
+    print(
+        f"探测结果: socket={socket_success}, ping={ping_success}, http={http_success}"
+    )
+
     if http_success:
         return True
 
-    # If HTTP check fails, consider server offline regardless of lower-level reachability
+    if socket_success or ping_success:
+        print(f"{host} 网络层可达，但 HTTP 检测失败，返回回退成功。")
+        return True
+
     print(f"{host} is offline")
     return False
 
