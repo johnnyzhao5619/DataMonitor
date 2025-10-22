@@ -87,7 +87,7 @@ class ThemeManager:
         return theme
 
 
-def _create_teams_light_palette() -> QtGui.QPalette:
+def _create_workspace_light_palette() -> QtGui.QPalette:
     palette = QtGui.QPalette()
     palette.setColor(QtGui.QPalette.Window, QtGui.QColor("#F3F2F1"))
     palette.setColor(QtGui.QPalette.WindowText, QtGui.QColor("#201F1E"))
@@ -107,7 +107,7 @@ def _create_teams_light_palette() -> QtGui.QPalette:
     return palette
 
 
-def _create_teams_dark_palette() -> QtGui.QPalette:
+def _create_workspace_dark_palette() -> QtGui.QPalette:
     palette = QtGui.QPalette()
     palette.setColor(QtGui.QPalette.Window, QtGui.QColor("#1F1F24"))
     palette.setColor(QtGui.QPalette.WindowText, QtGui.QColor("#F3F2F1"))
@@ -379,16 +379,16 @@ QListWidget::item:selected {
 """
 
 
-teams_light = ThemeDefinition(
-    name="Teams Light",
-    palette_factory=_create_teams_light_palette,
+workspace_light = ThemeDefinition(
+    name="Workspace Light",
+    palette_factory=_create_workspace_light_palette,
     stylesheet=_LIGHT_STYLESHEET,
 )
 
 
-teams_dark = ThemeDefinition(
-    name="Teams Dark",
-    palette_factory=_create_teams_dark_palette,
+workspace_dark = ThemeDefinition(
+    name="Workspace Dark",
+    palette_factory=_create_workspace_dark_palette,
     stylesheet=_DARK_STYLESHEET,
 )
 
@@ -396,6 +396,6 @@ teams_dark = ThemeDefinition(
 __all__ = [
     "ThemeDefinition",
     "ThemeManager",
-    "teams_light",
-    "teams_dark",
+    "workspace_light",
+    "workspace_dark",
 ]

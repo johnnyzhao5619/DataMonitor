@@ -2,9 +2,9 @@
 
 ## 界面预览与使用说明
 
-![Teams 风格主界面](docs/ui_overview.svg)
+![Workspace 风格主界面](docs/ui_overview.svg)
 
-1. 启动应用：在已准备好 `Config.ini` 的环境中执行 `python mainFrame.py`，默认进入监控视图，顶部导航采用 Teams 风格配色。
+1. 启动应用：在已准备好 `Config.ini` 的环境中执行 `python mainFrame.py`，默认进入监控视图，顶部导航采用 Workspace 风格配色。
 2. 监控视图：左侧显示本地时间，右侧显示 UTC 时间；下方实时日志滚动展示最新事件。
 3. 配置向导：点击“配置 Configuration”按钮切换到配置视图，可在列表中增删监控项，右侧表单提供实时校验与通知邮件预览，保存后立即写入配置文件。
 4. 时区调整：通过“时区 Time Zone”入口输入整数时区值，保存后时钟与日志状态会实时刷新。
@@ -132,9 +132,15 @@ chmod 600 /etc/datamonitor/mail.ini
 
 ## 模块划分与扩展指南
 
+### 界面与控制器
+
+- `ui/main_window.py` 提供导航栏、监控仪表盘与配置向导等界面组件，负责纯粹的布局与交互控件定义。
+- `controllers/main_window.py` 封装 `MainWindowController`，集中处理主题切换、调度协调与配置保存逻辑，减少 `mainFrame.py` 的耦合度。
+- `ui/theme.py` 统一声明 `ThemeDefinition` 与 `Workspace` 风格主题常量，便于后续扩展或替换主题资源。
+
 ### 调度与状态管理
 
-- `monitoring/service.py` 实现调度层，负责读取 `configuration.read_monitor_list()` 返回的结构化监控项，按类型查找已注册的策略并以独立线程循环执行。调度层同时协调状态机、日志写入以及通知分发，使得 UI (`mainFrame.toolsetWindow`) 仅承担展示职责。
+- `monitoring/service.py` 实现调度层，负责读取 `configuration.read_monitor_list()` 返回的结构化监控项，按类型查找已注册的策略并以独立线程循环执行。调度层同时协调状态机、日志写入以及通知分发，使得 UI (`mainFrame.ToolsetWindow`) 仅承担展示职责。
 - `monitoring/state_machine.py` 提供 `MonitorStateMachine`，根据监控结果驱动状态切换并生成统一的 `MonitorEvent`。事件中包含状态描述、日志内容、CSV 行以及通知模版信息，便于在不同渠道重用。
 
 ### 策略注册

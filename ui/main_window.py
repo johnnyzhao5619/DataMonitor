@@ -13,7 +13,7 @@ import sendEmail
 
 
 class NavigationBar(QtWidgets.QFrame):
-    """遵循 Teams 视觉规范的侧边导航栏。"""
+    """遵循现代协同主题的侧边导航栏。"""
 
     def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
         super().__init__(parent)
