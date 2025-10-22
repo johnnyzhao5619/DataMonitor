@@ -131,9 +131,8 @@ def monitor_server(address):
         with socket.create_connection((host, port), timeout=5):
             pass
         print(f"{host} is online (Socket)")
-    except (ConnectionRefusedError, socket.timeout):
-        print(f"{host} is offline (Socket)")
-        pass
+    except OSError as exc:
+        print(f"{host} is offline (Socket): {exc}")
 
     # Ping
     # try:
