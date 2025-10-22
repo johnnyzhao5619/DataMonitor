@@ -11,10 +11,12 @@ if str(PROJECT_ROOT) not in sys.path:
 import configuration
 import logRecorder
 import sendEmail
-import time
+import threading
 
 pytest.importorskip("PyQt5")
 from PyQt5 import QtCore
+
+import apiMonitor
 
 from mainFrame import toolsetWindow
 from ui.main_window import ConfigWizard
@@ -122,7 +124,10 @@ def test_run_periodically_single_iteration(qtbot, tmp_path, monkeypatch):
 
     monkeypatch.setattr(sendEmail, "send_email", fake_send_email)
 
-    monkeypatch.setattr(configuration, "render_template", lambda *args, **kwargs: "mock")
+    def fake_render_template(category, key, context):
+        return f"{category}.{key}|{context['service_name']}|{context['status_text']}"
+
+    monkeypatch.setattr(configuration, "render_template", fake_render_template)
 
     recorded_logs = []
 
@@ -138,18 +143,7 @@ def test_run_periodically_single_iteration(qtbot, tmp_path, monkeypatch):
 
     monkeypatch.setattr(logRecorder, "saveToFile", fake_save)
 
-    call_count = {"perform": 0}
-
-    def fake_perform(*args, **kwargs):
-        call_count["perform"] += 1
-        return True
-
-    window.perform_task = fake_perform
-
-    def fake_sleep(interval):
-        raise StopIteration
-
-    monkeypatch.setattr(time, "sleep", fake_sleep)
+    monkeypatch.setattr(apiMonitor, "monitor_get", lambda url: True)
 
     monitor_info = {
         "name": "测试服务",
@@ -159,16 +153,39 @@ def test_run_periodically_single_iteration(qtbot, tmp_path, monkeypatch):
         "email": "ops@example.com",
     }
 
-    with pytest.raises(StopIteration):
-        window.run_periodically(monitor_info)
+    thread_names = []
 
-    assert call_count["perform"] == 1
+    original_run_single_cycle = window._periodic_scheduler.run_single_cycle
+
+    def spy_run_single_cycle(monitor):
+        thread_names.append(threading.current_thread().name)
+        return original_run_single_cycle(monitor)
+
+    window._periodic_scheduler.run_single_cycle = spy_run_single_cycle
+
+    window.run_periodically(monitor_info)
+
+    qtbot.waitUntil(lambda: not window.printf_queue.empty())
+
     assert send_calls == []
-    assert recorded_logs == [("mock", "mock")]
+    assert recorded_logs == [
+        (
+            "log.action_line|测试服务|正常",
+            "log.detail_line|测试服务|正常",
+        )
+    ]
     assert saved_rows and saved_rows[0][1] == "测试服务"
     row = list(saved_rows[0][0])
     assert row[1] == "测试服务"
     assert row[2] == "GET"
     assert row[5] == 1
     assert row[6] == "正常"
-    assert window.printf_queue.get_nowait() == "mock"
+    assert window.printf_queue.get_nowait() == "ui.status_line|测试服务|正常"
+
+    qtbot.waitUntil(lambda: len(thread_names) >= 2, timeout=3000)
+    assert all(name.startswith("Monitor:") for name in thread_names)
+
+    timer = window._periodic_timers[monitor_info["name"]]
+    assert timer.isActive()
+
+    window._stop_periodic_monitors()

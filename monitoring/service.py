@@ -136,6 +136,40 @@ class MonitorScheduler:
         self._threads.clear()
         self._state_machines.clear()
 
+    def run_single_cycle(
+        self,
+        monitor: configuration.MonitorItem,
+        *,
+        strategy: Optional[MonitorStrategy] = None,
+    ) -> MonitorEvent:
+        """执行指定监控项的一次周期。
+
+        该方法复用调度器的状态机、日志与通知流程，用于在外部线程中执行
+        单次检查（例如 GUI 通过定时器触发），从而避免重复实现日志与通知逻辑。
+        """
+
+        if strategy is None:
+            strategy = self._strategies.get(monitor.monitor_type.upper())
+            if strategy is None:
+                raise ValueError(f"未注册监控类型 {monitor.monitor_type}")
+
+        key = self._monitor_key(monitor)
+        state_machine = self._state_machines.setdefault(
+            key,
+            MonitorStateMachine(monitor, self._templates),
+        )
+
+        try:
+            success = bool(strategy.run(monitor))
+        except Exception as exc:  # pragma: no cover - 防御性兜底
+            success = False
+            print(f"执行监控 {monitor.name} 发生异常: {exc}")
+
+        utc_now, local_now = self._now()
+        event = state_machine.transition(success, utc_now, local_now)
+        self._handle_event(event)
+        return event
+
     def _run_monitor(
         self,
         monitor: configuration.MonitorItem,

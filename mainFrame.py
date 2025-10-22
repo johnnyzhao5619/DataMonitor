@@ -7,19 +7,17 @@ import configuration
 from configuration import SUPPORTED_MONITOR_TYPES
 import datetime
 import logRecorder
-import sendEmail
 import sys
 import queue
-import time
+import threading
 from pathlib import Path
 from typing import Optional
 
 from monitoring.service import (
     MonitorScheduler,
     ServerMonitorStrategy,
-    default_notification_templates,
 )
-from monitoring.state_machine import MonitorEvent, MonitorStateMachine
+from monitoring.state_machine import MonitorEvent
 
 
 class toolsetWindow(QtWidgets.QMainWindow):
@@ -46,6 +44,13 @@ class toolsetWindow(QtWidgets.QMainWindow):
         self._update_timezone_display()
         self.update_clock()
         self.scheduler: Optional[MonitorScheduler] = None
+        self._periodic_scheduler = MonitorScheduler(
+            event_handler=self._handle_monitor_event,
+            timezone_getter=lambda: self.time_zone,
+        )
+        self._periodic_monitors: dict[str, configuration.MonitorItem] = {}
+        self._periodic_timers: dict[str, QtCore.QTimer] = {}
+        self._running_periodic: set[str] = set()
 
     def start_monitor(self):
         if self.switch_status is True:
@@ -176,78 +181,13 @@ class toolsetWindow(QtWidgets.QMainWindow):
 
     # 周期性运行
     def run_periodically(self, monitorInfo):
-        name = monitorInfo["name"]
-        url = monitorInfo["url"]
-        raw_type = monitorInfo.get("type")
-        if isinstance(raw_type, str):
-            monitor_type = raw_type.strip().upper()
-        elif raw_type is None:
-            monitor_type = ""
-        else:
-            self._log_unsupported_type(raw_type, url, name=name)
+        monitor = self._build_monitor_item(monitorInfo)
+        if monitor is None:
             return
 
-        if monitor_type not in SUPPORTED_MONITOR_TYPES:
-            self._log_unsupported_type(monitor_type or raw_type, url, name=name)
-            return
-
-        try:
-            interval = int(monitorInfo["interval"])
-        except (TypeError, ValueError):
-            self.printf_queue.put(f"监控项[{name}]的周期配置无效: {monitorInfo['interval']}")
-            return
-
-        monitor = configuration.MonitorItem(
-            name=name,
-            url=url,
-            monitor_type=monitor_type,
-            interval=interval,
-            email=monitorInfo.get("email"),
-            payload=monitorInfo.get("payload"),
-            headers=monitorInfo.get("headers"),
-        )
-
-        templates = default_notification_templates()
-        state_machine = MonitorStateMachine(monitor, templates)
-
-        parsed_address = None
-        if monitor.monitor_type == "SERVER":
-            parsed_address = self.parse_network_address(monitor.url)
-
-        i = 1
-        while True:
-            result = self.perform_task(
-                monitor.url,
-                parsed_address,
-                monitor.monitor_type,
-                monitor.email,
-                payload=monitor.payload,
-                headers=monitor.headers,
-            )
-            utc_now = datetime.datetime.utcnow()
-            local_now = utc_now + datetime.timedelta(hours=self.time_zone)
-            event = state_machine.transition(bool(result), utc_now, local_now)
-
-            self.printf_queue.put(event.message)
-            print(f"\n第{i}次：{event.message}")
-
-            logRecorder.record(event.log_action, event.log_detail)
-            logRecorder.saveToFile(list(event.csv_row), monitor.name)
-
-            if event.notification:
-                sendEmail.send_email(
-                    event.notification.subject,
-                    event.notification.body,
-                    recipients=event.notification.recipients,
-                )
-
-            if event.status_bar_message:
-                self.status.showMessage(event.status_bar_message)
-
-            interval_value = max(int(monitor.interval), 0)
-            print(f"\n等待{interval_value}秒")
-            i += 1
-            time.sleep(interval_value)
+        self._periodic_monitors[monitor.name] = monitor
+        self._trigger_periodic_monitor(monitor.name)
+        self._schedule_periodic_monitor(monitor)
 
     def _handle_monitors_saved(self, monitors):
         try:
@@ -277,7 +217,105 @@ class toolsetWindow(QtWidgets.QMainWindow):
     def closeEvent(self, event):
         if self.scheduler:
             self.scheduler.stop()
+        self._stop_periodic_monitors()
         super().closeEvent(event)
+
+    def _build_monitor_item(self, monitorInfo):
+        if isinstance(monitorInfo, configuration.MonitorItem):
+            return monitorInfo
+
+        name = monitorInfo.get("name")
+        url = monitorInfo.get("url")
+        if not name or not url:
+            self.printf_queue.put("监控项配置缺少名称或地址")
+            return None
+
+        raw_type = monitorInfo.get("type")
+        monitor_type = ""
+        if isinstance(raw_type, str):
+            monitor_type = raw_type.strip().upper()
+        elif raw_type is None:
+            monitor_type = ""
+        else:
+            self._log_unsupported_type(raw_type, url, name=name)
+            return None
+
+        if monitor_type not in SUPPORTED_MONITOR_TYPES:
+            self._log_unsupported_type(monitor_type or raw_type, url, name=name)
+            return None
+
+        try:
+            interval = int(monitorInfo.get("interval", 0))
+        except (TypeError, ValueError):
+            self.printf_queue.put(f"监控项[{name}]的周期配置无效: {monitorInfo.get('interval')}")
+            return None
+
+        return configuration.MonitorItem(
+            name=name,
+            url=url,
+            monitor_type=monitor_type,
+            interval=interval,
+            email=monitorInfo.get("email"),
+            payload=monitorInfo.get("payload"),
+            headers=monitorInfo.get("headers"),
+        )
+
+    def _trigger_periodic_monitor(self, monitor_name: str):
+        monitor = self._periodic_monitors.get(monitor_name)
+        if not monitor:
+            timer = self._periodic_timers.pop(monitor_name, None)
+            if timer:
+                timer.stop()
+            return
+
+        if monitor_name in self._running_periodic:
+            return
+
+        self._running_periodic.add(monitor_name)
+
+        def _run_cycle():
+            try:
+                self._periodic_scheduler.run_single_cycle(monitor)
+            finally:
+                self._running_periodic.discard(monitor_name)
+
+        thread = threading.Thread(
+            name=f"Monitor:{monitor.name}",
+            target=_run_cycle,
+            daemon=True,
+        )
+        thread.start()
+
+    def _schedule_periodic_monitor(self, monitor: configuration.MonitorItem):
+        interval_ms = max(int(monitor.interval), 0) * 1000
+        timer = self._periodic_timers.get(monitor.name)
+
+        if interval_ms == 0:
+            if timer:
+                timer.stop()
+            return
+
+        if timer is None:
+            timer = QtCore.QTimer(self)
+            timer.setSingleShot(False)
+            timer.timeout.connect(lambda name=monitor.name: self._trigger_periodic_monitor(name))
+            self._periodic_timers[monitor.name] = timer
+
+        timer.setInterval(interval_ms)
+        if not timer.isActive():
+            timer.start()
+
+    def _stop_periodic_monitors(self):
+        for timer in self._periodic_timers.values():
+            timer.stop()
+        self._periodic_timers.clear()
+        self._periodic_monitors.clear()
+        self._running_periodic.clear()
+        self._periodic_scheduler.stop()
+        self._periodic_scheduler = MonitorScheduler(
+            event_handler=self._handle_monitor_event,
+            timezone_getter=lambda: self.time_zone,
+        )
 
 
 if __name__ == '__main__':
