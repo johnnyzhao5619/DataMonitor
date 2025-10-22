@@ -47,12 +47,6 @@ def stub_request_timeout(monkeypatch):
     monkeypatch.setattr(configuration, "get_request_timeout", lambda: 5.0)
 
 
-@pytest.fixture(autouse=True)
-def stub_resolve_timeout(monkeypatch):
-    monkeypatch.setattr(apiMonitor, "_resolve_timeout", lambda timeout=None: 5.0, raising=False)
-    monkeypatch.setattr(apiMonitor, "resolved_timeout", 5.0, raising=False)
-
-
 @pytest.mark.parametrize("status_code", [200, 204, 301, 302])
 def test_monitor_get_success_for_valid_status(monkeypatch, status_code):
     def fake_get(url, timeout):
@@ -105,6 +99,32 @@ def test_monitor_get_reads_configuration_timeout(monkeypatch):
 
     assert apiMonitor.monitor_get("http://example.com") is False
     assert calls["count"] == 1
+
+
+def test_monitor_get_uses_explicit_timeout(monkeypatch):
+    def fail_if_called():
+        raise AssertionError("configuration timeout should not be used")
+
+    def fake_get(url, timeout):
+        assert timeout == 1.5
+        return DummyResponse(200)
+
+    monkeypatch.setattr(configuration, "get_request_timeout", fail_if_called)
+    monkeypatch.setattr(apiMonitor.requests, "get", fake_get)
+
+    assert apiMonitor.monitor_get("http://example.com", timeout=1.5) is True
+
+
+def test_monitor_get_handles_timeout_configuration_error(monkeypatch, capsys):
+    def fake_get_timeout():
+        raise ValueError("invalid timeout")
+
+    monkeypatch.setattr(configuration, "get_request_timeout", fake_get_timeout)
+
+    assert apiMonitor.monitor_get("http://example.com") is False
+
+    captured = capsys.readouterr()
+    assert "invalid timeout" in captured.out
 
 
 @pytest.mark.parametrize("status_code", [200, 204, 302])
