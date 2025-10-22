@@ -40,9 +40,8 @@ def _subprocess_ping(host):
 
 
 def monitor_get(url, timeout=None):
-    resolved_timeout = _resolve_timeout(timeout)
     try:
-        resolved_timeout = _resolve_timeout(None)
+        resolved_timeout = _resolve_timeout(timeout)
     except ValueError as exc:
         print(f"GET request to {url} failed with error: {exc}")
         return False
