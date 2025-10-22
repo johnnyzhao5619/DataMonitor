@@ -47,3 +47,35 @@ chmod 600 /etc/datamonitor/mail.ini
 - 通过 CI/CD 将凭证注入环境变量或安全的密钥管理服务。
 - 定期轮换邮箱密码，并在更新后同步环境变量或外部配置文件。
 - 核查部署节点的日志与备份策略，避免凭证被意外写入日志或备份。
+
+## 配置 POST 监控
+
+当监控项的 `type` 为 `POST` 时，可在 `APIMonitor/Config/Config.ini` 中为该任务增加可选字段：
+
+- `payload`：请求体内容。若配置为 JSON 对象或数组（如 `{"message": "hello"}`），程序会以 `application/json` 方式发送；若填写普通字符串，则按原文作为请求体。
+- `headers`：自定义请求头，需填写 JSON 对象，例如 `{"Content-Type": "application/json", "X-Token": "demo"}`。
+
+示例配置如下：
+
+```ini
+[MonitorPostDemo]
+name = HTTPBin POST Demo
+url = https://httpbin.org/post
+type = POST
+interval = 60
+email = ops-team@example.com
+payload = {"message": "ping"}
+headers = {"Content-Type": "application/json"}
+```
+
+保存配置后，可运行以下命令进行快速验证，确认示例任务能够成功发起 POST 请求：
+
+```bash
+python - <<'PY'
+from apiMonitor import monitor_post
+
+monitor_post("https://httpbin.org/post", {"message": "ping"}, {"Content-Type": "application/json"})
+PY
+```
+
+终端应打印 `POST request to https://httpbin.org/post successful`，表示任务配置生效。

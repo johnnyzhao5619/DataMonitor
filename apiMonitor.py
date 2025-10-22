@@ -26,17 +26,26 @@ def monitor_get(url):
 
 
 
-def monitor_post(url, payload):
+def monitor_post(url, payload=None, headers=None):
     try:
-        response = requests.post(url, data=payload)
+        request_kwargs = {}
+        if headers:
+            request_kwargs['headers'] = headers
+
+        if isinstance(payload, (dict, list)):
+            response = requests.post(url, json=payload, **request_kwargs)
+        elif payload is None:
+            response = requests.post(url, **request_kwargs)
+        else:
+            response = requests.post(url, data=payload, **request_kwargs)
         if response.status_code == 200:
             print(f"POST request to {url} successful")
             return True
         else:
             print(f"POST request to {url} failed with status code: {response.status_code}")
             return False
-    except:
-        print(f"POST request to {url} failed")
+    except Exception as exc:
+        print(f"POST request to {url} failed: {exc}")
         return False
 
 # def monitor_server(host: str, timeout: float = 2.0) -> bool:

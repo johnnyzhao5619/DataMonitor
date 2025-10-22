@@ -95,12 +95,12 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
                 QtWidgets.QApplication.processEvents()
 
 
-    def perform_task(self, url, parsed_address, type, email):
+    def perform_task(self, url, parsed_address, type, email, payload=None, headers=None):
         # 发送请求
         if type == "GET":
             result = apiMonitor.monitor_get(url)
         elif type == "POST":
-            result = apiMonitor.monitor_post(url, "1")
+            result = apiMonitor.monitor_post(url, payload, headers)
         elif type == "SERVER":
             if parsed_address is None:
                 parsed_address = self.parse_network_address(url)
@@ -156,7 +156,9 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
                 parsed_address = self.parse_network_address(url)
 
             # 触发状态监控监控流程
-            result = self.perform_task(url, parsed_address, mtype, email)
+            payload = monitorInfo.get('payload')
+            headers = monitorInfo.get('headers')
+            result = self.perform_task(url, parsed_address, mtype, email, payload, headers)
             timenow = datetime.datetime.utcnow() + datetime.timedelta(hours=time_zone)
 
             # 判断结果

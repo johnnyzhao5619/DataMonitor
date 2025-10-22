@@ -4,6 +4,7 @@
 # @File : configuration.py
 # @Software: PyCharm
 import configparser
+import json
 import os
 from pathlib import Path
 
@@ -40,10 +41,49 @@ def read_monitor_list():
         monitordir['type'] = config.get(f'Monitor{i+1}', 'type')
         monitordir['interval'] = config.get(f'Monitor{i+1}', 'interval')
         monitordir['email'] = config.get(f'Monitor{i+1}', 'email')
+        payload = _load_optional_payload(config, f'Monitor{i+1}')
+        headers = _load_optional_headers(config, f'Monitor{i+1}')
+        if payload is not None:
+            monitordir['payload'] = payload
+        if headers is not None:
+            monitordir['headers'] = headers
         monitorlist.append(monitordir)
         del monitordir
 
     return monitorlist
+
+
+def _load_optional_payload(config, section):
+    if not config.has_option(section, 'payload'):
+        return None
+
+    raw_value = config.get(section, 'payload').strip()
+    if not raw_value:
+        return None
+
+    try:
+        return json.loads(raw_value)
+    except json.JSONDecodeError:
+        return raw_value
+
+
+def _load_optional_headers(config, section):
+    if not config.has_option(section, 'headers'):
+        return None
+
+    raw_value = config.get(section, 'headers').strip()
+    if not raw_value:
+        return None
+
+    try:
+        headers = json.loads(raw_value)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"监控项[{section}]的headers字段必须是有效的JSON对象: {exc}") from exc
+
+    if not isinstance(headers, dict):
+        raise ValueError(f"监控项[{section}]的headers字段必须解析为JSON对象")
+
+    return headers
 
 def read_mail_configuration():
     """读取邮件配置，优先使用环境变量，其次使用外部配置文件，最后回退到项目配置。"""
