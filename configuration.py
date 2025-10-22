@@ -140,7 +140,7 @@ def set_timezone(timezone):
     config.read(logdir+"Config/Config.ini")
     if not config.has_section('TimeZone'):
         config.add_section('TimeZone')
-    config.set('TimeZone', 'timezone', timezone)
+    config.set('TimeZone', 'timezone', str(timezone))
     with open(logdir + "Config/Config.ini", "w") as configfile:
         config.write(configfile)
 
