@@ -33,6 +33,9 @@ REQUEST_TIMEOUT_ENV = "REQUEST_TIMEOUT"
 DEFAULT_REQUEST_TIMEOUT = 10.0
 
 
+DEFAULT_TIMEZONE = "0"
+
+
 LOG_DIR_ENV = "APIMONITOR_HOME"
 
 
@@ -326,8 +329,44 @@ def _load_mail_config_from_project_file():
 def get_timezone():
     logdir = get_logdir()
     config = configparser.RawConfigParser()
-    config.read(logdir+"Config/Config.ini")
-    return config.get('TimeZone', 'timezone')
+    config_path = Path(logdir) / "Config" / "Config.ini"
+
+    read_files = config.read(os.fspath(config_path))
+    if not read_files:
+        LOGGER.warning("未找到时区配置文件 %s，使用默认值 %s", config_path, DEFAULT_TIMEZONE)
+        return DEFAULT_TIMEZONE
+
+    if not config.has_section("TimeZone"):
+        LOGGER.warning("配置文件 %s 缺少 [TimeZone] 节，使用默认值 %s", config_path, DEFAULT_TIMEZONE)
+        return DEFAULT_TIMEZONE
+
+    if not config.has_option("TimeZone", "timezone"):
+        LOGGER.warning(
+            "配置文件 %s 缺少 [TimeZone].timezone，使用默认值 %s",
+            config_path,
+            DEFAULT_TIMEZONE,
+        )
+        return DEFAULT_TIMEZONE
+
+    timezone_value = config.get("TimeZone", "timezone", fallback=None)
+    if timezone_value is None:
+        LOGGER.warning(
+            "配置文件 %s 的 [TimeZone].timezone 为空，使用默认值 %s",
+            config_path,
+            DEFAULT_TIMEZONE,
+        )
+        return DEFAULT_TIMEZONE
+
+    timezone_value = timezone_value.strip()
+    if not timezone_value:
+        LOGGER.warning(
+            "配置文件 %s 的 [TimeZone].timezone 为空字符串，使用默认值 %s",
+            config_path,
+            DEFAULT_TIMEZONE,
+        )
+        return DEFAULT_TIMEZONE
+
+    return timezone_value
 
 def set_timezone(timezone):
     logdir = get_logdir()
