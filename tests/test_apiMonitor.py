@@ -102,7 +102,9 @@ def test_monitor_get_reads_configuration_timeout(monkeypatch):
 
 @pytest.mark.parametrize("status_code", [200, 204, 302])
 def test_monitor_post_success_for_valid_status(monkeypatch, status_code):
-    def fake_post(url, data, timeout):
+    def fake_post(url, data=None, headers=None, timeout=None):
+        assert data == {}
+        assert headers is None
         assert timeout == 5.0
         return DummyResponse(status_code)
 
@@ -112,7 +114,9 @@ def test_monitor_post_success_for_valid_status(monkeypatch, status_code):
 
 
 def test_monitor_post_failure_status(monkeypatch, capsys):
-    def fake_post(url, data, timeout):
+    def fake_post(url, data=None, headers=None, timeout=None):
+        assert data == {}
+        assert headers is None
         assert timeout == 5.0
         return DummyResponse(500)
 
@@ -125,7 +129,7 @@ def test_monitor_post_failure_status(monkeypatch, capsys):
 
 
 def test_monitor_post_exception(monkeypatch, capsys):
-    def fake_post(url, data, timeout):
+    def fake_post(url, data=None, headers=None, timeout=None):
         raise requests.ConnectionError("connection aborted")
 
     monkeypatch.setattr(apiMonitor.requests, "post", fake_post)
@@ -136,19 +140,33 @@ def test_monitor_post_exception(monkeypatch, capsys):
     assert "connection aborted" in captured.out
 
 
-def test_monitor_post_reads_configuration_timeout(monkeypatch):
-    calls = {"count": 0}
+def test_monitor_post_forwards_payload_and_headers(monkeypatch):
+    observed = {}
 
-    def fake_get_timeout():
-        calls["count"] += 1
-        return 2.5
+    def fake_post(url, data=None, headers=None, timeout=None):
+        observed["url"] = url
+        observed["data"] = data
+        observed["headers"] = headers
+        observed["timeout"] = timeout
+        return DummyResponse(200)
 
-    def fake_post(url, data, timeout):
-        assert timeout == 2.5
-        raise requests.RequestException("boom")
-
-    monkeypatch.setattr(configuration, "get_request_timeout", fake_get_timeout)
     monkeypatch.setattr(apiMonitor.requests, "post", fake_post)
 
-    assert apiMonitor.monitor_post("http://example.com", payload={}) is False
-    assert calls["count"] == 1
+    payload = {"key": "value"}
+    headers = {"X-Test": "1"}
+
+    assert (
+        apiMonitor.monitor_post(
+            "http://example.com/api",
+            payload=payload,
+            headers=headers,
+        )
+        is True
+    )
+
+    assert observed == {
+        "url": "http://example.com/api",
+        "data": payload,
+        "headers": headers,
+        "timeout": 5.0,
+    }

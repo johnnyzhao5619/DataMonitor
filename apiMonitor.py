@@ -14,6 +14,12 @@ import configuration
 from myPing import *
 
 
+def _resolve_timeout(explicit_timeout=None):
+    if explicit_timeout is not None:
+        return explicit_timeout
+    return configuration.get_request_timeout()
+
+
 def _subprocess_ping(host):
     """Fallback ping using system command. Returns True on success."""
     ping_cmd = ['ping', '-c', '1', '-W', '5', host]
@@ -33,23 +39,8 @@ def _subprocess_ping(host):
         return False
 
 
-def _resolve_timeout(timeout):
-    """根据显式参数或配置解析请求超时时间。"""
-
-    candidate = timeout if timeout is not None else configuration.get_request_timeout()
-
-    try:
-        value = float(candidate)
-    except (TypeError, ValueError) as exc:
-        raise ValueError("timeout must be a positive number") from exc
-
-    if value <= 0:
-        raise ValueError("timeout must be a positive number")
-
-    return value
-
-
-def monitor_get(url):
+def monitor_get(url, timeout=None):
+    resolved_timeout = _resolve_timeout(timeout)
     try:
         resolved_timeout = _resolve_timeout(None)
     except ValueError as exc:
@@ -72,15 +63,15 @@ def monitor_get(url):
 
 
 
-def monitor_post(url, payload, timeout=None):
+def monitor_post(url, payload=None, *, headers=None, timeout=None):
+    resolved_timeout = _resolve_timeout(timeout)
     try:
-        resolved_timeout = _resolve_timeout(timeout)
-    except ValueError as exc:
-        print(f"POST request to {url} failed with error: {exc}")
-        return False
-
-    try:
-        response = requests.post(url, data=payload, timeout=resolved_timeout)
+        response = requests.post(
+            url,
+            data=payload,
+            headers=headers,
+            timeout=resolved_timeout,
+        )
         if 200 <= response.status_code < 400:
             print(f"POST request to {url} successful with status code: {response.status_code}")
             return True
