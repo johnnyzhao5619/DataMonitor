@@ -3,12 +3,41 @@
 from __future__ import annotations
 
 import datetime as _dt
+import contextlib
+import importlib.util
+import sys
 from dataclasses import dataclass
 from enum import Enum
 from typing import Callable, Dict, Optional, Tuple
 
 import configuration
 from configuration import MonitorItem
+
+def _load_qtcore():  # pragma: no cover - environment dependent
+    with contextlib.suppress(ValueError, ModuleNotFoundError):
+        if importlib.util.find_spec("PyQt5") is not None:
+            from PyQt5 import QtCore  # type: ignore
+            return QtCore
+    module = sys.modules.get("PyQt5")
+    if module is not None:
+        qt_core = getattr(module, "QtCore", None)
+        if qt_core is not None:
+            return qt_core
+
+    class _QtCoreFallback:  # pylint: disable=too-few-public-methods
+        class QCoreApplication:  # pylint: disable=too-few-public-methods
+            @staticmethod
+            def translate(_context: str, text: str) -> str:
+                return text
+
+    return _QtCoreFallback()  # type: ignore
+
+
+QtCore = _load_qtcore()
+
+
+def _tr(text: str) -> str:
+    return QtCore.QCoreApplication.translate("state_machine", text)
 
 
 class MonitorState(Enum):
@@ -31,26 +60,26 @@ class MonitorState(Enum):
     @property
     def display_text(self) -> str:
         return {
-            MonitorState.HEALTHY: "服务正常",
-            MonitorState.RECOVERED: "服务恢复",
-            MonitorState.OUTAGE: "服务异常",
-            MonitorState.OUTAGE_ONGOING: "服务持续异常",
+            MonitorState.HEALTHY: _tr("服务正常"),
+            MonitorState.RECOVERED: _tr("服务恢复"),
+            MonitorState.OUTAGE: _tr("服务异常"),
+            MonitorState.OUTAGE_ONGOING: _tr("服务持续异常"),
         }[self]
 
     @property
     def csv_label(self) -> str:
         return {
-            MonitorState.HEALTHY: "正常",
-            MonitorState.RECOVERED: "恢复",
-            MonitorState.OUTAGE: "异常",
-            MonitorState.OUTAGE_ONGOING: "持续异常",
+            MonitorState.HEALTHY: _tr("正常"),
+            MonitorState.RECOVERED: _tr("恢复"),
+            MonitorState.OUTAGE: _tr("异常"),
+            MonitorState.OUTAGE_ONGOING: _tr("持续异常"),
         }[self]
 
     @property
     def status_bar_text(self) -> str:
         if self in (MonitorState.HEALTHY, MonitorState.RECOVERED):
-            return ">>>运行中..."
-        return "服务异常"
+            return _tr(">>>运行中...")
+        return _tr("服务异常")
 
 
 @dataclass(frozen=True)

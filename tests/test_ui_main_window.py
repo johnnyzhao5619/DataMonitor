@@ -131,7 +131,7 @@ def test_run_periodically_single_iteration(qtbot, tmp_path, monkeypatch, monitor
 
     monkeypatch.setattr(sendEmail, "send_email", fake_send_email)
 
-    def fake_render_template(category, key, context):
+    def fake_render_template(category, key, context, *, language=None):
         return f"{category}.{key}|{context['service_name']}|{context['status_text']}"
 
     monkeypatch.setattr(configuration, "render_template", fake_render_template)
@@ -334,4 +334,33 @@ def test_main_window_uses_navigation_bar(qtbot):
     window.controller.show_configuration()
     assert window.ui.navigationBar.configButton.isChecked()
     assert not window.ui.navigationBar.monitorButton.isChecked()
+
+
+@pytest.mark.qt
+def test_language_switch_updates_ui(qtbot, tmp_path, monkeypatch):
+    monkeypatch.setenv("APIMONITOR_HOME", str(tmp_path))
+    config_dir = tmp_path / "Config"
+    configuration.writeconfig(str(config_dir))
+    configuration.write_monitor_list([])
+
+    window = toolsetWindow()
+    qtbot.addWidget(window)
+    window.show()
+
+    selector = window.ui.languageSelector
+    english_index = None
+    for index in range(selector.count()):
+        data = selector.itemData(index, QtCore.Qt.UserRole)
+        if data and data[0] == "en_US":
+            english_index = index
+            break
+
+    assert english_index is not None, "语言列表应包含英语选项"
+    selector.setCurrentIndex(english_index)
+
+    qtbot.waitUntil(lambda: window.ui.navigationBar.monitorButton.text() == "Monitor")
+    assert window.ui.navigationBar.languageLabel.text() == "Language"
+    assert window.ui.configWizard.titleLabel.text() == "Configuration Wizard"
+
+    window.controller._apply_language("zh_CN", announce=False)
 

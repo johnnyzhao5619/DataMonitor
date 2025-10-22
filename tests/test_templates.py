@@ -14,8 +14,10 @@ import sendEmail  # noqa: E402  pylint: disable=wrong-import-position
 @pytest.fixture(autouse=True)
 def reset_template_manager():
     configuration.get_template_manager.cache_clear()
+    configuration.set_language("zh_CN")
     yield
     configuration.get_template_manager.cache_clear()
+    configuration.set_language("zh_CN")
 
 
 def _prepare_config_dir(tmp_path: Path, monkeypatch, templates_content: str = None) -> Path:
@@ -49,6 +51,7 @@ def _sample_context(**overrides):
 
 def test_render_template_uses_default_when_templates_missing(tmp_path, monkeypatch):
     _prepare_config_dir(tmp_path, monkeypatch)
+    configuration.set_language("zh_CN")
     context = {
         "service_name": "DemoService",
         "status_label": "服务正常",
@@ -62,6 +65,7 @@ def test_render_template_uses_default_when_templates_missing(tmp_path, monkeypat
 def test_render_template_overrides_ini_file(tmp_path, monkeypatch):
     templates_content = """[ui]\nstatus_line = UI提示 {service_name} - {status_label}\n"""
     _prepare_config_dir(tmp_path, monkeypatch, templates_content)
+    configuration.set_language("zh_CN")
 
     context = {
         "service_name": "DemoService",
@@ -75,6 +79,7 @@ def test_render_template_overrides_ini_file(tmp_path, monkeypatch):
 
 def test_render_template_missing_variable(tmp_path, monkeypatch):
     _prepare_config_dir(tmp_path, monkeypatch)
+    configuration.set_language("zh_CN")
 
     with pytest.raises(ValueError) as exc_info:
         configuration.render_template("mail", "alert_body", {"service_name": "Demo"})
@@ -97,8 +102,24 @@ def test_render_email_respects_template_override(tmp_path, monkeypatch):
     templates_content = """[mail]\nalert_subject = ALERT {service_name}\nalert_body = BODY {status_action}\n"""
     _prepare_config_dir(tmp_path, monkeypatch, templates_content)
     context = _sample_context()
+    configuration.set_language("zh_CN")
 
     subject, body = sendEmail.render_email("alert", context)
 
     assert subject == "ALERT DemoService"
     assert body == "BODY 告警"
+
+
+def test_render_template_supports_english(tmp_path, monkeypatch):
+    _prepare_config_dir(tmp_path, monkeypatch)
+    configuration.set_language("en_US")
+    context = {
+        "service_name": "DemoService",
+        "status_label": "recovered",
+        "event_timestamp": "2023-01-01 00:00:00",
+    }
+
+    rendered = configuration.render_template("ui", "status_line", context)
+    assert "Time:" in rendered
+    assert "DemoService" in rendered
+    assert "recovered" in rendered

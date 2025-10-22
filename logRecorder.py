@@ -26,7 +26,9 @@ def _ensure_log_folder() -> Path:
 
 
 def _csv_header() -> list:
-    header_template = configuration.get_template_manager().get_template("log", "csv_header")
+    header_template = configuration.get_template_manager().get_template(
+        "log", "csv_header", configuration.get_language()
+    )
     return [column.strip() for column in header_template.split(",") if column.strip()]
 
 

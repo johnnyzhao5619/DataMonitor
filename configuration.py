@@ -11,7 +11,7 @@ import re
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict, List, Mapping, Optional, Union
+from typing import Dict, List, Mapping, Optional, Tuple, Union
 
 
 LOGGER = logging.getLogger(__name__)
@@ -63,51 +63,140 @@ LOG_DIR_ENV = "APIMONITOR_HOME"
 
 TEMPLATE_CONFIG_NAME = "Templates.ini"
 
-TEMPLATE_DEFAULTS: Dict[str, Dict[str, str]] = {
+DEFAULT_LANGUAGE = "zh_CN"
+SUPPORTED_LANGUAGES: Dict[str, str] = {
+    "zh_CN": "简体中文",
+    "en_US": "English",
+}
+
+
+TEMPLATE_DEFAULTS: Dict[str, Dict[str, Dict[str, str]]] = {
     "mail": {
-        "alert_subject": "Outage Alert | {service_name}",
-        "alert_body": (
-            "状态：{status_action}\n"
-            "服务：{service_name}\n"
-            "说明：{event_description}\n"
-            "{time_label}：{event_timestamp}"
-        ),
-        "recovery_subject": "Outage Recovery | {service_name}",
-        "recovery_body": (
-            "状态：{status_action}\n"
-            "服务：{service_name}\n"
-            "说明：{event_description}\n"
-            "{time_label}：{event_timestamp}"
-        ),
+        "alert_subject": {
+            "zh_CN": "服务告警 | {service_name}",
+            "en_US": "Outage Alert | {service_name}",
+        },
+        "alert_body": {
+            "zh_CN": (
+                "状态：{status_action}\n"
+                "服务：{service_name}\n"
+                "说明：{event_description}\n"
+                "{time_label}：{event_timestamp}"
+            ),
+            "en_US": (
+                "Status: {status_action}\n"
+                "Service: {service_name}\n"
+                "Details: {event_description}\n"
+                "{time_label}: {event_timestamp}"
+            ),
+        },
+        "recovery_subject": {
+            "zh_CN": "服务恢复 | {service_name}",
+            "en_US": "Outage Recovery | {service_name}",
+        },
+        "recovery_body": {
+            "zh_CN": (
+                "状态：{status_action}\n"
+                "服务：{service_name}\n"
+                "说明：{event_description}\n"
+                "{time_label}：{event_timestamp}"
+            ),
+            "en_US": (
+                "Status: {status_action}\n"
+                "Service: {service_name}\n"
+                "Details: {event_description}\n"
+                "{time_label}: {event_timestamp}"
+            ),
+        },
     },
     "ui": {
-        "status_line": "时间：{event_timestamp} --> 状态：{service_name}{status_label}",
+        "status_line": {
+            "zh_CN": "时间：{event_timestamp} --> 状态：{service_name}{status_label}",
+            "en_US": "Time: {event_timestamp} --> Status: {service_name} {status_label}",
+        },
     },
     "log": {
-        "action_line": (
-            "{service_name} --- 类型 Type: {monitor_type} --- 地址 url: {url} --- 周期 Interval: {interval}秒"
-        ),
-        "detail_line": ">>>{event_timestamp}: {service_name}{status_label}",
-        "record_entry": (
-            ">>{log_timestamp}(China Time)----------------------------------------------\n"
-            ">>Action:{action}\n"
-            "{details}"
-        ),
-        "csv_header": "Time,API,Type,url,Interval,Code,Status",
+        "action_line": {
+            "zh_CN": (
+                "{service_name} --- 类型: {monitor_type} --- 地址: {url} --- 周期: {interval}秒"
+            ),
+            "en_US": (
+                "{service_name} --- Type: {monitor_type} --- URL: {url} --- Interval: {interval}s"
+            ),
+        },
+        "detail_line": {
+            "zh_CN": ">>>{event_timestamp}: {service_name}{status_label}",
+            "en_US": ">>>{event_timestamp}: {service_name}{status_label}",
+        },
+        "record_entry": {
+            "zh_CN": (
+                ">>{log_timestamp}(本地时间)----------------------------------------------\n"
+                ">>操作:{action}\n"
+                "{details}"
+            ),
+            "en_US": (
+                ">>{log_timestamp}(Local Time)----------------------------------------------\n"
+                ">>Action:{action}\n"
+                "{details}"
+            ),
+        },
+        "csv_header": {
+            "zh_CN": "时间,接口,类型,地址,周期,状态码,状态",
+            "en_US": "Time,API,Type,URL,Interval,Code,Status",
+        },
     },
 }
+
+_current_language = DEFAULT_LANGUAGE
+
+
+def _normalise_language_code(language: Optional[str]) -> str:
+    if not language:
+        return DEFAULT_LANGUAGE
+
+    code = str(language).strip()
+    if not code:
+        return DEFAULT_LANGUAGE
+
+    code = code.replace("-", "_")
+    primary, *rest = code.split("_")
+    if rest:
+        region = rest[0]
+        return f"{primary.lower()}_{region.upper()}"
+    return primary.lower()
+
+
+def get_language() -> str:
+    return _current_language
+
+
+def set_language(language: str) -> None:
+    global _current_language
+    normalised = _normalise_language_code(language)
+    if normalised not in SUPPORTED_LANGUAGES:
+        normalised = DEFAULT_LANGUAGE
+    if normalised != _current_language:
+        _current_language = normalised
+
+
+def available_languages() -> Tuple[Tuple[str, str], ...]:
+    return tuple(SUPPORTED_LANGUAGES.items())
 
 
 class TemplateManager:
     """负责加载与渲染通知模版。"""
 
     def __init__(self):
-        self._templates: Optional[Dict[str, Dict[str, str]]] = None
+        self._templates: Optional[Dict[str, Dict[str, Dict[str, str]]]] = None
 
     def _load_templates(self) -> None:
-        templates: Dict[str, Dict[str, str]] = {
-            category: values.copy() for category, values in TEMPLATE_DEFAULTS.items()
-        }
+        templates: Dict[str, Dict[str, Dict[str, str]]] = {}
+
+        for category, values in TEMPLATE_DEFAULTS.items():
+            section_templates: Dict[str, Dict[str, str]] = {}
+            for key, translations in values.items():
+                section_templates[key] = translations.copy()
+            templates[category] = section_templates
 
         config_dir = get_config_directory()
         config_path = config_dir / TEMPLATE_CONFIG_NAME
@@ -126,25 +215,50 @@ class TemplateManager:
                     option_key = option.strip()
                     if not option_key:
                         continue
-                    section_templates[option_key] = value
+                    key_name, language = self._parse_option_key(option_key)
+                    language_map = section_templates.setdefault(key_name, {})
+                    language_map[language] = value
 
         self._templates = templates
 
-    def get_template(self, category: str, key: str) -> str:
+    def _parse_option_key(self, option_key: str) -> Tuple[str, str]:
+        if "@" in option_key:
+            key_name, language = option_key.split("@", 1)
+        else:
+            key_name, language = option_key, DEFAULT_LANGUAGE
+        normalised_language = _normalise_language_code(language)
+        return key_name.strip(), normalised_language
+
+    def get_template(
+        self, category: str, key: str, language: Optional[str] = None
+    ) -> str:
         if self._templates is None:
             self._load_templates()
 
         category_key = category.strip().lower()
         key_name = key.strip()
+        requested_language = _normalise_language_code(language)
+
         try:
             category_templates = self._templates[category_key]
         except KeyError as exc:
             raise KeyError(f"未找到模板类别：{category}") from exc
 
         try:
-            return category_templates[key_name]
+            language_map = category_templates[key_name]
         except KeyError as exc:
             raise KeyError(f"模板缺失：{category}.{key}") from exc
+
+        if requested_language in language_map:
+            return language_map[requested_language]
+
+        if DEFAULT_LANGUAGE in language_map:
+            return language_map[DEFAULT_LANGUAGE]
+
+        for _, template in language_map.items():
+            return template
+
+        raise KeyError(f"模板缺失：{category}.{key}")
 
     def reload(self) -> None:
         """在测试或配置更新后重新加载模版。"""
@@ -157,10 +271,17 @@ def get_template_manager() -> TemplateManager:
     return TemplateManager()
 
 
-def render_template(category: str, key: str, context: Mapping[str, object]) -> str:
+def render_template(
+    category: str,
+    key: str,
+    context: Mapping[str, object],
+    *,
+    language: Optional[str] = None,
+) -> str:
     """渲染指定类别与键的模版。"""
 
-    template = get_template_manager().get_template(category, key)
+    language_code = _normalise_language_code(language or get_language())
+    template = get_template_manager().get_template(category, key, language_code)
     try:
         return template.format(**context)
     except KeyError as exc:

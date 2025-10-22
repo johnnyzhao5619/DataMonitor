@@ -5,12 +5,42 @@
 # @Software: PyCharm
 
 import datetime as _dt
+import contextlib
+import importlib.util
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import Iterable, Mapping, Tuple
 
 import configuration
+import sys
+
+
+def _load_qtcore():  # pragma: no cover - environment dependent
+    with contextlib.suppress(ValueError, ModuleNotFoundError):
+        if importlib.util.find_spec("PyQt5") is not None:
+            from PyQt5 import QtCore  # type: ignore
+            return QtCore
+    module = sys.modules.get("PyQt5")
+    if module is not None:
+        qt_core = getattr(module, "QtCore", None)
+        if qt_core is not None:
+            return qt_core
+
+    class _QtCoreFallback:  # pylint: disable=too-few-public-methods
+        class QCoreApplication:  # pylint: disable=too-few-public-methods
+            @staticmethod
+            def translate(_context: str, text: str) -> str:
+                return text
+
+    return _QtCoreFallback()  # type: ignore
+
+
+QtCore = _load_qtcore()
+
+
+def _tr(text: str) -> str:
+    return QtCore.QCoreApplication.translate("sendEmail", text)
 
 
 MAIL_EVENT_MAP = {
@@ -44,12 +74,14 @@ def render_email(event: str, context: Mapping[str, object]) -> Tuple[str, str]:
     """根据事件类型渲染邮件主题与正文。"""
 
     if event not in MAIL_EVENT_MAP:
-        raise KeyError(f"未知的邮件事件类型：{event}")
+        raise KeyError(_tr("未知的邮件事件类型：{event}").format(event=event))
 
     missing_fields = [field for field in REQUIRED_CONTEXT_FIELDS if field not in context]
     if missing_fields:
         raise ValueError(
-            "邮件模版缺少必要字段：{}".format(", ".join(sorted(missing_fields)))
+            _tr("邮件模版缺少必要字段：{fields}").format(
+                fields=", ".join(sorted(missing_fields))
+            )
         )
 
     mapping = MAIL_EVENT_MAP[event]
@@ -68,9 +100,11 @@ def _normalise_timestamp(occurred_at) -> str:
 
 def _build_notification(event: str, service_name, occurred_at) -> Tuple[str, str]:
     try:
-        context_defaults = _EVENT_CONTEXT_PRESETS[event]
+        context_defaults = {
+            key: _tr(value) for key, value in _EVENT_CONTEXT_PRESETS[event].items()
+        }
     except KeyError as exc:
-        raise KeyError(f"未知的邮件事件类型：{event}") from exc
+        raise KeyError(_tr("未知的邮件事件类型：{event}").format(event=event)) from exc
 
     context = {
         "service_name": str(service_name) if service_name is not None else "",
@@ -96,7 +130,7 @@ def _normalize_recipients(
 
     candidate = explicit_recipients if explicit_recipients else default_recipients
     if candidate is None:
-        raise ValueError("未配置任何收件人地址")
+        raise ValueError(_tr("未配置任何收件人地址"))
 
     if isinstance(candidate, str):
         addresses = [addr.strip() for addr in candidate.split(",") if addr.strip()]
@@ -104,11 +138,11 @@ def _normalize_recipients(
         try:
             iterator = iter(candidate)
         except TypeError as exc:  # pragma: no cover - defensive programming
-            raise TypeError("收件人必须为字符串或可迭代对象") from exc
+            raise TypeError(_tr("收件人必须为字符串或可迭代对象")) from exc
         addresses = [str(addr).strip() for addr in iterator if str(addr).strip()]
 
     if not addresses:
-        raise ValueError("收件人地址不能为空")
+        raise ValueError(_tr("收件人地址不能为空"))
 
     return ", ".join(addresses), addresses
 
@@ -120,7 +154,7 @@ def send_email(subject: str, body: str, recipients=None):
     try:
         smtp_port = int(mailconfig['smtp_port'])
     except (TypeError, ValueError) as exc:
-        raise ValueError("SMTP 端口配置必须为整数") from exc
+        raise ValueError(_tr("SMTP 端口配置必须为整数")) from exc
     username = mailconfig['username']
     password = mailconfig['password']
     from_addr = mailconfig['from_addr']
@@ -148,9 +182,9 @@ def send_email(subject: str, body: str, recipients=None):
             server.starttls()
             server.login(username, password)
             server.sendmail(from_addr, list(send_to_list), message.as_string())
-    except smtplib.SMTPAuthenticationError as e:
-        print("SMTP authentication error: ", e)
-    except smtplib.SMTPException as e:
-        print("SMTP error: ", e)
-    except Exception as e:
-        print("An error occurred: ", e)
+    except smtplib.SMTPAuthenticationError as error:
+        print(_tr("SMTP 身份验证失败：{error}").format(error=error))
+    except smtplib.SMTPException as error:
+        print(_tr("SMTP 错误：{error}").format(error=error))
+    except Exception as error:
+        print(_tr("发送邮件时出现异常：{error}").format(error=error))
