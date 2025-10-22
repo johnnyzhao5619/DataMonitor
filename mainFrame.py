@@ -2,7 +2,6 @@ from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtWidgets import QInputDialog, QMessageBox
 
 from ui.main_window import MainWindowUI
-from ui.theme import ThemeManager, teams_dark, teams_light
 import apiMonitor
 import configuration
 from configuration import SUPPORTED_MONITOR_TYPES
@@ -12,7 +11,10 @@ import sys
 import queue
 import threading
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional, Tuple, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ui.theme import ThemeManager
 
 from monitoring.service import (
     MonitorScheduler,
@@ -21,17 +23,25 @@ from monitoring.service import (
 from monitoring.state_machine import MonitorEvent
 
 
+_QObjectBase = getattr(QtCore, "QObject", object)
+
+
+class _SilentStatusBar:
+    def showMessage(self, *_args, **_kwargs):
+        return None
+
+
 PeriodicMonitorKey = Tuple[str, str, str]
 
 
-class MainWindowController(QtCore.QObject):
+class MainWindowController(_QObjectBase):
     """协调主窗口 UI 与业务逻辑的控制器。"""
 
     def __init__(
         self,
         window: QtWidgets.QMainWindow,
         ui: MainWindowUI,
-        theme_manager: ThemeManager,
+        theme_manager: "ThemeManager",
     ) -> None:
         super().__init__(window)
         self.window = window
@@ -373,6 +383,8 @@ class toolsetWindow(QtWidgets.QMainWindow):
         super().__init__()
         self.ui = MainWindowUI()
         self.ui.setup_ui(self)
+        from ui.theme import ThemeManager, teams_dark, teams_light
+
         self.theme_manager = ThemeManager()
         self.theme_manager.register_many((teams_light, teams_dark))
         self.theme_manager.apply_theme(teams_light.name)
@@ -386,6 +398,15 @@ class toolsetWindow(QtWidgets.QMainWindow):
             if hasattr(controller, item):
                 return getattr(controller, item)
             raise
+
+    def perform_task(self, *args, **kwargs):  # type: ignore[override]
+        if hasattr(self, "controller"):
+            return self.controller.perform_task(*args, **kwargs)
+
+        fallback = MainWindowController.__new__(MainWindowController)
+        fallback.printf_queue = queue.Queue()
+        fallback.status = _SilentStatusBar()
+        return MainWindowController.perform_task(fallback, *args, **kwargs)
 
     def closeEvent(self, event):
         self.controller.on_close()
