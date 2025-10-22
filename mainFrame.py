@@ -23,6 +23,45 @@ from pathlib import Path
 
 SUPPORTED_MONITOR_TYPES = {"GET", "POST", "SERVER"}
 
+NOTIFICATION_STATES = {
+    "normal": {
+        "code": 1,
+        "status_label": "服务正常",
+        "status_text": "正常",
+        "status_action": "正常",
+        "event_description": "监控检测到服务保持正常状态",
+        "time_label": "检测时间",
+        "mail_event": None,
+    },
+    "recovery": {
+        "code": 2,
+        "status_label": "服务恢复",
+        "status_text": "恢复",
+        "status_action": "恢复",
+        "event_description": "监控检测到服务恢复至正常状态",
+        "time_label": "恢复时间",
+        "mail_event": "recovery",
+    },
+    "alert": {
+        "code": 3,
+        "status_label": "服务异常",
+        "status_text": "异常",
+        "status_action": "告警",
+        "event_description": "监控检测到服务不可达",
+        "time_label": "发生时间",
+        "mail_event": "alert",
+    },
+    "ongoing": {
+        "code": 4,
+        "status_label": "服务持续异常",
+        "status_text": "持续异常",
+        "status_action": "告警",
+        "event_description": "监控检测到服务持续处于异常状态",
+        "time_label": "检测时间",
+        "mail_event": None,
+    },
+}
+
 
 class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
     def __init__(self):
@@ -206,70 +245,69 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
                 headers=monitorInfo.get('headers'),
             )
             timenow = datetime.datetime.utcnow() + datetime.timedelta(hours=self.time_zone)
+            timestamp_text = timenow.strftime('%Y-%m-%d %H:%M:%S')
+            interval_value = int(interval)
 
-            # 判断结果
-            # 当状态正常，且跟上一次状态一致时，无操作，等待下一次
-            if result == True and result == lastStatus:
-                responseCode = 1  # 服务正常
-            # 当状态正常，且跟上一次状态不一致时，发送数据恢复邮件
-            elif result == True and result != lastStatus:
-                responseCode = 2  # 服务恢复
-            # 当状态不正常，且跟上一次状态不一致时，发送数据中断告警邮件
-            elif result == False and result != lastStatus:
-                responseCode = 3  # 服务异常
-            # 当状态不正常，且跟上一次状态一致时，数据持续异常
-            elif result == False and result == lastStatus:
-                responseCode = 4  # 服务持续异常
+            is_success = bool(result)
+            state_changed = is_success != bool(lastStatus)
 
-            # 给予结果进行处理
-            if responseCode == 1:
-                print(f"\n第{i}次：{timenow} --> 状态：{name}服务正常")
-                # Log和输出————————————————————————————————————————————————————————————————————————
-                self.printf_queue.put(f"时间：{timenow} --> 状态：{name}服务正常")
-                # 记录Log日志
-                logRecorder.record(f"{name} --- 类型 Type: {mtype} --- 地址 url: {url} --- 周期 Interval: {interval}秒", f">>>{timenow}: {name}服务正常\n")
-                logRecorder.saveToFile([timenow, name, mtype, url, interval, responseCode, '正常'], name)
+            if is_success and not state_changed:
+                state_key = "normal"
+            elif is_success and state_changed:
+                state_key = "recovery"
+            elif not is_success and state_changed:
+                state_key = "alert"
+            else:
+                state_key = "ongoing"
 
-            elif responseCode == 2:
-                subject, body = sendEmail.build_outage_recovery_message(name, timenow)
+            profile = NOTIFICATION_STATES[state_key]
+            context = {
+                "service_name": name,
+                "monitor_type": mtype,
+                "url": url,
+                "interval": interval_value,
+                "status_code": profile["code"],
+                "status_key": state_key,
+                "status_label": profile["status_label"],
+                "status_text": profile["status_text"],
+                "status_action": profile["status_action"],
+                "event_description": profile["event_description"],
+                "time_label": profile["time_label"],
+                "event_timestamp": timestamp_text,
+            }
+
+            if profile["mail_event"]:
+                subject, body = sendEmail.render_email(profile["mail_event"], context)
                 sendEmail.send_email(subject, body, recipients=recipients)
-                print(f"\n第{i}次：{timenow}状态 --> {name}服务恢复")
-                # Log和输出————————————————————————————————————————————————————————————————————————
-                self.printf_queue.put(f"时间：{timenow} --> 状态：{name}服务恢复")
-                # 记录Log日志
-                logRecorder.record(f"{name} --- 类型 Type: {mtype} --- 地址 url: {url} --- 周期 Interval: {interval}秒", f">>>{timenow}: {name}服务恢复\n")
-                logRecorder.saveToFile([timenow, name, mtype, url, interval, responseCode, '恢复'], name)
 
-            elif responseCode == 3:
-                subject, body = sendEmail.build_outage_alert_message(name, timenow)
-                sendEmail.send_email(subject, body, recipients=recipients)
-                print(f"\n第{i}次：{timenow}状态 --> {name}服务异常")
-                # Log和输出————————————————————————————————————————————————————————————————————————
-                self.printf_queue.put(f"时间：{timenow} --> 状态：{name}服务异常")
-                # 记录Log日志
-                logRecorder.record(f"{name} --- 类型 Type: {mtype} --- 地址 url: {url} --- 周期 Interval: {interval}秒", f">>>{timenow}: {name}服务异常\n")
-                logRecorder.saveToFile([timenow, name, mtype, url, interval, responseCode, '异常'], name)
+            ui_message = configuration.render_template("ui", "status_line", context)
+            print(f"\n第{i}次：{ui_message}")
+            self.printf_queue.put(ui_message)
 
-            elif responseCode == 4:
-                print(f"\n第{i}次：{timenow}状态 --> {name}服务持续异常")
-                # Log和输出————————————————————————————————————————————————————————————————————————
-                # self.printf(f"时间：{timenow} --> 状态：{name}服务持续异常")
-                self.printf_queue.put(f"时间：{timenow} --> 状态：{name}服务持续异常")
+            action_line = configuration.render_template("log", "action_line", context)
+            detail_line = configuration.render_template("log", "detail_line", context)
+            logRecorder.record(action_line, detail_line)
+            logRecorder.saveToFile(
+                [
+                    timestamp_text,
+                    name,
+                    mtype,
+                    url,
+                    interval_value,
+                    profile["code"],
+                    profile["status_text"],
+                ],
+                name,
+            )
 
-                # 记录Log日志
-                logRecorder.record(f"{name} --- 类型 Type: {mtype} --- 地址 url: {url} --- 周期 Interval: {interval}秒", f">>>{timenow}: {name}服务持续异常\n")
-                logRecorder.saveToFile([timenow, name, mtype, url, interval, responseCode, '持续异常'], name)
-
-            if responseCode == 1 or responseCode == 2:
-                # 将提示信息显示在状态栏中showMessage（‘提示信息’，显示时间（单位毫秒））
+            if profile["code"] in (1, 2):
                 self.status.showMessage('>>>运行中...')
             else:
-                # 将提示信息显示在状态栏中showMessage（‘提示信息’，显示时间（单位毫秒））
-                self.status.showMessage(f'{name}服务异常')
-            print(f"\n等待{interval}秒")
+                self.status.showMessage(f'{name}{profile["status_label"]}')
+            print(f"\n等待{interval_value}秒")
             i += 1
-            lastStatus = result
-            time.sleep(interval)
+            lastStatus = is_success
+            time.sleep(interval_value)
 
     def _read_config_timezone(self):
         raw_value = configuration.get_timezone()

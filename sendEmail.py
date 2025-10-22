@@ -7,57 +7,41 @@
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from typing import Iterable, Tuple
+from typing import Iterable, Mapping, Tuple
 
 import configuration
 
 
-ALERT_SUBJECT_TEMPLATE = "Outage Alert"
-RECOVERY_SUBJECT_TEMPLATE = "Outage Recovery"
+MAIL_EVENT_MAP = {
+    "alert": {"subject": "alert_subject", "body": "alert_body"},
+    "recovery": {"subject": "recovery_subject", "body": "recovery_body"},
+}
+
+REQUIRED_CONTEXT_FIELDS = {
+    "service_name",
+    "event_timestamp",
+    "status_action",
+    "event_description",
+    "time_label",
+}
 
 
-def build_outage_alert_message(service_name: str, timestamp) -> Tuple[str, str]:
-    """构建服务告警邮件的主题与正文。"""
+def render_email(event: str, context: Mapping[str, object]) -> Tuple[str, str]:
+    """根据事件类型渲染邮件主题与正文。"""
 
-    return _compose_message(
-        ALERT_SUBJECT_TEMPLATE,
-        "告警",
-        "说明：监控检测到服务不可达",
-        "发生时间",
-        service_name,
-        timestamp,
-    )
+    if event not in MAIL_EVENT_MAP:
+        raise KeyError(f"未知的邮件事件类型：{event}")
 
+    missing_fields = [field for field in REQUIRED_CONTEXT_FIELDS if field not in context]
+    if missing_fields:
+        raise ValueError(
+            "邮件模版缺少必要字段：{}".format(", ".join(sorted(missing_fields)))
+        )
 
-def build_outage_recovery_message(service_name: str, timestamp) -> Tuple[str, str]:
-    """构建服务恢复通知的主题与正文。"""
-
-    return _compose_message(
-        RECOVERY_SUBJECT_TEMPLATE,
-        "恢复",
-        "说明：监控检测到服务恢复至正常状态",
-        "恢复时间",
-        service_name,
-        timestamp,
-    )
-
-
-def _compose_message(
-    subject_prefix: str,
-    status: str,
-    detail_line: str,
-    time_label: str,
-    service_name: str,
-    timestamp,
-) -> Tuple[str, str]:
-    subject = f"{subject_prefix} | {service_name}"
-    body_lines = [
-        f"状态：{status}",
-        f"服务：{service_name}",
-        detail_line,
-        f"{time_label}：{timestamp}",
-    ]
-    return subject, "\n".join(body_lines)
+    mapping = MAIL_EVENT_MAP[event]
+    subject = configuration.render_template("mail", mapping["subject"], context)
+    body = configuration.render_template("mail", mapping["body"], context)
+    return subject, body
 
 def _normalize_recipients(
     explicit_recipients,
