@@ -18,14 +18,10 @@ import configuration
 import datetime
 import sys
 import logRecorder
+import queue
 
-
-switch_status = True
-printf = []
 
 class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
-    global switch_status
-    global printf
     def __init__(self):
         super().__init__()
         self.setupUi(self)
@@ -39,12 +35,14 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
         self.configButton.clicked.connect(self.configuration)
         self.locationButton.clicked.connect(self.set_location)
 
+        self.switch_status = True
+        self.printf_queue = queue.Queue()
+
     def start_monitor(self):
-        global switch_status
-        if switch_status == True:
+        if self.switch_status is True:
             monitorList = configuration.read_monitor_list()
             # self.printf(f"目前读取到{len(monitorList)}个监控项，分别是：")
-            printf.append(f"目前读取到{len(monitorList)}个监控项，分别是：")
+            self.printf_queue.put(f"目前读取到{len(monitorList)}个监控项，分别是：")
             logRecorder.record("Start Monitor", f"目前读取到{len(monitorList)}个监控项")
             for i in range(len(monitorList)):
                 name = monitorList[i]['name']
@@ -55,15 +53,15 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
 
                 # Log和输出————————————————————————————————————————————————————————————————————————
                 # self.printf(f"{i+1}. {name} --- 类型: {mtype} --- 地址: {url} --- 周期: {interval}秒")
-                printf.append(f"{i+1}. {name} --- 类型: {mtype} --- 地址: {url} --- 周期: {interval}秒")
+                self.printf_queue.put(f"{i+1}. {name} --- 类型: {mtype} --- 地址: {url} --- 周期: {interval}秒")
                 # 记录Log日志
                 logRecorder.record("读取配置 Read Configuration", f"{i+1}.{name} --- 类型 Type: {mtype} --- 地址 url: {url} --- 周期 Interval: {interval}秒\n")
 
             self.run_with_threads(len(monitorList), monitorList)
 
             self.switchButton.setText('关闭 Close')
-            switch_status = False
-        elif switch_status == False:
+            self.switch_status = False
+        elif self.switch_status is False:
             sys.exit()
 
     def configuration(self):
@@ -78,7 +76,6 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
         # self.echo(time_zone)
 
     def update_clock(self):
-        global printf
         time_zone = int(configuration.get_timezone())
         # current_time = QTime.currentTime().toString("Y-M-D hh:mm:ss")
         utc_time = datetime.datetime.utcnow()
@@ -86,13 +83,16 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
         self.localTimeLabel.setText(current_time.strftime('%Y-%m-%d %H:%M:%S'))
         self.utcTimeLabel.setText(utc_time.strftime('%Y-%m-%d %H:%M:%S'))
 
-        while len(printf) > 0:
-            for i in printf:
-                self.monitorBrowser.append(i)  # 在指定的区域显示提示信息
+        while True:
+            try:
+                message = self.printf_queue.get_nowait()
+            except queue.Empty:
+                break
+            else:
+                self.monitorBrowser.append(message)  # 在指定的区域显示提示信息
                 self.cursot = self.monitorBrowser.textCursor()
                 self.monitorBrowser.moveCursor(self.cursot.End)
-            printf.clear()
-            QtWidgets.QApplication.processEvents()
+                QtWidgets.QApplication.processEvents()
 
 
     def perform_task(self, url, type, email):
@@ -173,7 +173,7 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
             if responseCode == 1:
                 print(f"\n第{i}次：{timenow} --> 状态：{name}服务正常")
                 # Log和输出————————————————————————————————————————————————————————————————————————
-                printf.append(f"时间：{timenow} --> 状态：{name}服务正常")
+                self.printf_queue.put(f"时间：{timenow} --> 状态：{name}服务正常")
                 # 记录Log日志
                 logRecorder.record(f"{name} --- 类型 Type: {mtype} --- 地址 url: {url} --- 周期 Interval: {interval}秒", f">>>{timenow}: {name}服务正常\n")
                 logRecorder.saveToFile([timenow, name, mtype, url, interval, responseCode, '正常'], name)
@@ -182,7 +182,7 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
                 sendEmail.send_email(f"{timenow}: {name} Server Outage Recovery!", f"{name}服务已恢复\n恢复时间：{timenow}\n")
                 print(f"\n第{i}次：{timenow}状态 --> {name}服务恢复")
                 # Log和输出————————————————————————————————————————————————————————————————————————
-                printf.append(f"时间：{timenow} --> 状态：{name}服务恢复")
+                self.printf_queue.put(f"时间：{timenow} --> 状态：{name}服务恢复")
                 # 记录Log日志
                 logRecorder.record(f"{name} --- 类型 Type: {mtype} --- 地址 url: {url} --- 周期 Interval: {interval}秒", f">>>{timenow}: {name}服务恢复\n")
                 logRecorder.saveToFile([timenow, name, mtype, url, interval, responseCode, '恢复'], name)
@@ -191,7 +191,7 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
                 sendEmail.send_email(f"{timenow}: {name} Server Outage Recovery!", f"{name}服务异常\n发生时间：{timenow}")
                 print(f"\n第{i}次：{timenow}状态 --> {name}服务异常")
                 # Log和输出————————————————————————————————————————————————————————————————————————
-                printf.append(f"时间：{timenow} --> 状态：{name}服务异常")
+                self.printf_queue.put(f"时间：{timenow} --> 状态：{name}服务异常")
                 # 记录Log日志
                 logRecorder.record(f"{name} --- 类型 Type: {mtype} --- 地址 url: {url} --- 周期 Interval: {interval}秒", f">>>{timenow}: {name}服务异常\n")
                 logRecorder.saveToFile([timenow, name, mtype, url, interval, responseCode, '异常'], name)
@@ -200,7 +200,7 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
                 print(f"\n第{i}次：{timenow}状态 --> {name}服务持续异常")
                 # Log和输出————————————————————————————————————————————————————————————————————————
                 # self.printf(f"时间：{timenow} --> 状态：{name}服务持续异常")
-                printf.append(f"时间：{timenow} --> 状态：{name}服务持续异常")
+                self.printf_queue.put(f"时间：{timenow} --> 状态：{name}服务持续异常")
 
                 # 记录Log日志
                 logRecorder.record(f"{name} --- 类型 Type: {mtype} --- 地址 url: {url} --- 周期 Interval: {interval}秒", f">>>{timenow}: {name}服务持续异常\n")
