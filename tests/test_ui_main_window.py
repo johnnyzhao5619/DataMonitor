@@ -16,6 +16,7 @@ pytest.importorskip("PyQt5")
 from PyQt5 import QtCore
 
 from mainFrame import toolsetWindow
+from ui.main_window import ConfigWizard
 
 
 @pytest.mark.qt
@@ -56,6 +57,51 @@ def test_configuration_wizard_round_trip(qtbot, tmp_path, monkeypatch):
     assert saved["email"] == "ops@example.com"
 
     assert window.ui.contentStack.currentIndex() == window.ui.monitor_view_index
+
+
+@pytest.mark.qt
+def test_config_wizard_loads_existing_monitor_items(qtbot):
+    monitors = [
+        configuration.MonitorItem(
+            name="服务一",
+            url="http://example.com/a",
+            monitor_type="GET",
+            interval=45,
+            email="team@example.com",
+            payload={"foo": "bar"},
+            headers={"Accept": "application/json"},
+        ),
+        configuration.MonitorItem(
+            name="服务二",
+            url="http://example.com/b",
+            monitor_type="POST",
+            interval=120,
+            email=None,
+            payload=None,
+            headers=None,
+        ),
+    ]
+
+    wizard = ConfigWizard()
+    qtbot.addWidget(wizard)
+    wizard.show()
+
+    wizard.load_monitors(monitors)
+
+    assert wizard.monitorList.count() == 2
+    assert wizard.monitorList.currentRow() == 0
+    assert wizard.nameEdit.text() == "服务一"
+    assert wizard.urlEdit.text() == "http://example.com/a"
+    assert wizard.typeCombo.currentText() == "GET"
+    assert wizard.intervalSpin.value() == 45
+    assert wizard.emailEdit.text() == "team@example.com"
+
+    loaded = wizard.get_monitors()
+    assert len(loaded) == 2
+    assert loaded[0]["payload"] == {"foo": "bar"}
+    assert loaded[0]["headers"] == {"Accept": "application/json"}
+    assert loaded[1]["type"] == "POST"
+    assert loaded[1]["email"] == ""
 
 
 @pytest.mark.qt
