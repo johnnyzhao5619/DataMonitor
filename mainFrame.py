@@ -14,47 +14,12 @@ import time
 from pathlib import Path
 from typing import Optional
 
-from monitoring.service import MonitorScheduler, ServerMonitorStrategy
-from monitoring.state_machine import MonitorEvent
-
-NOTIFICATION_STATES = {
-    "normal": {
-        "code": 1,
-        "status_label": "服务正常",
-        "status_text": "正常",
-        "status_action": "正常",
-        "event_description": "监控检测到服务保持正常状态",
-        "time_label": "检测时间",
-        "mail_event": None,
-    },
-    "recovery": {
-        "code": 2,
-        "status_label": "服务恢复",
-        "status_text": "恢复",
-        "status_action": "恢复",
-        "event_description": "监控检测到服务恢复至正常状态",
-        "time_label": "恢复时间",
-        "mail_event": "recovery",
-    },
-    "alert": {
-        "code": 3,
-        "status_label": "服务异常",
-        "status_text": "异常",
-        "status_action": "告警",
-        "event_description": "监控检测到服务不可达",
-        "time_label": "发生时间",
-        "mail_event": "alert",
-    },
-    "ongoing": {
-        "code": 4,
-        "status_label": "服务持续异常",
-        "status_text": "持续异常",
-        "status_action": "告警",
-        "event_description": "监控检测到服务持续处于异常状态",
-        "time_label": "检测时间",
-        "mail_event": None,
-    },
-}
+from monitoring.service import (
+    MonitorScheduler,
+    ServerMonitorStrategy,
+    default_notification_templates,
+)
+from monitoring.state_machine import MonitorEvent, MonitorStateMachine
 
 
 class toolsetWindow(QtWidgets.QMainWindow):
@@ -211,107 +176,77 @@ class toolsetWindow(QtWidgets.QMainWindow):
 
     # 周期性运行
     def run_periodically(self, monitorInfo):
+        name = monitorInfo["name"]
+        url = monitorInfo["url"]
+        raw_type = monitorInfo.get("type")
+        if isinstance(raw_type, str):
+            monitor_type = raw_type.strip().upper()
+        elif raw_type is None:
+            monitor_type = ""
+        else:
+            self._log_unsupported_type(raw_type, url, name=name)
+            return
+
+        if monitor_type not in SUPPORTED_MONITOR_TYPES:
+            self._log_unsupported_type(monitor_type or raw_type, url, name=name)
+            return
+
+        try:
+            interval = int(monitorInfo["interval"])
+        except (TypeError, ValueError):
+            self.printf_queue.put(f"监控项[{name}]的周期配置无效: {monitorInfo['interval']}")
+            return
+
+        monitor = configuration.MonitorItem(
+            name=name,
+            url=url,
+            monitor_type=monitor_type,
+            interval=interval,
+            email=monitorInfo.get("email"),
+            payload=monitorInfo.get("payload"),
+            headers=monitorInfo.get("headers"),
+        )
+
+        templates = default_notification_templates()
+        state_machine = MonitorStateMachine(monitor, templates)
+
+        parsed_address = None
+        if monitor.monitor_type == "SERVER":
+            parsed_address = self.parse_network_address(monitor.url)
+
         i = 1
-        lastStatus = True
         while True:
-            # 获取配置信息
-            name = monitorInfo['name']
-            url = monitorInfo['url']
-            raw_type = monitorInfo.get('type')
-            if isinstance(raw_type, str):
-                mtype = raw_type.strip().upper()
-            elif raw_type is None:
-                mtype = ""
-            else:
-                self._log_unsupported_type(raw_type, url, name=name)
-                return
-
-            if mtype not in SUPPORTED_MONITOR_TYPES:
-                self._log_unsupported_type(mtype or raw_type, url, name=name)
-                return
-            interval = int(monitorInfo['interval'])
-            email = monitorInfo.get('email')
-            recipients = email.strip() if isinstance(email, str) else None
-            if not recipients:
-                recipients = None
-
-            # 仅在SERVER类型下解析地址
-            parsed_address = None
-            if mtype == "SERVER":
-                parsed_address = self.parse_network_address(url)
-
-            # 触发状态监控监控流程
             result = self.perform_task(
-                url,
+                monitor.url,
                 parsed_address,
-                mtype,
-                email,
-                payload=monitorInfo.get('payload'),
-                headers=monitorInfo.get('headers'),
+                monitor.monitor_type,
+                monitor.email,
+                payload=monitor.payload,
+                headers=monitor.headers,
             )
-            timenow = datetime.datetime.utcnow() + datetime.timedelta(hours=self.time_zone)
-            timestamp_text = timenow.strftime('%Y-%m-%d %H:%M:%S')
-            interval_value = int(interval)
+            utc_now = datetime.datetime.utcnow()
+            local_now = utc_now + datetime.timedelta(hours=self.time_zone)
+            event = state_machine.transition(bool(result), utc_now, local_now)
 
-            is_success = bool(result)
-            state_changed = is_success != bool(lastStatus)
+            self.printf_queue.put(event.message)
+            print(f"\n第{i}次：{event.message}")
 
-            if is_success and not state_changed:
-                state_key = "normal"
-            elif is_success and state_changed:
-                state_key = "recovery"
-            elif not is_success and state_changed:
-                state_key = "alert"
-            else:
-                state_key = "ongoing"
+            logRecorder.record(event.log_action, event.log_detail)
+            logRecorder.saveToFile(list(event.csv_row), monitor.name)
 
-            profile = NOTIFICATION_STATES[state_key]
-            context = {
-                "service_name": name,
-                "monitor_type": mtype,
-                "url": url,
-                "interval": interval_value,
-                "status_code": profile["code"],
-                "status_key": state_key,
-                "status_label": profile["status_label"],
-                "status_text": profile["status_text"],
-                "status_action": profile["status_action"],
-                "event_description": profile["event_description"],
-                "time_label": profile["time_label"],
-                "event_timestamp": timestamp_text,
-            }
+            if event.notification:
+                sendEmail.send_email(
+                    event.notification.subject,
+                    event.notification.body,
+                    recipients=event.notification.recipients,
+                )
 
-            if profile["mail_event"]:
-                subject, body = sendEmail.render_email(profile["mail_event"], context)
-                sendEmail.send_email(subject, body, recipients=recipients)
+            if event.status_bar_message:
+                self.status.showMessage(event.status_bar_message)
 
-            ui_message = configuration.render_template("ui", "status_line", context)
-            print(f"\n第{i}次：{ui_message}")
-            self.printf_queue.put(ui_message)
-
-            action_line = configuration.render_template("log", "action_line", context)
-            detail_line = configuration.render_template("log", "detail_line", context)
-            logRecorder.record(action_line, detail_line)
-            logRecorder.saveToFile(
-                [
-                    timestamp_text,
-                    name,
-                    mtype,
-                    url,
-                    interval_value,
-                    profile["code"],
-                    profile["status_text"],
-                ],
-                name,
-            )
-
-            if profile["code"] in (1, 2):
-                self.status.showMessage('>>>运行中...')
-            else:
-                self.status.showMessage(f'{name}{profile["status_label"]}')
+            interval_value = max(int(monitor.interval), 0)
             print(f"\n等待{interval_value}秒")
             i += 1
-            lastStatus = is_success
             time.sleep(interval_value)
 
     def _handle_monitors_saved(self, monitors):
