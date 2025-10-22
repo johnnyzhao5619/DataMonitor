@@ -485,6 +485,7 @@ def test_monitor_server_closes_raw_ping_socket(monkeypatch):
 def test_perform_task_unknown_type_logs_and_returns_false(monkeypatch):
     pyqt5_module = types.ModuleType("PyQt5")
     qtwidgets_module = types.ModuleType("PyQt5.QtWidgets")
+    qtcore_module = types.ModuleType("PyQt5.QtCore")
 
     class DummyMainWindow:
         def setupUi(self, *_args, **_kwargs):
@@ -493,16 +494,47 @@ def test_perform_task_unknown_type_logs_and_returns_false(monkeypatch):
     class DummyInputDialog:
         pass
 
+    class DummyTimer:
+        def __init__(self, *_args, **_kwargs):
+            self.timeout = types.SimpleNamespace(connect=lambda *_a, **_k: None)
+
+        def start(self, *_args, **_kwargs):
+            return None
+
+        def stop(self):
+            return None
+
+    qtcore_module.QTimer = DummyTimer
+
     qtwidgets_module.QMainWindow = type("QMainWindow", (), {})
     qtwidgets_module.QInputDialog = DummyInputDialog
+    qtwidgets_module.QMessageBox = type(
+        "QMessageBox",
+        (),
+        {"critical": staticmethod(lambda *_args, **_kwargs: None)},
+    )
     pyqt5_module.QtWidgets = qtwidgets_module
+    pyqt5_module.QtCore = qtcore_module
 
     monkeypatch.setitem(sys.modules, "PyQt5", pyqt5_module)
     monkeypatch.setitem(sys.modules, "PyQt5.QtWidgets", qtwidgets_module)
+    monkeypatch.setitem(sys.modules, "PyQt5.QtCore", qtcore_module)
 
-    gui_stub = types.ModuleType("GUI_Windows_New")
-    gui_stub.MainWindow = DummyMainWindow
-    monkeypatch.setitem(sys.modules, "GUI_Windows_New", gui_stub)
+    ui_stub = types.ModuleType("ui")
+    ui_main_window_stub = types.ModuleType("ui.main_window")
+
+    class DummyMainWindowUI:
+        def __init__(self, *_args, **_kwargs):
+            pass
+
+        def setup_ui(self, *_args, **_kwargs):
+            return None
+
+    ui_main_window_stub.MainWindowUI = DummyMainWindowUI
+    ui_stub.main_window = ui_main_window_stub
+
+    monkeypatch.setitem(sys.modules, "ui", ui_stub)
+    monkeypatch.setitem(sys.modules, "ui.main_window", ui_main_window_stub)
 
     monkeypatch.delitem(sys.modules, "mainFrame", raising=False)
     mainFrame = importlib.import_module("mainFrame")
