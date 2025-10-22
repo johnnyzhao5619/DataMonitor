@@ -18,6 +18,7 @@ from monitoring.service import (
     MonitorScheduler,
     ServerMonitorStrategy,
     default_notification_templates,
+    parse_network_address as service_parse_network_address,
 )
 from monitoring.state_machine import MonitorEvent, MonitorStateMachine
 
@@ -120,7 +121,7 @@ class toolsetWindow(QtWidgets.QMainWindow):
         if monitor_type_normalised == "SERVER":
             address = parsed_address
             if address is None:
-                address = ServerMonitorStrategy._parse_network_address(url)
+                address = service_parse_network_address(url)
             return apiMonitor.monitor_server(address)
 
         self._log_unsupported_type(monitor_type, url)
@@ -142,37 +143,9 @@ class toolsetWindow(QtWidgets.QMainWindow):
 
     # 格式化url
     def parse_network_address(self, address):
-        """
-        解析网络地址字符串，返回协议、主机、端口和路径后缀。
-        """
-        protocol = 'http'
-        url_port_suffix = address
+        """解析网络地址字符串。"""
 
-        if address.startswith("http://"):
-            url_port_suffix = address[len("http://"):]
-        elif address.startswith("https://"):
-            protocol = 'https'
-            url_port_suffix = address[len("https://"):]
-
-        print("url_port_suffix:", url_port_suffix)
-
-        if '/' in url_port_suffix:
-            url_port, suffix = url_port_suffix.split('/', 1)
-        else:
-            url_port = url_port_suffix
-            suffix = ''
-
-        if ':' in url_port:
-            url, port_str = url_port.split(':', 1)
-            try:
-                port = int(port_str)
-            except ValueError:
-                port = None
-        else:
-            url = url_port
-            port = None
-
-        return [protocol, url, port, suffix]
+        return service_parse_network_address(address)
 
     # 周期性运行
     def run_periodically(self, monitorInfo):
