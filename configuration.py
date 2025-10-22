@@ -11,7 +11,7 @@ import re
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import Dict, Mapping, Optional, Union
 
 
 LOGGER = logging.getLogger(__name__)
@@ -60,6 +60,114 @@ DEFAULT_TIMEZONE = "0"
 
 
 LOG_DIR_ENV = "APIMONITOR_HOME"
+
+TEMPLATE_CONFIG_NAME = "Templates.ini"
+
+TEMPLATE_DEFAULTS: Dict[str, Dict[str, str]] = {
+    "mail": {
+        "alert_subject": "Outage Alert | {service_name}",
+        "alert_body": (
+            "状态：{status_action}\n"
+            "服务：{service_name}\n"
+            "说明：{event_description}\n"
+            "{time_label}：{event_timestamp}"
+        ),
+        "recovery_subject": "Outage Recovery | {service_name}",
+        "recovery_body": (
+            "状态：{status_action}\n"
+            "服务：{service_name}\n"
+            "说明：{event_description}\n"
+            "{time_label}：{event_timestamp}"
+        ),
+    },
+    "ui": {
+        "status_line": "时间：{event_timestamp} --> 状态：{service_name}{status_label}",
+    },
+    "log": {
+        "action_line": (
+            "{service_name} --- 类型 Type: {monitor_type} --- 地址 url: {url} --- 周期 Interval: {interval}秒"
+        ),
+        "detail_line": ">>>{event_timestamp}: {service_name}{status_label}",
+        "record_entry": (
+            ">>{log_timestamp}(China Time)----------------------------------------------\n"
+            ">>Action:{action}\n"
+            "{details}"
+        ),
+        "csv_header": "Time,API,Type,url,Interval,Code,Status",
+    },
+}
+
+
+class TemplateManager:
+    """负责加载与渲染通知模版。"""
+
+    def __init__(self):
+        self._templates: Optional[Dict[str, Dict[str, str]]] = None
+
+    def _load_templates(self) -> None:
+        templates: Dict[str, Dict[str, str]] = {
+            category: values.copy() for category, values in TEMPLATE_DEFAULTS.items()
+        }
+
+        config_dir = get_config_directory()
+        config_path = config_dir / TEMPLATE_CONFIG_NAME
+
+        parser = configparser.RawConfigParser()
+        parser.optionxform = str  # 保留键大小写
+
+        if config_path.is_file():
+            parser.read(os.fspath(config_path), encoding="utf-8")
+            for section in parser.sections():
+                section_key = section.strip().lower()
+                if not section_key:
+                    continue
+                section_templates = templates.setdefault(section_key, {})
+                for option, value in parser.items(section):
+                    option_key = option.strip()
+                    if not option_key:
+                        continue
+                    section_templates[option_key] = value
+
+        self._templates = templates
+
+    def get_template(self, category: str, key: str) -> str:
+        if self._templates is None:
+            self._load_templates()
+
+        category_key = category.strip().lower()
+        key_name = key.strip()
+        try:
+            category_templates = self._templates[category_key]
+        except KeyError as exc:
+            raise KeyError(f"未找到模板类别：{category}") from exc
+
+        try:
+            return category_templates[key_name]
+        except KeyError as exc:
+            raise KeyError(f"模板缺失：{category}.{key}") from exc
+
+    def reload(self) -> None:
+        """在测试或配置更新后重新加载模版。"""
+
+        self._templates = None
+
+
+@lru_cache(maxsize=1)
+def get_template_manager() -> TemplateManager:
+    return TemplateManager()
+
+
+def render_template(category: str, key: str, context: Mapping[str, object]) -> str:
+    """渲染指定类别与键的模版。"""
+
+    template = get_template_manager().get_template(category, key)
+    try:
+        return template.format(**context)
+    except KeyError as exc:
+        missing = exc.args[0]
+        raise ValueError(
+            f"模板 {category}.{key} 渲染时缺少变量：{missing}"
+        ) from exc
 
 
 def _normalise_directory(
@@ -135,9 +243,13 @@ def get_logdir():
     default_dir = Path(__file__).resolve().parent / "APIMonitor"
     return _normalise_directory(default_dir)
 
-def read_monitor_list() -> List[MonitorItem]:
-    """解析监控配置，返回结构化的监控项列表。"""
 
+def get_config_directory() -> Path:
+    """返回配置目录路径。"""
+
+    return Path(get_logdir()).resolve() / "Config"
+
+def read_monitor_list():
     logdir = get_logdir()
     monitorlist: List[MonitorItem] = []
     config = configparser.RawConfigParser()

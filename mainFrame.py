@@ -21,6 +21,45 @@ from typing import Optional
 from monitoring.service import MonitorScheduler, ServerMonitorStrategy
 from monitoring.state_machine import MonitorEvent
 
+NOTIFICATION_STATES = {
+    "normal": {
+        "code": 1,
+        "status_label": "服务正常",
+        "status_text": "正常",
+        "status_action": "正常",
+        "event_description": "监控检测到服务保持正常状态",
+        "time_label": "检测时间",
+        "mail_event": None,
+    },
+    "recovery": {
+        "code": 2,
+        "status_label": "服务恢复",
+        "status_text": "恢复",
+        "status_action": "恢复",
+        "event_description": "监控检测到服务恢复至正常状态",
+        "time_label": "恢复时间",
+        "mail_event": "recovery",
+    },
+    "alert": {
+        "code": 3,
+        "status_label": "服务异常",
+        "status_text": "异常",
+        "status_action": "告警",
+        "event_description": "监控检测到服务不可达",
+        "time_label": "发生时间",
+        "mail_event": "alert",
+    },
+    "ongoing": {
+        "code": 4,
+        "status_label": "服务持续异常",
+        "status_text": "持续异常",
+        "status_action": "告警",
+        "event_description": "监控检测到服务持续处于异常状态",
+        "time_label": "检测时间",
+        "mail_event": None,
+    },
+}
+
 
 class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
     def __init__(self):
@@ -133,6 +172,145 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
             except Exception:
                 pass
         return message
+
+    # 格式化url
+    def parse_network_address(self, address):
+        """
+        解析网络地址字符串，返回协议、主机、端口和路径后缀。
+        """
+        protocol = 'http'
+        url_port_suffix = address
+
+        if address.startswith("http://"):
+            url_port_suffix = address[len("http://"):]
+        elif address.startswith("https://"):
+            protocol = 'https'
+            url_port_suffix = address[len("https://"):]
+
+        print("url_port_suffix:", url_port_suffix)
+
+        if '/' in url_port_suffix:
+            url_port, suffix = url_port_suffix.split('/', 1)
+        else:
+            url_port = url_port_suffix
+            suffix = ''
+
+        if ':' in url_port:
+            url, port_str = url_port.split(':', 1)
+            try:
+                port = int(port_str)
+            except ValueError:
+                port = None
+        else:
+            url = url_port
+            port = None
+
+        return [protocol, url, port, suffix]
+
+    # 周期性运行
+    def run_periodically(self, monitorInfo):
+        i = 1
+        lastStatus = True
+        while True:
+            # 获取配置信息
+            name = monitorInfo['name']
+            url = monitorInfo['url']
+            raw_type = monitorInfo.get('type')
+            if isinstance(raw_type, str):
+                mtype = raw_type.strip().upper()
+            elif raw_type is None:
+                mtype = ""
+            else:
+                self._log_unsupported_type(raw_type, url, name=name)
+                return
+
+            if mtype not in SUPPORTED_MONITOR_TYPES:
+                self._log_unsupported_type(mtype or raw_type, url, name=name)
+                return
+            interval = int(monitorInfo['interval'])
+            email = monitorInfo.get('email')
+            recipients = email.strip() if isinstance(email, str) else None
+            if not recipients:
+                recipients = None
+
+            # 仅在SERVER类型下解析地址
+            parsed_address = None
+            if mtype == "SERVER":
+                parsed_address = self.parse_network_address(url)
+
+            # 触发状态监控监控流程
+            result = self.perform_task(
+                url,
+                parsed_address,
+                mtype,
+                email,
+                payload=monitorInfo.get('payload'),
+                headers=monitorInfo.get('headers'),
+            )
+            timenow = datetime.datetime.utcnow() + datetime.timedelta(hours=self.time_zone)
+            timestamp_text = timenow.strftime('%Y-%m-%d %H:%M:%S')
+            interval_value = int(interval)
+
+            is_success = bool(result)
+            state_changed = is_success != bool(lastStatus)
+
+            if is_success and not state_changed:
+                state_key = "normal"
+            elif is_success and state_changed:
+                state_key = "recovery"
+            elif not is_success and state_changed:
+                state_key = "alert"
+            else:
+                state_key = "ongoing"
+
+            profile = NOTIFICATION_STATES[state_key]
+            context = {
+                "service_name": name,
+                "monitor_type": mtype,
+                "url": url,
+                "interval": interval_value,
+                "status_code": profile["code"],
+                "status_key": state_key,
+                "status_label": profile["status_label"],
+                "status_text": profile["status_text"],
+                "status_action": profile["status_action"],
+                "event_description": profile["event_description"],
+                "time_label": profile["time_label"],
+                "event_timestamp": timestamp_text,
+            }
+
+            if profile["mail_event"]:
+                subject, body = sendEmail.render_email(profile["mail_event"], context)
+                sendEmail.send_email(subject, body, recipients=recipients)
+
+            ui_message = configuration.render_template("ui", "status_line", context)
+            print(f"\n第{i}次：{ui_message}")
+            self.printf_queue.put(ui_message)
+
+            action_line = configuration.render_template("log", "action_line", context)
+            detail_line = configuration.render_template("log", "detail_line", context)
+            logRecorder.record(action_line, detail_line)
+            logRecorder.saveToFile(
+                [
+                    timestamp_text,
+                    name,
+                    mtype,
+                    url,
+                    interval_value,
+                    profile["code"],
+                    profile["status_text"],
+                ],
+                name,
+            )
+
+            if profile["code"] in (1, 2):
+                self.status.showMessage('>>>运行中...')
+            else:
+                self.status.showMessage(f'{name}{profile["status_label"]}')
+            print(f"\n等待{interval_value}秒")
+            i += 1
+            lastStatus = is_success
+            time.sleep(interval_value)
 
     def _read_config_timezone(self):
         raw_value = configuration.get_timezone()
