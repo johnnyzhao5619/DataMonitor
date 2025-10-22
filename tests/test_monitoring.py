@@ -1,15 +1,27 @@
 import datetime
 import sys
 import threading
+import types
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+if "requests" not in sys.modules:
+    sys.modules["requests"] = types.SimpleNamespace(
+        RequestException=Exception,
+        get=lambda *args, **kwargs: types.SimpleNamespace(status_code=200),
+        post=lambda *args, **kwargs: types.SimpleNamespace(status_code=200),
+    )
+
 import configuration  # noqa: E402  pylint: disable=wrong-import-position
 import logRecorder  # noqa: E402  pylint: disable=wrong-import-position
-from monitoring.service import MonitorScheduler, MonitorStrategy  # noqa: E402
+from monitoring.service import (  # noqa: E402
+    MonitorScheduler,
+    MonitorStrategy,
+    default_notification_templates,
+)
 from monitoring.state_machine import (  # noqa: E402
     MonitorState,
     MonitorStateMachine,
@@ -127,3 +139,59 @@ def test_scheduler_runs_strategies_and_emits_events(monkeypatch):
     assert len(logs) >= 4
     assert any("服务异常" in detail for _, detail in logs)
     assert len(csv_rows) >= 4
+
+
+def test_default_notification_templates_builders():
+    templates = default_notification_templates()
+    occurred_at = datetime.datetime(2023, 1, 1, 12, 0, 0)
+
+    subject, body = templates.build_outage("ServiceA", occurred_at)
+    assert subject.strip()
+    assert body.strip()
+
+    subject, body = templates.build_recovery("ServiceA", occurred_at)
+    assert subject.strip()
+    assert body.strip()
+
+
+def test_scheduler_uses_default_templates(monkeypatch):
+    notifications = []
+    events = []
+    finished = threading.Event()
+
+    monkeypatch.setattr(logRecorder, "record", lambda action, detail: None)
+    monkeypatch.setattr(logRecorder, "saveToFile", lambda row, name: None)
+
+    base_time = datetime.datetime(2023, 1, 1, 0, 0, 0)
+
+    def capture_event(event):
+        events.append(event)
+        if len(events) >= 3:
+            finished.set()
+
+    scheduler = MonitorScheduler(
+        event_handler=capture_event,
+        timezone_getter=lambda: 0,
+        clock=lambda: base_time,
+        dispatcher=lambda notification: notifications.append(notification),
+    )
+    scheduler.register_strategy("GET", SequenceStrategy([True, False, True]))
+
+    monitor = configuration.MonitorItem(
+        name="ServiceA",
+        url="http://example.com",
+        monitor_type="GET",
+        interval=0.1,
+        email="ops@example.com",
+    )
+
+    scheduler.start([monitor])
+    try:
+        assert finished.wait(5), "调度器未在预期时间内产生事件"
+    finally:
+        scheduler.stop()
+
+    assert len(notifications) == 2
+    for notification in notifications:
+        assert notification.subject.strip()
+        assert notification.body.strip()
