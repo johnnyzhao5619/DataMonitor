@@ -2,6 +2,7 @@ import socket
 import textwrap
 import types
 import sys
+from contextlib import closing
 from pathlib import Path
 
 import pytest
@@ -389,3 +390,73 @@ def test_monitor_server_uses_timeout_from_config_file(
     }
 
     ORIGINAL_GET_REQUEST_TIMEOUT.cache_clear()
+
+
+def test_monitor_server_closes_raw_ping_socket(monkeypatch):
+    close_counts = {"count": 0}
+
+    class DummyConnection:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    monkeypatch.setattr(
+        apiMonitor.socket,
+        "create_connection",
+        lambda *args, **kwargs: DummyConnection(),
+    )
+
+    class CountingSocket:
+        def __init__(self):
+            self._closed = False
+
+        def close(self):
+            if not self._closed:
+                self._closed = True
+                close_counts["count"] += 1
+
+    class CountingPing:
+        def request_ping(self, *args, **kwargs):
+            return b"icmp"
+
+        def raw_socket(self, *args, **kwargs):
+            return 0.0, closing(CountingSocket())
+
+        def reply_ping(self, *args, **kwargs):
+            return 0.01
+
+    monkeypatch.setattr(apiMonitor, "MyPing", CountingPing)
+    monkeypatch.setattr(apiMonitor, "_subprocess_ping", lambda host: False)
+    monkeypatch.setattr(apiMonitor.socket, "gethostbyname", lambda host: "127.0.0.1")
+
+    class DummyIcmpSocket:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def sendto(self, *args, **kwargs):
+            return None
+
+        def settimeout(self, *args, **kwargs):
+            return None
+
+        def recv(self, *args, **kwargs):
+            raise socket.timeout("no icmp reply")
+
+    monkeypatch.setattr(apiMonitor.socket, "socket", lambda *args, **kwargs: DummyIcmpSocket())
+    monkeypatch.setattr(apiMonitor.time, "sleep", lambda *_args, **_kwargs: None)
+
+    def fake_get(url, timeout):
+        assert timeout == 5.0
+        return DummyResponse(200)
+
+    monkeypatch.setattr(apiMonitor.requests, "get", fake_get)
+
+    result = apiMonitor.monitor_server(("http", "example.org", None, None))
+
+    assert result is True
+    assert close_counts["count"] == 3
