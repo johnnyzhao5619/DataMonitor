@@ -4,6 +4,7 @@
 # @File : sendEmail.py
 # @Software: PyCharm
 
+import datetime as _dt
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -15,6 +16,19 @@ import configuration
 MAIL_EVENT_MAP = {
     "alert": {"subject": "alert_subject", "body": "alert_body"},
     "recovery": {"subject": "recovery_subject", "body": "recovery_body"},
+}
+
+_EVENT_CONTEXT_PRESETS = {
+    "alert": {
+        "status_action": "告警",
+        "event_description": "监控检测到服务不可达",
+        "time_label": "发生时间",
+    },
+    "recovery": {
+        "status_action": "恢复",
+        "event_description": "监控检测到服务恢复至正常状态",
+        "time_label": "恢复时间",
+    },
 }
 
 REQUIRED_CONTEXT_FIELDS = {
@@ -42,6 +56,37 @@ def render_email(event: str, context: Mapping[str, object]) -> Tuple[str, str]:
     subject = configuration.render_template("mail", mapping["subject"], context)
     body = configuration.render_template("mail", mapping["body"], context)
     return subject, body
+
+
+def _normalise_timestamp(occurred_at) -> str:
+    if isinstance(occurred_at, str):
+        return occurred_at
+    if isinstance(occurred_at, (_dt.datetime, _dt.date)):
+        return occurred_at.strftime("%Y-%m-%d %H:%M:%S")
+    return str(occurred_at)
+
+
+def _build_notification(event: str, service_name, occurred_at) -> Tuple[str, str]:
+    try:
+        context_defaults = _EVENT_CONTEXT_PRESETS[event]
+    except KeyError as exc:
+        raise KeyError(f"未知的邮件事件类型：{event}") from exc
+
+    context = {
+        "service_name": str(service_name) if service_name is not None else "",
+        "event_timestamp": _normalise_timestamp(occurred_at),
+        **context_defaults,
+    }
+    return render_email(event, context)
+
+
+def build_outage_alert_message(service_name, occurred_at) -> Tuple[str, str]:
+    return _build_notification("alert", service_name, occurred_at)
+
+
+def build_outage_recovery_message(service_name, occurred_at) -> Tuple[str, str]:
+    return _build_notification("recovery", service_name, occurred_at)
+
 
 def _normalize_recipients(
     explicit_recipients,

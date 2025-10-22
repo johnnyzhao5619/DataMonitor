@@ -11,7 +11,7 @@ import re
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict, Mapping, Optional, Union
+from typing import Dict, List, Mapping, Optional, Union
 
 
 LOGGER = logging.getLogger(__name__)
