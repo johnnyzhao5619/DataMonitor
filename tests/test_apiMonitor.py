@@ -1,4 +1,5 @@
 import socket
+import importlib
 import textwrap
 import types
 import sys
@@ -463,3 +464,55 @@ def test_monitor_server_closes_raw_ping_socket(monkeypatch):
 
     assert result is True
     assert close_counts["count"] == 3
+
+
+def test_perform_task_unknown_type_logs_and_returns_false(monkeypatch):
+    pyqt5_module = types.ModuleType("PyQt5")
+    qtwidgets_module = types.ModuleType("PyQt5.QtWidgets")
+
+    class DummyMainWindow:
+        def setupUi(self, *_args, **_kwargs):
+            return None
+
+    class DummyInputDialog:
+        pass
+
+    qtwidgets_module.QMainWindow = type("QMainWindow", (), {})
+    qtwidgets_module.QInputDialog = DummyInputDialog
+    pyqt5_module.QtWidgets = qtwidgets_module
+
+    monkeypatch.setitem(sys.modules, "PyQt5", pyqt5_module)
+    monkeypatch.setitem(sys.modules, "PyQt5.QtWidgets", qtwidgets_module)
+
+    gui_stub = types.ModuleType("GUI_Windows_New")
+    gui_stub.MainWindow = DummyMainWindow
+    monkeypatch.setitem(sys.modules, "GUI_Windows_New", gui_stub)
+
+    monkeypatch.delitem(sys.modules, "mainFrame", raising=False)
+    mainFrame = importlib.import_module("mainFrame")
+
+    def fail_if_called(*args, **kwargs):
+        raise AssertionError("monitoring function should not be invoked for unsupported type")
+
+    monkeypatch.setattr(mainFrame.apiMonitor, "monitor_get", fail_if_called)
+    monkeypatch.setattr(mainFrame.apiMonitor, "monitor_post", fail_if_called)
+    monkeypatch.setattr(mainFrame.apiMonitor, "monitor_server", fail_if_called)
+
+    observed = {}
+
+    def fake_record(action, log):
+        observed["action"] = action
+        observed["log"] = log
+
+    monkeypatch.setattr(mainFrame.logRecorder, "record", fake_record)
+
+    window = mainFrame.toolsetWindow.__new__(mainFrame.toolsetWindow)
+
+    result = window.perform_task("http://example.com", None, "UNKNOWN", "user@example.com")
+
+    assert result is False
+    assert observed["action"] == "Unsupported Monitor Type"
+    assert "UNKNOWN" in observed["log"]
+    assert "http://example.com" in observed["log"]
+
+    sys.modules.pop("mainFrame", None)
