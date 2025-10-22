@@ -152,25 +152,44 @@ def test_run_periodically_single_iteration(qtbot, tmp_path, monkeypatch, monitor
 
     call_count = {"perform": 0}
 
-    def fake_sleep(interval):
-        raise StopIteration
+    def fake_monitor_get(actual_url, timeout=None):
+        assert monitor_type == "GET"
+        assert actual_url == url
+        call_count["perform"] += 1
+        return True
 
-    monkeypatch.setattr(time, "sleep", fake_sleep)
+    def fake_monitor_post(actual_url, payload=None, *, headers=None, timeout=None):
+        assert monitor_type == "POST"
+        assert actual_url == url
+        call_count["perform"] += 1
+        return True
+
+    def fake_monitor_server(parsed_address, timeout=None):
+        assert monitor_type == "SERVER"
+        call_count["perform"] += 1
+        assert parsed_address == expected_parsed
+        return True
+
+    monkeypatch.setattr(apiMonitor, "monitor_get", fake_monitor_get)
+    monkeypatch.setattr(apiMonitor, "monitor_post", fake_monitor_post)
+    monkeypatch.setattr(apiMonitor, "monitor_server", fake_monitor_server)
 
     expected_parsed = None
     if monitor_type == "SERVER":
         expected_parsed = service_parse_network_address(url)
 
-    def fake_perform(url_arg, parsed_address, monitor_type_arg, *args, **kwargs):
-        call_count["perform"] += 1
-        assert monitor_type_arg == monitor_type
-        if monitor_type == "SERVER":
-            assert parsed_address == expected_parsed
-        else:
-            assert parsed_address is None
-        return True
+    thread_names = []
 
-    window.perform_task = fake_perform
+    original_thread = threading.Thread
+
+    def tracking_thread(*args, **kwargs):
+        name = kwargs.get("name")
+        if name is None and len(args) >= 3:
+            name = args[2]
+        thread_names.append(name)
+        return original_thread(*args, **kwargs)
+
+    monkeypatch.setattr(threading, "Thread", tracking_thread)
 
     monitor_info = {
         "name": "测试服务",
@@ -179,10 +198,16 @@ def test_run_periodically_single_iteration(qtbot, tmp_path, monkeypatch, monitor
         "interval": 1,
         "email": "ops@example.com",
     }
-    with pytest.raises(StopIteration):
-        window.run_periodically(monitor_info)
+
+    window.run_periodically(monitor_info)
+
+    qtbot.waitUntil(lambda: len(recorded_logs) == 1, timeout=2000)
+    qtbot.waitUntil(lambda: len(saved_rows) == 1, timeout=2000)
+    qtbot.waitUntil(lambda: not window.printf_queue.empty(), timeout=2000)
+    qtbot.waitUntil(lambda: monitor_info["name"] not in window._running_periodic, timeout=2000)
 
     assert send_calls == []
+    assert call_count["perform"] == 1
     assert recorded_logs == [
         (
             "log.action_line|测试服务|正常",
@@ -197,20 +222,8 @@ def test_run_periodically_single_iteration(qtbot, tmp_path, monkeypatch, monitor
     assert row[6] == "正常"
     assert window.printf_queue.get_nowait() == "ui.status_line|测试服务|正常"
 
-    def _monitor_threads():
-        return [
-            thread.name
-            for thread in threading.enumerate()
-            if thread.name.startswith("Monitor:")
-        ]
-
-    qtbot.waitUntil(lambda: bool(_monitor_threads()), timeout=3000)
-    thread_names = _monitor_threads()
-    assert all(name.startswith("Monitor:") for name in thread_names)
-
-    monitor_key = next(iter(window._periodic_monitors.keys()))
-    timer = window._periodic_timers[monitor_key]
-    assert timer.isActive()
+    assert thread_names
+    assert any(name and name.startswith("Monitor:") for name in thread_names)
 
     window._stop_periodic_monitors()
 
