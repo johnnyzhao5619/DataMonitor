@@ -8,35 +8,49 @@ import socket
 import subprocess
 import time
 import requests
+
+import configuration
 from myPing import *
 
 
-def monitor_get(url):
+def _resolve_timeout(timeout):
+    if timeout is not None:
+        return timeout
+    return configuration.get_request_timeout()
+
+
+def monitor_get(url, timeout=None):
+    resolved_timeout = _resolve_timeout(timeout)
     try:
-        response = requests.get(url)
-        if response.status_code == 200:
-            print(f"GET request to {url} successful")
+        response = requests.get(url, timeout=resolved_timeout)
+        if 200 <= response.status_code < 400:
+            print(f"GET request to {url} successful with status code: {response.status_code}")
             return True
         else:
-            print(f"GET request to {url} failed with status code: {response.status_code}")
+            print(
+                f"GET request to {url} failed with status code: {response.status_code}"
+            )
             return False
-    except:
-        print(f"GET request to {url} failed")
+    except requests.RequestException as exc:
+        print(f"GET request to {url} failed with error: {exc}")
         return False
 
 
 
-def monitor_post(url, payload):
+def monitor_post(url, payload, timeout=None):
+    resolved_timeout = _resolve_timeout(timeout)
     try:
-        response = requests.post(url, data=payload)
-        if response.status_code == 200:
-            print(f"POST request to {url} successful")
+        response = requests.post(url, data=payload, timeout=resolved_timeout)
+        if 200 <= response.status_code < 400:
+            print(f"POST request to {url} successful with status code: {response.status_code}")
             return True
         else:
-            print(f"POST request to {url} failed with status code: {response.status_code}")
+            print(
+                f"POST request to {url} failed with status code: {response.status_code}"
+            )
             return False
-    except:
-        print(f"POST request to {url} failed")
+    except requests.RequestException as exc:
+        print(f"POST request to {url} failed with error: {exc}")
         return False
 
 # def monitor_server(host: str, timeout: float = 2.0) -> bool:
