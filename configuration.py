@@ -182,7 +182,7 @@ def set_timezone(timezone):
     config.read(logdir+"Config/Config.ini")
     if not config.has_section('TimeZone'):
         config.add_section('TimeZone')
-    config.set('TimeZone', 'timezone', timezone)
+    config.set('TimeZone', 'timezone', str(timezone))
     with open(logdir + "Config/Config.ini", "w") as configfile:
         config.write(configfile)
 
@@ -209,7 +209,7 @@ def writeconfig(configDir: str):
     info.set("Mail", "password", "PLEASE_SET_PASSWORD")
     info.set("Mail", "from_addr", "ops-team@example.com")
     info.set("Mail", "to_addrs", "recipient@example.com")
-    info.set("Mail", "subject", "Outage Warning！")
+    info.set("Mail", "subject", "Outage Alert")
 
     info.add_section("MonitorNum")
     info.set("MonitorNum", "total", "5")
