@@ -4,7 +4,7 @@ from __future__ import annotations
 import datetime as _dt
 import json
 from dataclasses import asdict
-from typing import Dict, List, Optional
+from typing import Dict, Iterable, List, Optional
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 
@@ -28,11 +28,20 @@ QPushButton {
     padding: 8px 18px;
 }
 QPushButton[category="navigation"] {
-    min-width: 140px;
+    background-color: transparent;
+    color: #201F1E;
+    border-radius: 8px;
     font-weight: 600;
+    text-align: left;
+    padding: 10px 14px;
 }
-QPushButton:hover {
-    background-color: #464775;
+QPushButton[category="navigation"]:hover {
+    background-color: #E1DFDD;
+    color: #201F1E;
+}
+QPushButton[category="navigation"]:checked {
+    background-color: #C8C6C4;
+    color: #201F1E;
 }
 QPushButton:pressed {
     background-color: #33344A;
@@ -41,17 +50,29 @@ QPushButton:disabled {
     background-color: #E1DFDD;
     color: #A19F9D;
 }
-QGroupBox {
-    border: 1px solid #C8C6C4;
-    border-radius: 8px;
-    margin-top: 16px;
-    padding: 12px;
+QFrame#navigationBar {
+    background-color: #F3F2F1;
+    border-right: 1px solid #E1DFDD;
 }
-QGroupBox::title {
-    subcontrol-origin: margin;
-    left: 14px;
-    padding: 0 4px;
+QFrame[role="card"], QWidget[role="card"] {
+    background: white;
+    border: 1px solid #E1DFDD;
+    border-radius: 10px;
+}
+QFrame[role="card"] QLabel[role="cardTitle"], QWidget[role="card"] QLabel[role="cardTitle"] {
+    font-size: 14px;
     font-weight: 600;
+    margin-bottom: 8px;
+}
+QLabel[role="heading"] {
+    font-size: 18px;
+    font-weight: 600;
+}
+QLabel[role="hint"] {
+    color: #605E5C;
+}
+QLabel[role="error"] {
+    color: #C50F1F;
 }
 QLineEdit, QComboBox, QSpinBox, QPlainTextEdit {
     background: white;
@@ -67,16 +88,6 @@ QListWidget {
 QStatusBar {
     background: #E1DFDD;
     border-top: 1px solid #C8C6C4;
-}
-QLabel[role="heading"] {
-    font-size: 18px;
-    font-weight: 600;
-}
-QLabel[role="hint"] {
-    color: #605E5C;
-}
-QLabel[role="error"] {
-    color: #C50F1F;
 }
 QTabWidget::pane {
     border: 1px solid #C8C6C4;
@@ -96,6 +107,126 @@ QTabBar::tab:selected {
     color: #201F1E;
 }
 """
+
+
+class NavigationBar(QtWidgets.QFrame):
+    """遵循 Teams 视觉规范的侧边导航栏。"""
+
+    def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
+        super().__init__(parent)
+        self.setObjectName("navigationBar")
+
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.setContentsMargins(18, 24, 18, 24)
+        layout.setSpacing(12)
+
+        title = QtWidgets.QLabel("Monitor Center")
+        title.setAlignment(QtCore.Qt.AlignHCenter)
+        title.setProperty("role", "heading")
+        layout.addWidget(title)
+
+        layout.addSpacing(12)
+
+        self.monitorButton = self._create_button("监控 Monitor", checkable=True)
+        self.configButton = self._create_button("配置 Configuration", checkable=True)
+
+        layout.addWidget(self.monitorButton)
+        layout.addWidget(self.configButton)
+
+        layout.addStretch(1)
+
+        self.locationButton = self._create_button("时区 Time Zone", checkable=False)
+        layout.addWidget(self.locationButton)
+
+    def set_active(self, button: QtWidgets.QPushButton) -> None:
+        for item in self._iter_nav_buttons():
+            if item.isCheckable():
+                item.setChecked(item is button)
+
+    def _iter_nav_buttons(self) -> Iterable[QtWidgets.QPushButton]:
+        return (self.monitorButton, self.configButton, self.locationButton)
+
+    def _create_button(self, text: str, *, checkable: bool) -> QtWidgets.QPushButton:
+        button = QtWidgets.QPushButton(text)
+        button.setCheckable(checkable)
+        button.setProperty("category", "navigation")
+        button.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
+        return button
+
+
+class MonitorDashboard(QtWidgets.QWidget):
+    """监控信息仪表盘。"""
+
+    def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
+        super().__init__(parent)
+
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(16)
+
+        cards_row = QtWidgets.QHBoxLayout()
+        cards_row.setSpacing(16)
+        layout.addLayout(cards_row)
+
+        self.localTimeGroupBox = QtWidgets.QGroupBox("本地时间 Local Time")
+        self.localTimeGroupBox.setProperty("role", "card")
+        local_layout = QtWidgets.QVBoxLayout(self.localTimeGroupBox)
+        local_layout.setContentsMargins(16, 20, 16, 16)
+
+        self.localTimeLabel = QtWidgets.QLabel("2023-01-01 00:00:00")
+        font = QtGui.QFont()
+        font.setPointSize(20)
+        font.setBold(True)
+        self.localTimeLabel.setFont(font)
+        local_layout.addWidget(self.localTimeLabel)
+
+        self.utcTimeGroupBox = QtWidgets.QGroupBox("UTC时间 UTC Time")
+        self.utcTimeGroupBox.setProperty("role", "card")
+        utc_layout = QtWidgets.QVBoxLayout(self.utcTimeGroupBox)
+        utc_layout.setContentsMargins(16, 20, 16, 16)
+
+        self.utcTimeLabel = QtWidgets.QLabel("2023-01-01 00:00:00")
+        self.utcTimeLabel.setFont(font)
+        utc_layout.addWidget(self.utcTimeLabel)
+
+        cards_row.addWidget(self.localTimeGroupBox, 1)
+        cards_row.addWidget(self.utcTimeGroupBox, 1)
+
+        self.logCard = QtWidgets.QFrame()
+        self.logCard.setProperty("role", "card")
+        log_layout = QtWidgets.QVBoxLayout(self.logCard)
+        log_layout.setContentsMargins(16, 16, 16, 16)
+        log_layout.setSpacing(12)
+
+        log_title = QtWidgets.QLabel("实时日志 Live Feed")
+        log_title.setProperty("role", "cardTitle")
+        log_layout.addWidget(log_title)
+
+        self.monitorBrowser = QtWidgets.QTextBrowser()
+        self.monitorBrowser.setMinimumHeight(320)
+        log_layout.addWidget(self.monitorBrowser)
+
+        layout.addWidget(self.logCard, 1)
+
+
+class ConfigurationWorkspace(QtWidgets.QWidget):
+    """承载配置向导的卡片化工作区。"""
+
+    def __init__(self, config_wizard: QtWidgets.QWidget, parent: Optional[QtWidgets.QWidget] = None) -> None:
+        super().__init__(parent)
+
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        card = QtWidgets.QFrame()
+        card.setProperty("role", "card")
+        card_layout = QtWidgets.QVBoxLayout(card)
+        card_layout.setContentsMargins(16, 16, 16, 16)
+        card_layout.setSpacing(0)
+        card_layout.addWidget(config_wizard)
+
+        layout.addWidget(card)
 
 
 class MainWindowUI(QtCore.QObject):
@@ -127,83 +258,51 @@ class MainWindowUI(QtCore.QObject):
         self.central_widget.setObjectName("centralWidget")
         window.setCentralWidget(self.central_widget)
 
-        main_layout = QtWidgets.QVBoxLayout(self.central_widget)
-        main_layout.setContentsMargins(20, 20, 20, 16)
-        main_layout.setSpacing(16)
+        shell_layout = QtWidgets.QHBoxLayout(self.central_widget)
+        shell_layout.setContentsMargins(0, 0, 0, 0)
+        shell_layout.setSpacing(0)
 
-        navigation_layout = QtWidgets.QHBoxLayout()
-        navigation_layout.setSpacing(12)
+        self.navigationBar = NavigationBar()
+        shell_layout.addWidget(self.navigationBar, 0)
 
-        self.switchButton = QtWidgets.QPushButton("监控 Monitor")
-        self.switchButton.setProperty("category", "navigation")
-        self.configButton = QtWidgets.QPushButton("配置 Configuration")
-        self.configButton.setProperty("category", "navigation")
-        self.locationButton = QtWidgets.QPushButton("时区 Time Zone")
-        self.locationButton.setProperty("category", "navigation")
-
-        navigation_layout.addWidget(self.switchButton)
-        navigation_layout.addWidget(self.configButton)
-        navigation_layout.addStretch(1)
-        navigation_layout.addWidget(self.locationButton)
-        main_layout.addLayout(navigation_layout)
+        content_container = QtWidgets.QWidget()
+        content_layout = QtWidgets.QVBoxLayout(content_container)
+        content_layout.setContentsMargins(24, 24, 24, 24)
+        content_layout.setSpacing(16)
+        shell_layout.addWidget(content_container, 1)
 
         self.contentStack = QtWidgets.QStackedWidget()
-        main_layout.addWidget(self.contentStack, 1)
+        content_layout.addWidget(self.contentStack, 1)
 
         # 监控视图
-        monitor_page = QtWidgets.QWidget()
-        monitor_layout = QtWidgets.QVBoxLayout(monitor_page)
-        monitor_layout.setSpacing(16)
-
-        time_panel = QtWidgets.QWidget()
-        time_layout = QtWidgets.QGridLayout(time_panel)
-        time_layout.setContentsMargins(0, 0, 0, 0)
-        time_layout.setHorizontalSpacing(16)
-        time_layout.setVerticalSpacing(0)
-
-        self.localTimeGroupBox = QtWidgets.QGroupBox("本地时间 Local Time")
-        local_layout = QtWidgets.QVBoxLayout(self.localTimeGroupBox)
-        local_layout.setContentsMargins(12, 16, 12, 12)
-        self.localTimeLabel = QtWidgets.QLabel("2023-01-01 00:00:00")
-        font = QtGui.QFont()
-        font.setPointSize(20)
-        font.setBold(True)
-        self.localTimeLabel.setFont(font)
-        local_layout.addWidget(self.localTimeLabel)
-
-        self.utcTimeGroupBox = QtWidgets.QGroupBox("UTC时间 UTC Time")
-        utc_layout = QtWidgets.QVBoxLayout(self.utcTimeGroupBox)
-        utc_layout.setContentsMargins(12, 16, 12, 12)
-        self.utcTimeLabel = QtWidgets.QLabel("2023-01-01 00:00:00")
-        self.utcTimeLabel.setFont(font)
-        utc_layout.addWidget(self.utcTimeLabel)
-
-        time_layout.addWidget(self.localTimeGroupBox, 0, 0, 1, 1)
-        time_layout.addWidget(self.utcTimeGroupBox, 0, 1, 1, 1)
-        monitor_layout.addWidget(time_panel)
-
-        log_group = QtWidgets.QGroupBox("实时日志 Live Feed")
-        log_layout = QtWidgets.QVBoxLayout(log_group)
-        log_layout.setContentsMargins(12, 16, 12, 12)
-        self.monitorBrowser = QtWidgets.QTextBrowser()
-        self.monitorBrowser.setMinimumHeight(280)
-        log_layout.addWidget(self.monitorBrowser)
-        monitor_layout.addWidget(log_group, 1)
-
+        monitor_page = MonitorDashboard()
         self.contentStack.addWidget(monitor_page)
 
         # 配置视图
         self.configWizard = ConfigWizard()
-        self.contentStack.addWidget(self.configWizard)
+        configuration_page = ConfigurationWorkspace(self.configWizard)
+        self.contentStack.addWidget(configuration_page)
+
+        self.switchButton = self.navigationBar.monitorButton
+        self.configButton = self.navigationBar.configButton
+        self.locationButton = self.navigationBar.locationButton
+
+        self.localTimeGroupBox = monitor_page.localTimeGroupBox
+        self.localTimeLabel = monitor_page.localTimeLabel
+        self.utcTimeGroupBox = monitor_page.utcTimeGroupBox
+        self.utcTimeLabel = monitor_page.utcTimeLabel
+        self.monitorBrowser = monitor_page.monitorBrowser
 
         self.show_monitor_page()
 
     # 导航方法
     def show_monitor_page(self) -> None:
         self.contentStack.setCurrentIndex(self.monitor_view_index)
+        self.navigationBar.set_active(self.switchButton)
 
     def show_configuration_page(self) -> None:
         self.contentStack.setCurrentIndex(self.config_view_index)
+        self.navigationBar.set_active(self.configButton)
 
 
 class ConfigWizard(QtWidgets.QWidget):

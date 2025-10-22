@@ -15,8 +15,6 @@ from typing import Optional, Tuple
 
 from monitoring.service import (
     MonitorScheduler,
-    ServerMonitorStrategy,
-    default_notification_templates,
     parse_network_address as service_parse_network_address,
 )
 from monitoring.state_machine import MonitorEvent
@@ -25,29 +23,21 @@ from monitoring.state_machine import MonitorEvent
 PeriodicMonitorKey = Tuple[str, str, str]
 
 
-class toolsetWindow(QtWidgets.QMainWindow):
-    def __init__(self):
-        super().__init__()
-        self.ui = MainWindowUI()
-        self.ui.setup_ui(self)
-        self.status = self.statusBar()
+class MainWindowController(QtCore.QObject):
+    """协调主窗口 UI 与业务逻辑的控制器。"""
+
+    def __init__(self, window: QtWidgets.QMainWindow, ui: MainWindowUI) -> None:
+        super().__init__(window)
+        self.window = window
+        self.ui = ui
+
+        self.status = self.window.statusBar()
         self.status.showMessage('>>初始化...', 4000)
-        self.setWindowTitle('Monitor Everything v0.2')
-        self.ui.switchButton.clicked.connect(self.start_monitor)
-        self.ui.configButton.clicked.connect(self.show_configuration)
-        self.ui.locationButton.clicked.connect(self.set_location)
-        self.ui.configWizard.monitorsSaved.connect(self._handle_monitors_saved)
-        self.ui.configWizard.requestReload.connect(self._reload_monitors)
+        self.window.setWindowTitle('Monitor Everything v0.2')
 
         self.switch_status = True
-        self.printf_queue = queue.Queue()
+        self.printf_queue: queue.Queue = queue.Queue()
         self.time_zone = self._read_config_timezone()
-        self._clock_timer = QtCore.QTimer(self)
-        self._clock_timer.timeout.connect(self.update_clock)
-        self._clock_timer.start(1000)
-        self._reload_monitors()
-        self._update_timezone_display()
-        self.update_clock()
         self.scheduler: Optional[MonitorScheduler] = None
         self._periodic_scheduler = MonitorScheduler(
             event_handler=self._handle_monitor_event,
@@ -57,7 +47,21 @@ class toolsetWindow(QtWidgets.QMainWindow):
         self._periodic_timers: dict[PeriodicMonitorKey, QtCore.QTimer] = {}
         self._running_periodic: set[PeriodicMonitorKey] = set()
 
-    def start_monitor(self):
+        self._clock_timer = QtCore.QTimer(self.window)
+        self._clock_timer.timeout.connect(self.update_clock)
+        self._clock_timer.start(1000)
+
+        self.ui.switchButton.clicked.connect(self.start_monitor)
+        self.ui.configButton.clicked.connect(self.show_configuration)
+        self.ui.locationButton.clicked.connect(self.set_location)
+        self.ui.configWizard.monitorsSaved.connect(self._handle_monitors_saved)
+        self.ui.configWizard.requestReload.connect(self._reload_monitors)
+
+        self._reload_monitors()
+        self._update_timezone_display()
+        self.update_clock()
+
+    def start_monitor(self) -> None:
         if self.switch_status is True:
             monitor_list = configuration.read_monitor_list()
             self.printf_queue.put(f"目前读取到{len(monitor_list)}个监控项，分别是：")
@@ -79,27 +83,33 @@ class toolsetWindow(QtWidgets.QMainWindow):
             self.ui.show_monitor_page()
             self.ui.switchButton.setText('关闭 Close')
             self.switch_status = False
-        elif self.switch_status is False:
+        else:
             if self.scheduler:
                 self.scheduler.stop()
             QtWidgets.QApplication.quit()
 
-    def show_configuration(self):
+    def show_configuration(self) -> None:
         self._reload_monitors()
         self.ui.show_configuration_page()
         self.status.showMessage('>>配置模式', 3000)
 
-    def set_location(self):
-        # 后面四个数字的作用依次是 初始值 最小值 最大值 步幅
-        time_zone, ok = QInputDialog.getInt(self, "输入时区", "请输入所在时区(整数):", self.time_zone, -12, 14, 1)
+    def set_location(self) -> None:
+        time_zone, ok = QInputDialog.getInt(
+            self.window,
+            "输入时区",
+            "请输入所在时区(整数):",
+            self.time_zone,
+            -12,
+            14,
+            1,
+        )
         if ok:
             self.time_zone = time_zone
             configuration.set_timezone(str(time_zone))
             self._update_timezone_display()
             self.update_clock()
-        # self.echo(time_zone)
 
-    def update_clock(self):
+    def update_clock(self) -> None:
         utc_time = datetime.datetime.utcnow()
         current_time = utc_time + datetime.timedelta(hours=self.time_zone)
         self.ui.localTimeLabel.setText(current_time.strftime('%Y-%m-%d %H:%M:%S'))
@@ -116,7 +126,7 @@ class toolsetWindow(QtWidgets.QMainWindow):
                 self.ui.monitorBrowser.moveCursor(cursor.End)
                 QtWidgets.QApplication.processEvents()
 
-    def _handle_monitor_event(self, event: MonitorEvent):
+    def _handle_monitor_event(self, event: MonitorEvent) -> None:
         self.printf_queue.put(event.message)
         if event.status_bar_message:
             self.status.showMessage(event.status_bar_message)
@@ -128,9 +138,7 @@ class toolsetWindow(QtWidgets.QMainWindow):
         if monitor_type_normalised == "POST":
             return apiMonitor.monitor_post(url, payload, headers=headers)
         if monitor_type_normalised == "SERVER":
-            address = parsed_address
-            if address is None:
-                address = service_parse_network_address(url)
+            address = parsed_address or service_parse_network_address(url)
             return apiMonitor.monitor_server(address)
 
         self._log_unsupported_type(monitor_type, url)
@@ -141,22 +149,18 @@ class toolsetWindow(QtWidgets.QMainWindow):
         readable_type = monitor_type if monitor_type not in (None, "") else "<empty>"
         message = f"监控项{monitor_name}类型 '{readable_type}' 未被支持，URL: {url}"
         logRecorder.record("Unsupported Monitor Type", message)
-        if hasattr(self, "printf_queue"):
-            self.printf_queue.put(message)
-        if hasattr(self, "status"):
-            try:
-                self.status.showMessage(message)
-            except Exception:
-                pass
+        self.printf_queue.put(message)
+        try:
+            self.status.showMessage(message)
+        except Exception:
+            pass
         return message
 
-    # 格式化url
     def parse_network_address(self, address):
         """解析网络地址字符串。"""
 
         return service_parse_network_address(address)
 
-    # 周期性运行
     def run_periodically(self, monitorInfo):
         monitor = self._build_monitor_item(monitorInfo)
         if monitor is None:
@@ -171,7 +175,7 @@ class toolsetWindow(QtWidgets.QMainWindow):
         try:
             configuration.write_monitor_list(monitors)
         except Exception as exc:
-            QMessageBox.critical(self, '保存失败', str(exc))
+            QMessageBox.critical(self.window, '保存失败', str(exc))
             self.status.showMessage(f'保存失败: {exc}', 5000)
         else:
             self.status.showMessage('配置已保存', 4000)
@@ -192,11 +196,10 @@ class toolsetWindow(QtWidgets.QMainWindow):
     def _update_timezone_display(self):
         self.ui.localTimeGroupBox.setTitle(f'本地时间 Local Time(时区 Time Zone: {self.time_zone})')
 
-    def closeEvent(self, event):
+    def on_close(self) -> None:
         if self.scheduler:
             self.scheduler.stop()
         self._stop_periodic_monitors()
-        super().closeEvent(event)
 
     def _build_monitor_item(self, monitorInfo):
         if isinstance(monitorInfo, configuration.MonitorItem):
@@ -281,7 +284,7 @@ class toolsetWindow(QtWidgets.QMainWindow):
             return
 
         if timer is None:
-            timer = QtCore.QTimer(self)
+            timer = QtCore.QTimer(self.window)
             timer.setSingleShot(False)
             timer.timeout.connect(
                 lambda key=monitor_key: self._trigger_periodic_monitor(key)
@@ -303,6 +306,27 @@ class toolsetWindow(QtWidgets.QMainWindow):
             event_handler=self._handle_monitor_event,
             timezone_getter=lambda: self.time_zone,
         )
+
+
+class toolsetWindow(QtWidgets.QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.ui = MainWindowUI()
+        self.ui.setup_ui(self)
+        self.controller = MainWindowController(self, self.ui)
+
+    def __getattr__(self, item):
+        try:
+            return super().__getattribute__(item)
+        except AttributeError:
+            controller = super().__getattribute__("controller")
+            if hasattr(controller, item):
+                return getattr(controller, item)
+            raise
+
+    def closeEvent(self, event):
+        self.controller.on_close()
+        super().closeEvent(event)
 
 
 if __name__ == '__main__':
