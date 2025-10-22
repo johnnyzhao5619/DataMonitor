@@ -1,4 +1,5 @@
 import sys
+import time
 from dataclasses import asdict
 from pathlib import Path
 
@@ -15,8 +16,6 @@ import threading
 
 pytest.importorskip("PyQt5")
 from PyQt5 import QtCore
-
-import apiMonitor
 
 from mainFrame import toolsetWindow
 from monitoring.service import parse_network_address as service_parse_network_address
@@ -198,10 +197,103 @@ def test_run_periodically_single_iteration(qtbot, tmp_path, monkeypatch, monitor
     assert row[6] == "正常"
     assert window.printf_queue.get_nowait() == "ui.status_line|测试服务|正常"
 
-    qtbot.waitUntil(lambda: len(thread_names) >= 2, timeout=3000)
+    def _monitor_threads():
+        return [
+            thread.name
+            for thread in threading.enumerate()
+            if thread.name.startswith("Monitor:")
+        ]
+
+    qtbot.waitUntil(lambda: bool(_monitor_threads()), timeout=3000)
+    thread_names = _monitor_threads()
     assert all(name.startswith("Monitor:") for name in thread_names)
 
-    timer = window._periodic_timers[monitor_info["name"]]
+    monitor_key = next(iter(window._periodic_monitors.keys()))
+    timer = window._periodic_timers[monitor_key]
     assert timer.isActive()
+
+    window._stop_periodic_monitors()
+
+
+@pytest.mark.qt
+def test_run_periodically_with_duplicate_names(qtbot, tmp_path, monkeypatch):
+    monkeypatch.setenv("APIMONITOR_HOME", str(tmp_path))
+    config_dir = tmp_path / "Config"
+    configuration.writeconfig(str(config_dir))
+    configuration.write_monitor_list([])
+
+    window = toolsetWindow()
+    qtbot.addWidget(window)
+
+    run_calls = []
+
+    def fake_run_single_cycle(monitor):
+        run_calls.append((monitor.name, monitor.url, monitor.monitor_type))
+
+    monkeypatch.setattr(
+        window._periodic_scheduler,
+        "run_single_cycle",
+        fake_run_single_cycle,
+    )
+
+    created_threads = []
+
+    class ImmediateThread:
+        def __init__(
+            self,
+            group=None,
+            target=None,
+            name=None,
+            args=(),
+            kwargs=None,
+            daemon=None,
+        ):
+            self._target = target
+            self._args = args
+            self._kwargs = kwargs or {}
+            self.name = name or "Thread"
+            created_threads.append(self.name)
+
+        def start(self):
+            if self._target:
+                self._target(*self._args, **self._kwargs)
+
+    monkeypatch.setattr(threading, "Thread", ImmediateThread)
+
+    monitors = [
+        {
+            "name": "重复服务",
+            "url": "http://example.com/a",
+            "type": "GET",
+            "interval": 1,
+        },
+        {
+            "name": "重复服务",
+            "url": "http://example.com/b",
+            "type": "GET",
+            "interval": 1,
+        },
+    ]
+
+    for info in monitors:
+        window.run_periodically(info)
+
+    assert len(window._periodic_monitors) == 2
+    assert len(window._periodic_timers) == 2
+    assert created_threads == ["Monitor:重复服务", "Monitor:重复服务"]
+    assert run_calls == [
+        ("重复服务", "http://example.com/a", "GET"),
+        ("重复服务", "http://example.com/b", "GET"),
+    ]
+
+    expected_keys = {
+        ("重复服务", "http://example.com/a", "GET"),
+        ("重复服务", "http://example.com/b", "GET"),
+    }
+    assert set(window._periodic_monitors.keys()) == expected_keys
+    assert set(window._periodic_timers.keys()) == expected_keys
+    urls = {monitor.url for monitor in window._periodic_monitors.values()}
+    assert urls == {"http://example.com/a", "http://example.com/b"}
+    assert window._running_periodic == set()
 
     window._stop_periodic_monitors()
