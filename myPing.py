@@ -6,6 +6,7 @@
 
 import time, struct
 import socket, select
+from contextlib import closing
 
 class MyPing():
     # 发送原始套接字
@@ -13,7 +14,7 @@ class MyPing():
         rawsocket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.getprotobyname("icmp"))
         send_request_ping_time = time.time()
         rawsocket.sendto(imcp_packet, (dst_addr, 80))
-        return send_request_ping_time, rawsocket
+        return send_request_ping_time, closing(rawsocket)
 
     # 计算校验和
     def chesksum(self, data):
@@ -82,9 +83,13 @@ class MyPing():
         # 请求ping数据包的二进制转换
         icmp_packet = self.request_ping(data_type, data_code, data_checksum, data_ID, data_Sequence, payload_body)
         # 连接套接字,并将数据发送到套接字
-        send_request_ping_time, rawsocket = self.raw_socket(address, icmp_packet)
-        # 数据包传输时间
-        times = self.reply_ping(send_request_ping_time, rawsocket, data_Sequence)
+        send_request_ping_time, rawsocket_context = self.raw_socket(address, icmp_packet)
+        if not hasattr(rawsocket_context, "__enter__") or not hasattr(rawsocket_context, "__exit__"):
+            rawsocket_context = closing(rawsocket_context)
+
+        with rawsocket_context as rawsocket:
+            # 数据包传输时间
+            times = self.reply_ping(send_request_ping_time, rawsocket, data_Sequence)
         if times > 0:
             return_time = int(times * 1000)
             return return_time
