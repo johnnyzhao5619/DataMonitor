@@ -327,6 +327,10 @@ def test_main_window_uses_navigation_bar(qtbot):
     assert not window.ui.navigationBar.locationButton.isCheckable()
     assert window.ui.navigationBar.monitorButton.isChecked()
 
+    theme_selector = window.ui.navigationBar.themeSelector
+    assert theme_selector.count() >= 2
+    assert theme_selector.currentText() == window.controller.theme_manager.current_theme_name()
+
     window.controller.show_configuration()
     assert window.ui.navigationBar.configButton.isChecked()
     assert not window.ui.navigationBar.monitorButton.isChecked()
