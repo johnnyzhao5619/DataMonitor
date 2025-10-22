@@ -101,7 +101,7 @@ class MonitorScheduler:
         self._dispatcher = dispatcher or default_notification_dispatcher
         self._threads: list[threading.Thread] = []
         self._stop_event = threading.Event()
-        self._state_machines: Dict[str, MonitorStateMachine] = {}
+        self._state_machines: Dict[configuration.MonitorItem, MonitorStateMachine] = {}
 
         self.register_strategy("GET", GetMonitorStrategy())
         self.register_strategy("POST", PostMonitorStrategy())
@@ -142,7 +142,7 @@ class MonitorScheduler:
         strategy: MonitorStrategy,
     ) -> None:
         state_machine = self._state_machines.setdefault(
-            monitor.name,
+            monitor,
             MonitorStateMachine(monitor, self._templates),
         )
 

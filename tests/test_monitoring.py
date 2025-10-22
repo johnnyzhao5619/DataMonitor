@@ -51,6 +51,34 @@ class SequenceStrategy(MonitorStrategy):
         return self._last
 
 
+class PerMonitorSequenceStrategy(MonitorStrategy):
+    def __init__(self, sequences, default=True):
+        self._default = default
+        self._iterators = {}
+        self._last_values = {}
+        for monitor, results in sequences.items():
+            sequence = tuple(results)
+            if sequence:
+                self._iterators[monitor] = iter(sequence)
+                self._last_values[monitor] = sequence[-1]
+            else:
+                self._iterators[monitor] = iter(())
+                self._last_values[monitor] = default
+
+    def run(self, monitor):
+        iterator = self._iterators.get(monitor)
+        if iterator is None:
+            return self._default
+
+        try:
+            value = next(iterator)
+        except StopIteration:
+            return self._last_values.get(monitor, self._default)
+
+        self._last_values[monitor] = value
+        return value
+
+
 def test_state_machine_transitions_and_notifications():
     monitor = configuration.MonitorItem(
         name="ServiceA",
@@ -234,3 +262,85 @@ def test_scheduler_uses_default_templates(monkeypatch):
     for notification in notifications:
         assert notification.subject.strip()
         assert notification.body.strip()
+
+
+def test_scheduler_handles_monitors_with_same_name(monkeypatch):
+    monkeypatch.setattr(logRecorder, "record", lambda action, detail: None)
+    monkeypatch.setattr(logRecorder, "saveToFile", lambda row, name: None)
+
+    base_time = datetime.datetime(2023, 1, 1, 0, 0, 0)
+
+    monitor_primary = configuration.MonitorItem(
+        name="Duplicate",
+        url="http://example.com/api/one",
+        monitor_type="GET",
+        interval=0,
+        email="ops@example.com",
+    )
+    monitor_secondary = configuration.MonitorItem(
+        name="Duplicate",
+        url="http://example.com/api/two",
+        monitor_type="GET",
+        interval=0,
+        email="ops@example.com",
+    )
+
+    strategy = PerMonitorSequenceStrategy(
+        {
+            monitor_primary: [True, False, True],
+            monitor_secondary: [True, False, False],
+        }
+    )
+
+    events_by_monitor = {monitor_primary: [], monitor_secondary: []}
+    notifications_by_monitor = {monitor_primary: [], monitor_secondary: []}
+    expected_counts = {monitor_primary: 3, monitor_secondary: 3}
+    finished = threading.Event()
+
+    def capture_event(event):
+        events = events_by_monitor.setdefault(event.monitor, [])
+        events.append(event.status)
+        if event.notification:
+            notifications = notifications_by_monitor.setdefault(event.monitor, [])
+            notifications.append(event.notification.subject)
+        if all(
+            len(events_by_monitor[monitor]) >= expected_counts[monitor]
+            for monitor in expected_counts
+        ):
+            finished.set()
+
+    scheduler = MonitorScheduler(
+        event_handler=capture_event,
+        timezone_getter=lambda: 0,
+        clock=lambda: base_time,
+        templates=NotificationTemplates(
+            channel="email",
+            build_outage=lambda name, ts: (f"{name}-outage", ts.isoformat()),
+            build_recovery=lambda name, ts: (f"{name}-recovery", ts.isoformat()),
+        ),
+        dispatcher=lambda notification: None,
+    )
+    scheduler.register_strategy("GET", strategy)
+
+    scheduler.start([monitor_primary, monitor_secondary])
+    try:
+        assert finished.wait(5), "调度器未在预期时间内产生事件"
+    finally:
+        scheduler.stop()
+
+    assert events_by_monitor[monitor_primary][:3] == [
+        MonitorState.HEALTHY,
+        MonitorState.OUTAGE,
+        MonitorState.RECOVERED,
+    ]
+    assert events_by_monitor[monitor_secondary][:3] == [
+        MonitorState.HEALTHY,
+        MonitorState.OUTAGE,
+        MonitorState.OUTAGE_ONGOING,
+    ]
+
+    assert notifications_by_monitor[monitor_primary] == [
+        "Duplicate-outage",
+        "Duplicate-recovery",
+    ]
+    assert notifications_by_monitor[monitor_secondary] == ["Duplicate-outage"]
