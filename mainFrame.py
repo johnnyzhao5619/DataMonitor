@@ -11,7 +11,7 @@ import sys
 import queue
 import threading
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Tuple
 
 from monitoring.service import (
     MonitorScheduler,
@@ -20,6 +20,9 @@ from monitoring.service import (
     parse_network_address as service_parse_network_address,
 )
 from monitoring.state_machine import MonitorEvent
+
+
+PeriodicMonitorKey = Tuple[str, str, str]
 
 
 class toolsetWindow(QtWidgets.QMainWindow):
@@ -50,9 +53,9 @@ class toolsetWindow(QtWidgets.QMainWindow):
             event_handler=self._handle_monitor_event,
             timezone_getter=lambda: self.time_zone,
         )
-        self._periodic_monitors: dict[str, configuration.MonitorItem] = {}
-        self._periodic_timers: dict[str, QtCore.QTimer] = {}
-        self._running_periodic: set[str] = set()
+        self._periodic_monitors: dict[PeriodicMonitorKey, configuration.MonitorItem] = {}
+        self._periodic_timers: dict[PeriodicMonitorKey, QtCore.QTimer] = {}
+        self._running_periodic: set[PeriodicMonitorKey] = set()
 
     def start_monitor(self):
         if self.switch_status is True:
@@ -159,9 +162,10 @@ class toolsetWindow(QtWidgets.QMainWindow):
         if monitor is None:
             return
 
-        self._periodic_monitors[monitor.name] = monitor
-        self._trigger_periodic_monitor(monitor.name)
-        self._schedule_periodic_monitor(monitor)
+        key = self._make_periodic_key(monitor)
+        self._periodic_monitors[key] = monitor
+        self._trigger_periodic_monitor(key)
+        self._schedule_periodic_monitor(monitor, key)
 
     def _handle_monitors_saved(self, monitors):
         try:
@@ -234,24 +238,27 @@ class toolsetWindow(QtWidgets.QMainWindow):
             headers=monitorInfo.get("headers"),
         )
 
-    def _trigger_periodic_monitor(self, monitor_name: str):
-        monitor = self._periodic_monitors.get(monitor_name)
+    def _make_periodic_key(self, monitor: configuration.MonitorItem) -> PeriodicMonitorKey:
+        return (monitor.name, monitor.url, monitor.monitor_type)
+
+    def _trigger_periodic_monitor(self, monitor_key: PeriodicMonitorKey):
+        monitor = self._periodic_monitors.get(monitor_key)
         if not monitor:
-            timer = self._periodic_timers.pop(monitor_name, None)
+            timer = self._periodic_timers.pop(monitor_key, None)
             if timer:
                 timer.stop()
             return
 
-        if monitor_name in self._running_periodic:
+        if monitor_key in self._running_periodic:
             return
 
-        self._running_periodic.add(monitor_name)
+        self._running_periodic.add(monitor_key)
 
         def _run_cycle():
             try:
                 self._periodic_scheduler.run_single_cycle(monitor)
             finally:
-                self._running_periodic.discard(monitor_name)
+                self._running_periodic.discard(monitor_key)
 
         thread = threading.Thread(
             name=f"Monitor:{monitor.name}",
@@ -260,9 +267,13 @@ class toolsetWindow(QtWidgets.QMainWindow):
         )
         thread.start()
 
-    def _schedule_periodic_monitor(self, monitor: configuration.MonitorItem):
+    def _schedule_periodic_monitor(
+        self,
+        monitor: configuration.MonitorItem,
+        monitor_key: PeriodicMonitorKey,
+    ):
         interval_ms = max(int(monitor.interval), 0) * 1000
-        timer = self._periodic_timers.get(monitor.name)
+        timer = self._periodic_timers.get(monitor_key)
 
         if interval_ms == 0:
             if timer:
@@ -272,8 +283,10 @@ class toolsetWindow(QtWidgets.QMainWindow):
         if timer is None:
             timer = QtCore.QTimer(self)
             timer.setSingleShot(False)
-            timer.timeout.connect(lambda name=monitor.name: self._trigger_periodic_monitor(name))
-            self._periodic_timers[monitor.name] = timer
+            timer.timeout.connect(
+                lambda key=monitor_key: self._trigger_periodic_monitor(key)
+            )
+            self._periodic_timers[monitor_key] = timer
 
         timer.setInterval(interval_ms)
         if not timer.isActive():
