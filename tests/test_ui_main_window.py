@@ -115,15 +115,28 @@ def test_run_periodically_single_iteration(qtbot, tmp_path, monkeypatch):
     window = toolsetWindow()
     qtbot.addWidget(window)
 
-    monkeypatch.setattr(
-        sendEmail,
-        "render_email",
-        lambda event, context: (f"subject-{event}", f"body-{event}"),
-    )
-    monkeypatch.setattr(sendEmail, "send_email", lambda *args, **kwargs: None)
+    send_calls = []
+
+    def fake_send_email(*args, **kwargs):
+        send_calls.append((args, kwargs))
+
+    monkeypatch.setattr(sendEmail, "send_email", fake_send_email)
+
     monkeypatch.setattr(configuration, "render_template", lambda *args, **kwargs: "mock")
-    monkeypatch.setattr(logRecorder, "record", lambda *args, **kwargs: None)
-    monkeypatch.setattr(logRecorder, "saveToFile", lambda *args, **kwargs: None)
+
+    recorded_logs = []
+
+    def fake_record(action, detail):
+        recorded_logs.append((action, detail))
+
+    monkeypatch.setattr(logRecorder, "record", fake_record)
+
+    saved_rows = []
+
+    def fake_save(data, name):
+        saved_rows.append((data, name))
+
+    monkeypatch.setattr(logRecorder, "saveToFile", fake_save)
 
     call_count = {"perform": 0}
 
@@ -150,3 +163,12 @@ def test_run_periodically_single_iteration(qtbot, tmp_path, monkeypatch):
         window.run_periodically(monitor_info)
 
     assert call_count["perform"] == 1
+    assert send_calls == []
+    assert recorded_logs == [("mock", "mock")]
+    assert saved_rows and saved_rows[0][1] == "测试服务"
+    row = list(saved_rows[0][0])
+    assert row[1] == "测试服务"
+    assert row[2] == "GET"
+    assert row[5] == 1
+    assert row[6] == "正常"
+    assert window.printf_queue.get_nowait() == "mock"
