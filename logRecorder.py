@@ -9,8 +9,17 @@ import os
 import configuration
 
 
+def _now_with_timezone():
+    try:
+        timezone = int(configuration.get_timezone())
+    except (TypeError, ValueError):
+        timezone = 0
+    utc_now = datetime.datetime.utcnow()
+    return utc_now + datetime.timedelta(hours=timezone)
+
+
 def record(action: str, log):
-    chinaDateTime = datetime.datetime.utcnow() + datetime.timedelta(hours=8)
+    chinaDateTime = _now_with_timezone()
 
     folder = os.path.expanduser(str(configuration.get_logdir()+'Log'))
     if not os.path.exists(folder):  # 判断是否存在文件夹如果不存在则创建为文件夹
@@ -31,7 +40,7 @@ def saveToFile(dataString, API):
     if not os.path.exists(folder):  # 判断是否存在文件夹如果不存在则创建为文件夹
         os.makedirs(folder)  # makedirs 创建文件时如果路径不存在会创建这个路径
 
-    nowDateTime = datetime.datetime.utcnow() + datetime.timedelta(hours=8)
+    nowDateTime = _now_with_timezone()
     nowDate = nowDateTime.strftime("%Y%m%d")
 
     filename = f'{folder}/{API}_{nowDate}.csv'

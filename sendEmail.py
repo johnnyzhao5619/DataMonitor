@@ -5,9 +5,59 @@
 # @Software: PyCharm
 
 import smtplib
-from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from typing import Tuple
+
 import configuration
+
+
+ALERT_SUBJECT_TEMPLATE = "Outage Alert"
+RECOVERY_SUBJECT_TEMPLATE = "Outage Recovery"
+
+
+def build_outage_alert_message(service_name: str, timestamp) -> Tuple[str, str]:
+    """构建服务告警邮件的主题与正文。"""
+
+    return _compose_message(
+        ALERT_SUBJECT_TEMPLATE,
+        "告警",
+        "说明：监控检测到服务不可达",
+        "发生时间",
+        service_name,
+        timestamp,
+    )
+
+
+def build_outage_recovery_message(service_name: str, timestamp) -> Tuple[str, str]:
+    """构建服务恢复通知的主题与正文。"""
+
+    return _compose_message(
+        RECOVERY_SUBJECT_TEMPLATE,
+        "恢复",
+        "说明：监控检测到服务恢复至正常状态",
+        "恢复时间",
+        service_name,
+        timestamp,
+    )
+
+
+def _compose_message(
+    subject_prefix: str,
+    status: str,
+    detail_line: str,
+    time_label: str,
+    service_name: str,
+    timestamp,
+) -> Tuple[str, str]:
+    subject = f"{subject_prefix} | {service_name}"
+    body_lines = [
+        f"状态：{status}",
+        f"服务：{service_name}",
+        detail_line,
+        f"{time_label}：{timestamp}",
+    ]
+    return subject, "\n".join(body_lines)
 
 def send_email(subject: str, body: str):
     # Get Mail info
