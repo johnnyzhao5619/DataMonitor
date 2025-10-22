@@ -4,6 +4,21 @@
 # @File : configuration.py
 # @Software: PyCharm
 import configparser
+import os
+from pathlib import Path
+
+
+MAIL_ENV_PREFIX = "MAIL_"
+MAIL_ENV_MAP = {
+    "smtp_server": f"{MAIL_ENV_PREFIX}SMTP_SERVER",
+    "smtp_port": f"{MAIL_ENV_PREFIX}SMTP_PORT",
+    "username": f"{MAIL_ENV_PREFIX}USERNAME",
+    "password": f"{MAIL_ENV_PREFIX}PASSWORD",
+    "from_addr": f"{MAIL_ENV_PREFIX}FROM",
+    "to_addrs": f"{MAIL_ENV_PREFIX}TO",
+}
+MAIL_SECTION = "Mail"
+EXTERNAL_MAIL_CONFIG_ENV = "MAIL_CONFIG_PATH"
 
 
 def get_logdir():
@@ -31,18 +46,87 @@ def read_monitor_list():
     return monitorlist
 
 def read_mail_configuration():
-    logdir = get_logdir()
-    mailconfig={}
+    """读取邮件配置，优先使用环境变量，其次使用外部配置文件，最后回退到项目配置。"""
+
+    mailconfig = _load_mail_config_from_env()
+    if mailconfig:
+        return mailconfig
+
+    mailconfig = _load_mail_config_from_external_file()
+    if mailconfig:
+        return mailconfig
+
+    return _load_mail_config_from_project_file()
+
+
+def _load_mail_config_from_env():
+    values = {}
+    missing_keys = []
+    for key, env_name in MAIL_ENV_MAP.items():
+        value = os.environ.get(env_name)
+        if value:
+            values[key] = value
+        else:
+            missing_keys.append(key)
+
+    if values and missing_keys:
+        raise ValueError(
+            "环境变量缺少以下邮件配置字段：{}".format(
+                ", ".join(missing_keys)
+            )
+        )
+
+    if values:
+        return values
+
+    return None
+
+
+def _load_mail_config_from_external_file():
+    config_path = os.environ.get(EXTERNAL_MAIL_CONFIG_ENV)
+    if not config_path:
+        return None
+
+    path = Path(config_path).expanduser()
+    if not path.is_file():
+        raise FileNotFoundError(f"指定的邮件配置文件不存在：{path}")
+
     config = configparser.RawConfigParser()
-    config.read(logdir+"Config/Config.ini")
-    mailconfig['smtp_server'] = config.get('Mail', 'smtp_server')
-    mailconfig['smtp_port'] = config.get('Mail', 'smtp_port')
-    mailconfig['username'] = config.get('Mail', 'username')
-    mailconfig['password'] = config.get('Mail', 'password')
-    mailconfig['from_addr'] = config.get('Mail', 'from_addr')
-    mailconfig['to_addrs'] = config.get('Mail', 'to_addrs')
-    print("mailconfig:", mailconfig)
-    return mailconfig
+    config.read(path)
+
+    if not config.has_section(MAIL_SECTION):
+        raise ValueError(f"外部配置文件缺少 [{MAIL_SECTION}] 配置节：{path}")
+
+    values = {key: config.get(MAIL_SECTION, key, fallback=None) for key in MAIL_ENV_MAP}
+    missing_keys = [key for key, value in values.items() if not value]
+    if missing_keys:
+        raise ValueError(
+            "外部配置文件缺少以下邮件配置字段：{}".format(
+                ", ".join(missing_keys)
+            )
+        )
+
+    return values
+
+
+def _load_mail_config_from_project_file():
+    logdir = get_logdir()
+    config = configparser.RawConfigParser()
+    config.read(logdir + "Config/Config.ini")
+
+    if not config.has_section(MAIL_SECTION):
+        raise ValueError(f"项目配置缺少 [{MAIL_SECTION}] 配置节：{logdir}Config/Config.ini")
+
+    values = {key: config.get(MAIL_SECTION, key, fallback=None) for key in MAIL_ENV_MAP}
+    missing_keys = [key for key, value in values.items() if not value]
+    if missing_keys:
+        raise ValueError(
+            "项目配置文件缺少以下邮件配置字段：{}".format(
+                ", ".join(missing_keys)
+            )
+        )
+
+    return values
 
 def get_timezone():
     logdir = get_logdir()
@@ -73,12 +157,12 @@ def writeconfig(configDir: str):
     info.set("TimeZone", "timezone", "8")
 
     info.add_section("Mail")
-    info.set("Mail", "smtp_server", "smtp-mail.outlook.com")
+    info.set("Mail", "smtp_server", "smtp.example.com")
     info.set("Mail", "smtp_port", "587")
-    info.set("Mail", "username", "OperationTeam_tds@outlook.com")
-    info.set("Mail", "password", "1qaz2wsx#EDC")
-    info.set("Mail", "from_addr", "OperationTeam_tds@outlook.com")
-    info.set("Mail", "to_addrs", "johnnyzhao5619@gmail.com")
+    info.set("Mail", "username", "ops-team@example.com")
+    info.set("Mail", "password", "PLEASE_SET_PASSWORD")
+    info.set("Mail", "from_addr", "ops-team@example.com")
+    info.set("Mail", "to_addrs", "recipient@example.com")
     info.set("Mail", "subject", "Outage Warning！")
 
     info.add_section("MonitorNum")
@@ -119,4 +203,5 @@ def writeconfig(configDir: str):
     info.set("Monitor5", "interval", "1800")
     info.set("Monitor5", "email", "johnnyzhao56192@gmail.com")
 
-    info.write(open(('./APIMonitor/Config/Config.ini'), "w"))
+    with open('./APIMonitor/Config/Config.ini', 'w') as config_file:
+        info.write(config_file)
