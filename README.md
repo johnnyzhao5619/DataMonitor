@@ -68,6 +68,31 @@ chmod 600 /etc/datamonitor/mail.ini
 恢复时间：[UTC 时间戳]
 ```
 
+## 通知模版配置
+
+为降低硬编码字符串的维护成本，程序在运行时会从配置目录（`<APIMONITOR_HOME>/Config/`）中加载 `Templates.ini`。若文件缺失，则自动回退到内置模版。
+
+- **邮件模版 (`[mail]`)**：
+  - `alert_subject` / `alert_body`：服务不可达时发送的邮件内容。
+  - `recovery_subject` / `recovery_body`：服务恢复时发送的邮件内容。
+- **UI 提示 (`[ui]`)**：
+  - `status_line`：写入 GUI 队列与终端输出的统一提示文案。
+- **日志模版 (`[log]`)**：
+  - `action_line`：`logRecorder.record` 的 Action 行。
+  - `detail_line`：记录状态明细的内容。
+  - `record_entry`：文本日志整体格式。
+  - `csv_header`：CSV 文件首行标题（以逗号分隔）。
+
+所有模版均支持 Python `str.format` 占位符，常用字段包括：
+
+- `{service_name}`：监控项名称。
+- `{status_label}` / `{status_text}`：用于 UI 与 CSV 的状态描述。
+- `{status_action}`、`{event_description}`、`{time_label}`：邮件正文中使用的语义化字段。
+- `{event_timestamp}`：事件发生时间（已格式化）。
+- `{interval}`、`{monitor_type}`、`{url}`：日志与表格所需的辅助信息。
+
+一旦修改 `Templates.ini`，重启服务即可生效；如果模版缺失或缺少占位符，程序会提供明确错误信息并回退到安全状态，避免发送不完整的通知。
+
 ## 日志目录配置
 
 日志文件及运行时生成的监控 CSV 会存放在“日志根目录”下。程序根据以下优先级确定该目录：
