@@ -7,7 +7,7 @@
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from typing import Tuple
+from typing import Iterable, Tuple
 
 import configuration
 
@@ -59,20 +59,50 @@ def _compose_message(
     ]
     return subject, "\n".join(body_lines)
 
-def send_email(subject: str, body: str):
+def _normalize_recipients(
+    explicit_recipients,
+    default_recipients: str,
+) -> Tuple[str, Iterable[str]]:
+    """返回用于邮件头和发送列表的收件人信息。"""
+
+    candidate = explicit_recipients if explicit_recipients else default_recipients
+    if candidate is None:
+        raise ValueError("未配置任何收件人地址")
+
+    if isinstance(candidate, str):
+        addresses = [addr.strip() for addr in candidate.split(",") if addr.strip()]
+    else:
+        try:
+            iterator = iter(candidate)
+        except TypeError as exc:  # pragma: no cover - defensive programming
+            raise TypeError("收件人必须为字符串或可迭代对象") from exc
+        addresses = [str(addr).strip() for addr in iterator if str(addr).strip()]
+
+    if not addresses:
+        raise ValueError("收件人地址不能为空")
+
+    return ", ".join(addresses), addresses
+
+
+def send_email(subject: str, body: str, recipients=None):
     # Get Mail info
     mailconfig = configuration.read_mail_configuration()
     smtp_server = mailconfig['smtp_server']
-    smtp_port = mailconfig['smtp_port']
+    try:
+        smtp_port = int(mailconfig['smtp_port'])
+    except (TypeError, ValueError) as exc:
+        raise ValueError("SMTP 端口配置必须为整数") from exc
     username = mailconfig['username']
     password = mailconfig['password']
     from_addr = mailconfig['from_addr']
     to_addrs = mailconfig['to_addrs']
 
+    header_to, send_to_list = _normalize_recipients(recipients, to_addrs)
+
     # Create the message
     message = MIMEMultipart()
     message['From'] = from_addr
-    message['To'] = to_addrs
+    message['To'] = header_to
     message['Subject'] = subject
     message.attach(MIMEText(body, 'plain'))
 
@@ -88,7 +118,7 @@ def send_email(subject: str, body: str):
         with smtplib.SMTP(smtp_server, smtp_port) as server:
             server.starttls()
             server.login(username, password)
-            server.sendmail(from_addr, to_addrs.split(','), message.as_string())
+            server.sendmail(from_addr, list(send_to_list), message.as_string())
     except smtplib.SMTPAuthenticationError as e:
         print("SMTP authentication error: ", e)
     except smtplib.SMTPException as e:
