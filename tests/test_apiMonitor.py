@@ -38,6 +38,9 @@ import apiMonitor  # noqa: E402  pylint: disable=wrong-import-position
 import configuration  # noqa: E402  pylint: disable=wrong-import-position
 
 
+ORIGINAL_GET_REQUEST_TIMEOUT = configuration.get_request_timeout
+
+
 class DummyResponse:
     def __init__(self, status_code):
         self.status_code = status_code
@@ -259,6 +262,7 @@ def test_monitor_server_handles_socket_gaierror(monkeypatch, capsys):
 
     def fake_get(url, timeout):
         assert url == "http://invalid.host"
+        assert timeout == 5.0
         return DummyResponse(503)
 
     monkeypatch.setattr(apiMonitor.requests, "get", fake_get)
@@ -271,3 +275,117 @@ def test_monitor_server_handles_socket_gaierror(monkeypatch, capsys):
     assert "offline (Socket)" in captured.out
     assert "503" in captured.out
     assert ping_calls["subprocess"] == 1
+
+
+@pytest.fixture
+def stub_monitor_server_dependencies(monkeypatch):
+    class DummyConnection:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    monkeypatch.setattr(
+        apiMonitor.socket,
+        "create_connection",
+        lambda *args, **kwargs: DummyConnection(),
+    )
+
+    class DummyPing:
+        def request_ping(self, *args, **kwargs):
+            return b"icmp"
+
+        def raw_socket(self, *args, **kwargs):
+            raise PermissionError("raw sockets not permitted")
+
+        def reply_ping(self, *args, **kwargs):
+            return 0
+
+    monkeypatch.setattr(apiMonitor, "MyPing", DummyPing)
+    monkeypatch.setattr(apiMonitor, "_subprocess_ping", lambda host: False)
+
+    class DummySocket:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def sendto(self, *args, **kwargs):
+            return None
+
+        def settimeout(self, *args, **kwargs):
+            return None
+
+        def recv(self, *args, **kwargs):
+            raise socket.timeout("no icmp reply")
+
+    monkeypatch.setattr(
+        apiMonitor.socket,
+        "socket",
+        lambda *args, **kwargs: DummySocket(),
+    )
+
+
+def test_monitor_server_uses_timeout_from_environment(
+    monkeypatch, stub_monitor_server_dependencies
+):
+    monkeypatch.setenv(configuration.REQUEST_TIMEOUT_ENV, "12.5")
+    monkeypatch.setattr(configuration, "get_request_timeout", ORIGINAL_GET_REQUEST_TIMEOUT)
+    ORIGINAL_GET_REQUEST_TIMEOUT.cache_clear()
+
+    observed = {}
+
+    def fake_get(url, timeout):
+        observed["url"] = url
+        observed["timeout"] = timeout
+        return DummyResponse(200)
+
+    monkeypatch.setattr(apiMonitor.requests, "get", fake_get)
+
+    assert (
+        apiMonitor.monitor_server(("https", "example.com", None, "status"))
+        is True
+    )
+    assert observed == {
+        "url": "https://example.com/status",
+        "timeout": 12.5,
+    }
+
+    ORIGINAL_GET_REQUEST_TIMEOUT.cache_clear()
+
+
+def test_monitor_server_uses_timeout_from_config_file(
+    monkeypatch, tmp_path, stub_monitor_server_dependencies
+):
+    monkeypatch.delenv(configuration.REQUEST_TIMEOUT_ENV, raising=False)
+
+    config_root = tmp_path / "APIMonitor"
+    (config_root / "Config").mkdir(parents=True)
+    config_file = config_root / "Config" / "Config.ini"
+    config_file.write_text("[Request]\ntimeout = 3.25\n", encoding="utf-8")
+
+    monkeypatch.setattr(configuration, "get_logdir", lambda: str(config_root) + "/")
+    monkeypatch.setattr(configuration, "get_request_timeout", ORIGINAL_GET_REQUEST_TIMEOUT)
+    ORIGINAL_GET_REQUEST_TIMEOUT.cache_clear()
+
+    observed = {}
+
+    def fake_get(url, timeout):
+        observed["url"] = url
+        observed["timeout"] = timeout
+        return DummyResponse(200)
+
+    monkeypatch.setattr(apiMonitor.requests, "get", fake_get)
+
+    assert (
+        apiMonitor.monitor_server(("http", "example.org", None, None))
+        is True
+    )
+    assert observed == {
+        "url": "http://example.org",
+        "timeout": 3.25,
+    }
+
+    ORIGINAL_GET_REQUEST_TIMEOUT.cache_clear()

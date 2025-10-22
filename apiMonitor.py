@@ -103,7 +103,7 @@ def monitor_post(url, payload=None, *, headers=None, timeout=None):
 
 
 
-def monitor_server(address):
+def monitor_server(address, timeout=None):
     protocol, host, port, suffix = address
     if protocol not in ('http', 'https'):
         protocol = 'http'
@@ -229,17 +229,23 @@ def monitor_server(address):
     # request
     http_success = None
     try:
-        response = requests.get(url, timeout=10)
-        status_code = response.status_code
-        if 200 <= status_code < 400:
-            print(f"{url} responded with status code {status_code} (Get Requests)")
-            http_success = True
-        else:
-            print(f"{url} returned status code {status_code} (Get Requests)")
-            http_success = False
-    except requests.RequestException as exc:
+        resolved_timeout = _resolve_timeout(timeout)
+    except ValueError as exc:
         print(f"{url} request failed (Get Requests): {exc}")
         http_success = False
+    else:
+        try:
+            response = requests.get(url, timeout=resolved_timeout)
+            status_code = response.status_code
+            if 200 <= status_code < 400:
+                print(f"{url} responded with status code {status_code} (Get Requests)")
+                http_success = True
+            else:
+                print(f"{url} returned status code {status_code} (Get Requests)")
+                http_success = False
+        except requests.RequestException as exc:
+            print(f"{url} request failed (Get Requests): {exc}")
+            http_success = False
 
     if http_success:
         return True
