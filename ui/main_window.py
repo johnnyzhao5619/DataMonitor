@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import datetime as _dt
 import json
+from dataclasses import asdict
 from typing import Dict, List, Optional
 
 from PyQt5 import QtCore, QtGui, QtWidgets
@@ -342,14 +343,34 @@ class ConfigWizard(QtWidgets.QWidget):
     def load_monitors(self, monitors: List[Dict[str, object]]) -> None:
         self._monitors = []
         for item in monitors:
+            if isinstance(item, configuration.MonitorItem):
+                data = asdict(item)
+            elif hasattr(item, "get"):
+                data = item  # type: ignore[assignment]
+            else:
+                data = {
+                    "name": getattr(item, "name", ""),
+                    "url": getattr(item, "url", ""),
+                    "type": getattr(item, "type", getattr(item, "monitor_type", "")),
+                    "interval": getattr(item, "interval", 60),
+                    "email": getattr(item, "email", ""),
+                    "payload": getattr(item, "payload", None),
+                    "headers": getattr(item, "headers", None),
+                }
+
+            type_value = data.get("type") or data.get("monitor_type") or ""
+            interval_value = data.get("interval", 60)
+            if interval_value is None:
+                interval_value = 60
+            email_value = data.get("email")
             record = {
-                "name": str(item.get("name", "")),
-                "url": str(item.get("url", "")),
-                "type": str(item.get("type", "")).upper(),
-                "interval": int(item.get("interval", 60)),
-                "email": str(item.get("email", "")),
-                "payload": item.get("payload"),
-                "headers": item.get("headers"),
+                "name": str(data.get("name", "")),
+                "url": str(data.get("url", "")),
+                "type": str(type_value).upper(),
+                "interval": int(interval_value),
+                "email": "" if email_value is None else str(email_value),
+                "payload": data.get("payload"),
+                "headers": data.get("headers"),
             }
             record["_payload_text"] = self._serialise_mapping(record.get("payload"))
             record["_headers_text"] = self._serialise_mapping(record.get("headers"))
