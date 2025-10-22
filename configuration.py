@@ -170,9 +170,6 @@ def render_template(category: str, key: str, context: Mapping[str, object]) -> s
         ) from exc
 
 
-SUPPORTED_MONITOR_TYPES = {"GET", "POST", "SERVER"}
-
-
 def _normalise_directory(
     path_value: Union[str, os.PathLike[str], Path],
     *,

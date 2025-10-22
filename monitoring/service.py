@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import datetime as _dt
 import threading
-from typing import Callable, Dict, Hashable, Iterable, Optional
+from typing import Callable, Dict, Hashable, Iterable, Optional, Tuple
 
 import apiMonitor
 import configuration
@@ -40,6 +40,37 @@ class PostMonitorStrategy(MonitorStrategy):
         )
 
 
+def parse_network_address(address: str) -> Tuple[str, str, Optional[int], str]:
+    """解析网络地址字符串，返回协议、主机、端口及路径后缀。"""
+
+    protocol = "http"
+    url_port_suffix = address
+
+    if address.startswith("http://"):
+        url_port_suffix = address[len("http://") :]
+    elif address.startswith("https://"):
+        protocol = "https"
+        url_port_suffix = address[len("https://") :]
+
+    if "/" in url_port_suffix:
+        url_port, suffix = url_port_suffix.split("/", 1)
+    else:
+        url_port = url_port_suffix
+        suffix = ""
+
+    if ":" in url_port:
+        url, port_str = url_port.split(":", 1)
+        try:
+            port = int(port_str)
+        except ValueError:
+            port = None
+    else:
+        url = url_port
+        port = None
+
+    return protocol, url, port, suffix
+
+
 class ServerMonitorStrategy(MonitorStrategy):
     def __init__(self) -> None:
         self._cache: Dict[str, Iterable[str]] = {}
@@ -47,38 +78,9 @@ class ServerMonitorStrategy(MonitorStrategy):
     def run(self, monitor: configuration.MonitorItem) -> bool:
         parsed = self._cache.get(monitor.url)
         if parsed is None:
-            parsed = self._parse_network_address(monitor.url)
+            parsed = parse_network_address(monitor.url)
             self._cache[monitor.url] = parsed
         return apiMonitor.monitor_server(parsed)
-
-    @staticmethod
-    def _parse_network_address(address: str):
-        protocol = "http"
-        url_port_suffix = address
-
-        if address.startswith("http://"):
-            url_port_suffix = address[len("http://") :]
-        elif address.startswith("https://"):
-            protocol = "https"
-            url_port_suffix = address[len("https://") :]
-
-        if "/" in url_port_suffix:
-            url_port, suffix = url_port_suffix.split("/", 1)
-        else:
-            url_port = url_port_suffix
-            suffix = ""
-
-        if ":" in url_port:
-            url, port_str = url_port.split(":", 1)
-            try:
-                port = int(port_str)
-            except ValueError:
-                port = None
-        else:
-            url = url_port
-            port = None
-
-        return protocol, url, port, suffix
 
 
 class MonitorScheduler:

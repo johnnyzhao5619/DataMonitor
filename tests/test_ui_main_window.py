@@ -19,6 +19,7 @@ from PyQt5 import QtCore
 import apiMonitor
 
 from mainFrame import toolsetWindow
+from monitoring.service import parse_network_address as service_parse_network_address
 from ui.main_window import ConfigWizard
 
 
@@ -108,7 +109,14 @@ def test_config_wizard_loads_existing_monitor_items(qtbot):
 
 
 @pytest.mark.qt
-def test_run_periodically_single_iteration(qtbot, tmp_path, monkeypatch):
+@pytest.mark.parametrize(
+    "monitor_type,url",
+    [
+        ("GET", "http://example.com"),
+        ("SERVER", "https://example.com:8443/status"),
+    ],
+)
+def test_run_periodically_single_iteration(qtbot, tmp_path, monkeypatch, monitor_type, url):
     monkeypatch.setenv("APIMONITOR_HOME", str(tmp_path))
     config_dir = tmp_path / "Config"
     configuration.writeconfig(str(config_dir))
@@ -143,29 +151,37 @@ def test_run_periodically_single_iteration(qtbot, tmp_path, monkeypatch):
 
     monkeypatch.setattr(logRecorder, "saveToFile", fake_save)
 
-    monkeypatch.setattr(apiMonitor, "monitor_get", lambda url: True)
+    call_count = {"perform": 0}
+
+    def fake_sleep(interval):
+        raise StopIteration
+
+    monkeypatch.setattr(time, "sleep", fake_sleep)
+
+    expected_parsed = None
+    if monitor_type == "SERVER":
+        expected_parsed = service_parse_network_address(url)
+
+    def fake_perform(url_arg, parsed_address, monitor_type_arg, *args, **kwargs):
+        call_count["perform"] += 1
+        assert monitor_type_arg == monitor_type
+        if monitor_type == "SERVER":
+            assert parsed_address == expected_parsed
+        else:
+            assert parsed_address is None
+        return True
+
+    window.perform_task = fake_perform
 
     monitor_info = {
         "name": "测试服务",
-        "url": "http://example.com",
-        "type": "GET",
+        "url": url,
+        "type": monitor_type,
         "interval": 1,
         "email": "ops@example.com",
     }
-
-    thread_names = []
-
-    original_run_single_cycle = window._periodic_scheduler.run_single_cycle
-
-    def spy_run_single_cycle(monitor):
-        thread_names.append(threading.current_thread().name)
-        return original_run_single_cycle(monitor)
-
-    window._periodic_scheduler.run_single_cycle = spy_run_single_cycle
-
-    window.run_periodically(monitor_info)
-
-    qtbot.waitUntil(lambda: not window.printf_queue.empty())
+    with pytest.raises(StopIteration):
+        window.run_periodically(monitor_info)
 
     assert send_calls == []
     assert recorded_logs == [
@@ -177,7 +193,7 @@ def test_run_periodically_single_iteration(qtbot, tmp_path, monkeypatch):
     assert saved_rows and saved_rows[0][1] == "测试服务"
     row = list(saved_rows[0][0])
     assert row[1] == "测试服务"
-    assert row[2] == "GET"
+    assert row[2] == monitor_type
     assert row[5] == 1
     assert row[6] == "正常"
     assert window.printf_queue.get_nowait() == "ui.status_line|测试服务|正常"
