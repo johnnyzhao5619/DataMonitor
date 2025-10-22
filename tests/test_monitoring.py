@@ -22,7 +22,9 @@ import logRecorder  # noqa: E402  pylint: disable=wrong-import-position
 from monitoring.service import (  # noqa: E402
     MonitorScheduler,
     MonitorStrategy,
+    ServerMonitorStrategy,
     default_notification_templates,
+    parse_network_address,
 )
 from monitoring.state_machine import (  # noqa: E402
     MonitorState,
@@ -198,6 +200,53 @@ def test_scheduler_runs_strategies_and_emits_events(monkeypatch):
         MonitorState.OUTAGE_ONGOING,
         MonitorState.RECOVERED,
     ]
+
+
+def test_parse_network_address_variants():
+    assert parse_network_address("example.com") == ("http", "example.com", None, "")
+    assert parse_network_address("https://example.org:8443/status") == (
+        "https",
+        "example.org",
+        8443,
+        "status",
+    )
+    assert parse_network_address("http://example.net/api/v1") == (
+        "http",
+        "example.net",
+        None,
+        "api/v1",
+    )
+
+
+def test_server_strategy_uses_shared_parser(monkeypatch):
+    strategy = ServerMonitorStrategy()
+    monitor = configuration.MonitorItem(
+        name="ServerA",
+        url="https://example.com:9443/health",
+        monitor_type="SERVER",
+        interval=30,
+        email=None,
+    )
+
+    parse_calls = []
+
+    def fake_parse(address):
+        parse_calls.append(address)
+        return ("https", "example.com", 9443, "health")
+
+    monitor_calls = []
+
+    monkeypatch.setattr("monitoring.service.parse_network_address", fake_parse)
+    monkeypatch.setattr(
+        "monitoring.service.apiMonitor.monitor_server",
+        lambda parsed: monitor_calls.append(parsed) or True,
+    )
+
+    assert strategy.run(monitor) is True
+    assert strategy.run(monitor) is True
+
+    assert parse_calls == ["https://example.com:9443/health"]
+    assert monitor_calls == [("https", "example.com", 9443, "health"), ("https", "example.com", 9443, "health")]
 
 
 def test_scheduler_handles_payload_and_headers_monitor(monkeypatch):
