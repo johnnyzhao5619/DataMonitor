@@ -274,6 +274,7 @@ def test_monitor_server_handles_socket_gaierror(monkeypatch, capsys):
     captured = capsys.readouterr()
     assert "offline (Socket)" in captured.out
     assert "503" in captured.out
+    assert "探测结果: socket=False, ping=False, http=False" in captured.out
     assert ping_calls["subprocess"] == 1
 
 
@@ -389,3 +390,44 @@ def test_monitor_server_uses_timeout_from_config_file(
     }
 
     ORIGINAL_GET_REQUEST_TIMEOUT.cache_clear()
+
+
+def test_monitor_server_fallback_when_ping_succeeds(
+    monkeypatch, capsys
+):
+    def fake_create_connection(*args, **kwargs):
+        raise socket.timeout("connection timed out")
+
+    monkeypatch.setattr(apiMonitor.socket, "create_connection", fake_create_connection)
+    monkeypatch.setattr(apiMonitor.socket, "gethostbyname", lambda host: "127.0.0.1")
+
+    class SuccessfulPing:
+        def request_ping(self, *args, **kwargs):
+            return b"icmp"
+
+        def raw_socket(self, *args, **kwargs):
+            return (0.0, object())
+
+        def reply_ping(self, *args, **kwargs):
+            return 0.001
+
+    monkeypatch.setattr(apiMonitor, "MyPing", SuccessfulPing)
+    monkeypatch.setattr(apiMonitor, "_subprocess_ping", lambda host: False)
+    monkeypatch.setattr(apiMonitor.time, "sleep", lambda *_: None)
+
+    def fake_get(url, timeout):
+        assert url == "http://example.test/status"
+        assert timeout == 5.0
+        return DummyResponse(503)
+
+    monkeypatch.setattr(apiMonitor.requests, "get", fake_get)
+
+    result = apiMonitor.monitor_server(("http", "example.test", None, "status"))
+
+    assert result is True
+
+    captured = capsys.readouterr()
+    assert "offline (Socket)" in captured.out
+    assert "503" in captured.out
+    assert "探测结果: socket=False, ping=True, http=False" in captured.out
+    assert "网络层可达，但 HTTP 检测失败，返回回退成功。" in captured.out
