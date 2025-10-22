@@ -42,6 +42,12 @@ def _subprocess_ping(host):
 def monitor_get(url, timeout=None):
     resolved_timeout = _resolve_timeout(timeout)
     try:
+        resolved_timeout = _resolve_timeout(None)
+    except ValueError as exc:
+        print(f"GET request to {url} failed with error: {exc}")
+        return False
+
+    try:
         response = requests.get(url, timeout=resolved_timeout)
         if 200 <= response.status_code < 400:
             print(f"GET request to {url} successful with status code: {response.status_code}")
