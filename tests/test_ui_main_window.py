@@ -1,4 +1,5 @@
 import sys
+from dataclasses import asdict
 from pathlib import Path
 
 import pytest
@@ -49,12 +50,12 @@ def test_configuration_wizard_round_trip(qtbot, tmp_path, monkeypatch):
 
     monitors = configuration.read_monitor_list()
     assert len(monitors) == 1
-    saved = monitors[0]
-    assert saved.name == "测试服务"
-    assert saved.url == "http://example.com/api"
-    assert saved.monitor_type == "GET"
-    assert saved.interval == 120
-    assert saved.email == "ops@example.com"
+    saved = asdict(monitors[0])
+    assert saved["name"] == "测试服务"
+    assert saved["url"] == "http://example.com/api"
+    assert saved["monitor_type"] == "GET"
+    assert saved["interval"] == 120
+    assert saved["email"] == "ops@example.com"
 
     assert window.ui.contentStack.currentIndex() == window.ui.monitor_view_index
 
