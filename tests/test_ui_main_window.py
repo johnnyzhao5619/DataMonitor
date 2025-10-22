@@ -131,7 +131,7 @@ def test_run_periodically_single_iteration(qtbot, tmp_path, monkeypatch, monitor
 
     monkeypatch.setattr(sendEmail, "send_email", fake_send_email)
 
-    def fake_render_template(category, key, context):
+    def fake_render_template(category, key, context, *, language=None):
         return f"{category}.{key}|{context['service_name']}|{context['status_text']}"
 
     monkeypatch.setattr(configuration, "render_template", fake_render_template)
@@ -334,4 +334,43 @@ def test_main_window_uses_navigation_bar(qtbot):
     window.controller.show_configuration()
     assert window.ui.navigationBar.configButton.isChecked()
     assert not window.ui.navigationBar.monitorButton.isChecked()
+
+
+@pytest.mark.qt
+def test_language_switch_updates_ui_and_templates(qtbot, tmp_path, monkeypatch):
+    monkeypatch.setenv("APIMONITOR_HOME", str(tmp_path))
+    config_dir = tmp_path / "Config"
+    configuration.writeconfig(str(config_dir))
+    configuration.write_monitor_list([])
+
+    window = toolsetWindow()
+    qtbot.addWidget(window)
+
+    wizard = window.ui.configWizard
+    assert wizard.addButton.text() == "新增"
+    language_selector = window.ui.languageSelector
+    en_index = language_selector.findData("en_US")
+    assert en_index >= 0
+
+    language_selector.setCurrentIndex(en_index)
+    qtbot.waitUntil(lambda: window.controller._current_language == "en_US", timeout=2000)
+
+    assert wizard.addButton.text() == "Add"
+    assert window.ui.navigationBar.languageLabel.text() == "Language"
+    assert window.ui.navigationBar.monitorButton.text() == "Monitor"
+
+    context = {
+        "service_name": "Example",
+        "monitor_type": "GET",
+        "url": "http://example.com",
+        "interval": 30,
+    }
+    rendered = configuration.render_template("log", "action_line", context)
+    assert "Type:" in rendered
+    assert "类型" not in rendered
+
+    zh_index = language_selector.findData("zh_CN")
+    if zh_index >= 0:
+        language_selector.setCurrentIndex(zh_index)
+        qtbot.waitUntil(lambda: window.controller._current_language == "zh_CN", timeout=2000)
 

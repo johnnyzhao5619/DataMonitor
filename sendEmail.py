@@ -10,25 +10,29 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import Iterable, Mapping, Tuple
 
+try:
+    from PyQt5 import QtCore
+except ModuleNotFoundError:  # pragma: no cover - 提供兼容性
+    class _FallbackCoreApplication:
+        @staticmethod
+        def translate(_context: str, text: str) -> str:
+            return text
+
+    class _FallbackQtCore:
+        QCoreApplication = _FallbackCoreApplication
+
+    QtCore = _FallbackQtCore()  # type: ignore[assignment]
+
 import configuration
+
+
+def _translate(text: str) -> str:
+    return QtCore.QCoreApplication.translate("Email", text)
 
 
 MAIL_EVENT_MAP = {
     "alert": {"subject": "alert_subject", "body": "alert_body"},
     "recovery": {"subject": "recovery_subject", "body": "recovery_body"},
-}
-
-_EVENT_CONTEXT_PRESETS = {
-    "alert": {
-        "status_action": "告警",
-        "event_description": "监控检测到服务不可达",
-        "time_label": "发生时间",
-    },
-    "recovery": {
-        "status_action": "恢复",
-        "event_description": "监控检测到服务恢复至正常状态",
-        "time_label": "恢复时间",
-    },
 }
 
 REQUIRED_CONTEXT_FIELDS = {
@@ -44,12 +48,14 @@ def render_email(event: str, context: Mapping[str, object]) -> Tuple[str, str]:
     """根据事件类型渲染邮件主题与正文。"""
 
     if event not in MAIL_EVENT_MAP:
-        raise KeyError(f"未知的邮件事件类型：{event}")
+        raise KeyError(_translate("未知的邮件事件类型：{event}").format(event=event))
 
     missing_fields = [field for field in REQUIRED_CONTEXT_FIELDS if field not in context]
     if missing_fields:
         raise ValueError(
-            "邮件模版缺少必要字段：{}".format(", ".join(sorted(missing_fields)))
+            _translate("邮件模版缺少必要字段：{fields}").format(
+                fields=", ".join(sorted(missing_fields))
+            )
         )
 
     mapping = MAIL_EVENT_MAP[event]
@@ -67,10 +73,7 @@ def _normalise_timestamp(occurred_at) -> str:
 
 
 def _build_notification(event: str, service_name, occurred_at) -> Tuple[str, str]:
-    try:
-        context_defaults = _EVENT_CONTEXT_PRESETS[event]
-    except KeyError as exc:
-        raise KeyError(f"未知的邮件事件类型：{event}") from exc
+    context_defaults = _event_context_presets(event)
 
     context = {
         "service_name": str(service_name) if service_name is not None else "",
@@ -96,7 +99,7 @@ def _normalize_recipients(
 
     candidate = explicit_recipients if explicit_recipients else default_recipients
     if candidate is None:
-        raise ValueError("未配置任何收件人地址")
+        raise ValueError(_translate("未配置任何收件人地址"))
 
     if isinstance(candidate, str):
         addresses = [addr.strip() for addr in candidate.split(",") if addr.strip()]
@@ -104,11 +107,11 @@ def _normalize_recipients(
         try:
             iterator = iter(candidate)
         except TypeError as exc:  # pragma: no cover - defensive programming
-            raise TypeError("收件人必须为字符串或可迭代对象") from exc
+            raise TypeError(_translate("收件人必须为字符串或可迭代对象")) from exc
         addresses = [str(addr).strip() for addr in iterator if str(addr).strip()]
 
     if not addresses:
-        raise ValueError("收件人地址不能为空")
+        raise ValueError(_translate("收件人地址不能为空"))
 
     return ", ".join(addresses), addresses
 
@@ -120,7 +123,7 @@ def send_email(subject: str, body: str, recipients=None):
     try:
         smtp_port = int(mailconfig['smtp_port'])
     except (TypeError, ValueError) as exc:
-        raise ValueError("SMTP 端口配置必须为整数") from exc
+        raise ValueError(_translate("SMTP 端口配置必须为整数")) from exc
     username = mailconfig['username']
     password = mailconfig['password']
     from_addr = mailconfig['from_addr']
@@ -149,8 +152,25 @@ def send_email(subject: str, body: str, recipients=None):
             server.login(username, password)
             server.sendmail(from_addr, list(send_to_list), message.as_string())
     except smtplib.SMTPAuthenticationError as e:
-        print("SMTP authentication error: ", e)
+        print(_translate("SMTP 身份验证失败："), e)
     except smtplib.SMTPException as e:
-        print("SMTP error: ", e)
+        print(_translate("SMTP 通信异常："), e)
     except Exception as e:
-        print("An error occurred: ", e)
+        print(_translate("发生未知错误："), e)
+
+
+def _event_context_presets(event: str) -> Mapping[str, str]:
+    if event == "alert":
+        return {
+            "status_action": _translate("告警"),
+            "event_description": _translate("监控检测到服务不可达"),
+            "time_label": _translate("发生时间"),
+        }
+    if event == "recovery":
+        return {
+            "status_action": _translate("恢复"),
+            "event_description": _translate("监控检测到服务恢复至正常状态"),
+            "time_label": _translate("恢复时间"),
+        }
+    raise KeyError(_translate("未知的邮件事件类型：{event}").format(event=event))
+

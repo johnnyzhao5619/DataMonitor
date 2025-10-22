@@ -7,6 +7,19 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Callable, Dict, Optional, Tuple
 
+try:
+    from PyQt5 import QtCore
+except ModuleNotFoundError:  # pragma: no cover - 兼容无 GUI 环境
+    class _FallbackCoreApplication:
+        @staticmethod
+        def translate(_context: str, text: str) -> str:
+            return text
+
+    class _FallbackQtCore:
+        QCoreApplication = _FallbackCoreApplication
+
+    QtCore = _FallbackQtCore()  # type: ignore[assignment]
+
 import configuration
 from configuration import MonitorItem
 
@@ -30,27 +43,30 @@ class MonitorState(Enum):
 
     @property
     def display_text(self) -> str:
+        translate = QtCore.QCoreApplication.translate
         return {
-            MonitorState.HEALTHY: "服务正常",
-            MonitorState.RECOVERED: "服务恢复",
-            MonitorState.OUTAGE: "服务异常",
-            MonitorState.OUTAGE_ONGOING: "服务持续异常",
+            MonitorState.HEALTHY: translate("MonitorState", "服务正常"),
+            MonitorState.RECOVERED: translate("MonitorState", "服务恢复"),
+            MonitorState.OUTAGE: translate("MonitorState", "服务异常"),
+            MonitorState.OUTAGE_ONGOING: translate("MonitorState", "服务持续异常"),
         }[self]
 
     @property
     def csv_label(self) -> str:
+        translate = QtCore.QCoreApplication.translate
         return {
-            MonitorState.HEALTHY: "正常",
-            MonitorState.RECOVERED: "恢复",
-            MonitorState.OUTAGE: "异常",
-            MonitorState.OUTAGE_ONGOING: "持续异常",
+            MonitorState.HEALTHY: translate("MonitorState", "正常"),
+            MonitorState.RECOVERED: translate("MonitorState", "恢复"),
+            MonitorState.OUTAGE: translate("MonitorState", "异常"),
+            MonitorState.OUTAGE_ONGOING: translate("MonitorState", "持续异常"),
         }[self]
 
     @property
     def status_bar_text(self) -> str:
+        translate = QtCore.QCoreApplication.translate
         if self in (MonitorState.HEALTHY, MonitorState.RECOVERED):
-            return ">>>运行中..."
-        return "服务异常"
+            return translate("MonitorState", ">>>运行中...")
+        return translate("MonitorState", "服务异常")
 
 
 @dataclass(frozen=True)

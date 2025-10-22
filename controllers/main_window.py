@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import datetime
+import json
 import queue
 import threading
+from pathlib import Path
 from typing import Optional, Tuple, TYPE_CHECKING
 
 from PyQt5 import QtCore, QtWidgets
@@ -29,6 +31,80 @@ PeriodicMonitorKey = Tuple[str, str, str]
 
 _QObjectBase = getattr(QtCore, "QObject", object)
 _StatusBarClass = getattr(QtWidgets, "QStatusBar", None)
+
+
+class JsonTranslator(QtCore.QTranslator):
+    """基于 JSON 存储的轻量级翻译器，实现 QTranslator 接口。"""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._catalog: dict[str, dict[str, str]] = {}
+        self._language: Optional[str] = None
+
+    def load(
+        self,
+        filename: str,
+        directory: str = "",
+        search_delimiters: str = "",
+        suffix: str = "",
+    ) -> bool:
+        path = Path(filename)
+        if directory:
+            path = Path(directory) / path
+        if suffix and not path.suffix:
+            path = path.with_suffix(suffix)
+        if not path.suffix:
+            path = path.with_suffix(".qm")
+        if not path.is_file():
+            self._catalog = {}
+            self._language = None
+            return False
+
+        try:
+            with path.open("r", encoding="utf-8") as handle:
+                payload = json.load(handle)
+        except Exception:
+            self._catalog = {}
+            self._language = None
+            return False
+
+        messages = payload.get("messages")
+        if not isinstance(messages, dict):
+            self._catalog = {}
+            self._language = None
+            return False
+
+        catalog: dict[str, dict[str, str]] = {}
+        for context, entries in messages.items():
+            if not isinstance(entries, dict):
+                continue
+            catalog[str(context)] = {
+                str(source): str(target) for source, target in entries.items()
+            }
+
+        self._catalog = catalog
+        self._language = str(payload.get("language")) if payload.get("language") else None
+        return True
+
+    def translate(
+        self,
+        context: str,
+        source_text: str,
+        disambiguation: Optional[str] = None,
+        n: int = -1,
+    ) -> str:
+        if not source_text:
+            return ""
+        catalog = self._catalog.get(context) or {}
+        translation = catalog.get(source_text)
+        if translation is None:
+            fallback = self._catalog.get("*") or {}
+            translation = fallback.get(source_text)
+        return translation if translation is not None else source_text
+
+    @property
+    def language(self) -> Optional[str]:
+        return self._language
 
 
 class _SilentStatusBar:
@@ -70,10 +146,10 @@ class MainWindowController(_QObjectBase):
 
         self.status = status_bar
         if hasattr(self.status, "showMessage"):
-            self.status.showMessage('>>初始化...', 4000)
+            self.status.showMessage(self.tr('>>初始化...'), 4000)
 
         if hasattr(self.window, "setWindowTitle"):
-            self.window.setWindowTitle('Monitor Everything v0.2')
+            self.window.setWindowTitle(self.tr('Monitor Everything v0.2'))
 
         self.switch_status = True
         self.printf_queue: queue.Queue = queue.Queue()
@@ -97,7 +173,11 @@ class MainWindowController(_QObjectBase):
         self.ui.configWizard.monitorsSaved.connect(self._handle_monitors_saved)
         self.ui.configWizard.requestReload.connect(self._reload_monitors)
 
+        self._translator: Optional[JsonTranslator] = None
+        self._current_language = configuration.get_language()
+
         self._initialise_theme_selector()
+        self._initialise_language_selector()
 
         self._reload_monitors()
         self._update_timezone_display()
@@ -125,6 +205,27 @@ class MainWindowController(_QObjectBase):
         selector.currentTextChanged.connect(self._on_theme_changed)
         self._refresh_theme_widgets()
 
+    def _initialise_language_selector(self) -> None:
+        selector = self.ui.languageSelector
+        languages = configuration.available_languages()
+        selector.blockSignals(True)
+        selector.clear()
+        for code in languages:
+            selector.addItem(self._describe_language(code), code)
+
+        current = configuration.get_language()
+        index = selector.findData(current)
+        if index < 0 and selector.count():
+            index = 0
+        if index >= 0:
+            selector.setCurrentIndex(index)
+        selector.blockSignals(False)
+        selector.currentIndexChanged.connect(self._on_language_changed)
+
+        selected_code = selector.itemData(selector.currentIndex())
+        if isinstance(selected_code, str) and selected_code:
+            self._apply_language(selected_code, persist=False, notify=False)
+
     def _on_theme_changed(self, name: str) -> None:
         if not name:
             return
@@ -134,7 +235,90 @@ class MainWindowController(_QObjectBase):
             self.theme_manager.apply_theme(name)
 
         self._refresh_theme_widgets()
-        self.status.showMessage(f'已切换至主题: {name}', 3000)
+        self.status.showMessage(
+            self.tr('已切换至主题: {name}').format(name=name), 3000
+        )
+
+    def _on_language_changed(self, index: int) -> None:
+        code = self.ui.languageSelector.itemData(index)
+        if not isinstance(code, str) or not code:
+            return
+        if code == self._current_language:
+            return
+        self._apply_language(code)
+
+    def _describe_language(self, code: str) -> str:
+        mapping = {
+            "zh_CN": self.tr("简体中文"),
+            "en_US": self.tr("English"),
+        }
+        return mapping.get(code, code)
+
+    def _translation_path(self, code: str) -> Optional[Path]:
+        base_dir = Path(__file__).resolve().parents[1] / "i18n"
+        candidate = base_dir / f"{code}.qm"
+        if candidate.is_file():
+            return candidate
+        return None
+
+    def _apply_language(
+        self,
+        code: str,
+        *,
+        persist: bool = True,
+        notify: bool = True,
+    ) -> None:
+        app = QtWidgets.QApplication.instance()
+        if app is None:
+            return
+
+        if self._translator is not None:
+            app.removeTranslator(self._translator)
+            self._translator = None
+
+        translator = JsonTranslator()
+        qm_path = self._translation_path(code)
+        loaded = False
+        if qm_path is not None and translator.load(str(qm_path)):
+            app.installTranslator(translator)
+            self._translator = translator
+            loaded = True
+        elif code == configuration.DEFAULT_LANGUAGE:
+            loaded = True
+
+        if not loaded:
+            if code != configuration.DEFAULT_LANGUAGE:
+                self._apply_language(
+                    configuration.DEFAULT_LANGUAGE, persist=True, notify=notify
+                )
+            return
+
+        previous_language = configuration.get_language()
+        if persist or code != previous_language:
+            configuration.set_language(code)
+        self._current_language = configuration.get_language()
+
+        self.ui.retranslate_ui()
+        self._refresh_language_items()
+        if not self.switch_status:
+            self.ui.switchButton.setText(self.tr('关闭 Close'))
+        self._refresh_theme_widgets()
+        self._update_timezone_display()
+
+        if notify:
+            self.status.showMessage(
+                self.tr('已切换至语言: {name}').format(
+                    name=self._describe_language(self._current_language)
+                ),
+                3000,
+            )
+
+    def _refresh_language_items(self) -> None:
+        selector = self.ui.languageSelector
+        for index in range(selector.count()):
+            code = selector.itemData(index)
+            if isinstance(code, str) and code:
+                selector.setItemText(index, self._describe_language(code))
 
     def _refresh_theme_widgets(self) -> None:
         app = QtWidgets.QApplication.instance()
@@ -159,14 +343,26 @@ class MainWindowController(_QObjectBase):
     def start_monitor(self) -> None:
         if self.switch_status is True:
             monitor_list = configuration.read_monitor_list()
-            self.printf_queue.put(f"目前读取到{len(monitor_list)}个监控项，分别是：")
+            self.printf_queue.put(
+                self.tr("目前读取到{count}个监控项，分别是：").format(
+                    count=len(monitor_list)
+                )
+            )
             for index, monitor in enumerate(monitor_list, start=1):
                 self.printf_queue.put(
-                    f"{index}. {monitor.name} --- 类型: {monitor.monitor_type} --- 地址: {monitor.url} --- 周期: {monitor.interval}秒"
+                    self.tr(
+                        "{index}. {name} --- 类型: {monitor_type} --- 地址: {url} --- 周期: {interval}秒"
+                    ).format(
+                        index=index,
+                        name=monitor.name,
+                        monitor_type=monitor.monitor_type,
+                        url=monitor.url,
+                        interval=monitor.interval,
+                    )
                 )
 
             if not monitor_list:
-                self.status.showMessage('未读取到有效的监控配置')
+                self.status.showMessage(self.tr('未读取到有效的监控配置'))
                 return
 
             self.scheduler = MonitorScheduler(
@@ -176,7 +372,7 @@ class MainWindowController(_QObjectBase):
             self.scheduler.start(monitor_list)
 
             self.ui.show_monitor_page()
-            self.ui.switchButton.setText('关闭 Close')
+            self.ui.switchButton.setText(self.tr('关闭 Close'))
             self.switch_status = False
         else:
             if self.scheduler:
@@ -220,13 +416,13 @@ class MainWindowController(_QObjectBase):
     def show_configuration(self) -> None:
         self._reload_monitors()
         self.ui.show_configuration_page()
-        self.status.showMessage('>>配置模式', 3000)
+        self.status.showMessage(self.tr('>>配置模式'), 3000)
 
     def set_location(self) -> None:
         time_zone, ok = QInputDialog.getInt(
             self.window,
-            "输入时区",
-            "请输入所在时区(整数):",
+            self.tr("输入时区"),
+            self.tr("请输入所在时区(整数):"),
             self.time_zone,
             -12,
             14,
@@ -242,10 +438,14 @@ class MainWindowController(_QObjectBase):
         try:
             configuration.write_monitor_list(monitors)
         except Exception as exc:
-            QMessageBox.critical(self.window, '保存失败', str(exc))
-            self.status.showMessage(f'保存失败: {exc}', 5000)
+            QMessageBox.critical(
+                self.window, self.tr('保存失败'), str(exc)
+            )
+            self.status.showMessage(
+                self.tr('保存失败: {error}').format(error=exc), 5000
+            )
         else:
-            self.status.showMessage('配置已保存', 4000)
+            self.status.showMessage(self.tr('配置已保存'), 4000)
             self._reload_monitors()
             self.ui.show_monitor_page()
 
@@ -260,7 +460,7 @@ class MainWindowController(_QObjectBase):
         name = monitorInfo.get("name")
         url = monitorInfo.get("url")
         if not name or not url:
-            self.printf_queue.put("监控项配置缺少名称或地址")
+            self.printf_queue.put(self.tr("监控项配置缺少名称或地址"))
             return None
 
         raw_type = monitorInfo.get("type")
@@ -280,7 +480,11 @@ class MainWindowController(_QObjectBase):
         try:
             interval = int(monitorInfo.get("interval", 0))
         except (TypeError, ValueError):
-            self.printf_queue.put(f"监控项[{name}]的周期配置无效: {monitorInfo.get('interval')}")
+            self.printf_queue.put(
+                self.tr("监控项[{name}]的周期配置无效: {value}").format(
+                    name=name, value=monitorInfo.get('interval')
+                )
+            )
             return None
 
         return configuration.MonitorItem(
@@ -296,7 +500,11 @@ class MainWindowController(_QObjectBase):
     def _log_unsupported_type(self, monitor_type, url, name=None):
         monitor_name = f"[{name}]" if name else ""
         readable_type = monitor_type if monitor_type not in (None, "") else "<empty>"
-        message = f"监控项{monitor_name}类型 '{readable_type}' 未被支持，URL: {url}"
+        message = self.tr("监控项{monitor_name}类型 '{monitor_type}' 未被支持，URL: {url}").format(
+            monitor_name=monitor_name,
+            monitor_type=readable_type,
+            url=url,
+        )
         logRecorder.record("Unsupported Monitor Type", message)
         self.printf_queue.put(message)
         try:
@@ -313,7 +521,10 @@ class MainWindowController(_QObjectBase):
             return 0
 
     def _update_timezone_display(self):
-        self.ui.localTimeGroupBox.setTitle(f'本地时间 Local Time(时区 Time Zone: {self.time_zone})')
+        title = self.tr('本地时间 Local Time(时区 Time Zone: {zone})').format(
+            zone=self.time_zone
+        )
+        self.ui.localTimeGroupBox.setTitle(title)
 
     # --- 时钟与日志 -----------------------------------------------------
     def update_clock(self) -> None:

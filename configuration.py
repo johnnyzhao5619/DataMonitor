@@ -11,7 +11,7 @@ import re
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict, List, Mapping, Optional, Union
+from typing import Dict, List, Mapping, Optional, Tuple, Union
 
 
 LOGGER = logging.getLogger(__name__)
@@ -63,50 +63,97 @@ LOG_DIR_ENV = "APIMONITOR_HOME"
 
 TEMPLATE_CONFIG_NAME = "Templates.ini"
 
-TEMPLATE_DEFAULTS: Dict[str, Dict[str, str]] = {
-    "mail": {
-        "alert_subject": "Outage Alert | {service_name}",
-        "alert_body": (
-            "状态：{status_action}\n"
-            "服务：{service_name}\n"
-            "说明：{event_description}\n"
-            "{time_label}：{event_timestamp}"
-        ),
-        "recovery_subject": "Outage Recovery | {service_name}",
-        "recovery_body": (
-            "状态：{status_action}\n"
-            "服务：{service_name}\n"
-            "说明：{event_description}\n"
-            "{time_label}：{event_timestamp}"
-        ),
+DEFAULT_LANGUAGE = "zh_CN"
+
+TEMPLATE_DEFAULTS: Dict[str, Dict[str, Dict[str, str]]] = {
+    "zh_CN": {
+        "mail": {
+            "alert_subject": "Outage Alert | {service_name}",
+            "alert_body": (
+                "状态：{status_action}\n"
+                "服务：{service_name}\n"
+                "说明：{event_description}\n"
+                "{time_label}：{event_timestamp}"
+            ),
+            "recovery_subject": "Outage Recovery | {service_name}",
+            "recovery_body": (
+                "状态：{status_action}\n"
+                "服务：{service_name}\n"
+                "说明：{event_description}\n"
+                "{time_label}：{event_timestamp}"
+            ),
+        },
+        "ui": {
+            "status_line": "时间：{event_timestamp} --> 状态：{service_name}{status_label}",
+        },
+        "log": {
+            "action_line": (
+                "{service_name} --- 类型 Type: {monitor_type} --- 地址 url: {url} --- 周期 Interval: {interval}秒"
+            ),
+            "detail_line": ">>>{event_timestamp}: {service_name}{status_label}",
+            "record_entry": (
+                ">>{log_timestamp}(China Time)----------------------------------------------\n"
+                ">>Action:{action}\n"
+                "{details}"
+            ),
+            "csv_header": "Time,API,Type,url,Interval,Code,Status",
+        },
     },
-    "ui": {
-        "status_line": "时间：{event_timestamp} --> 状态：{service_name}{status_label}",
-    },
-    "log": {
-        "action_line": (
-            "{service_name} --- 类型 Type: {monitor_type} --- 地址 url: {url} --- 周期 Interval: {interval}秒"
-        ),
-        "detail_line": ">>>{event_timestamp}: {service_name}{status_label}",
-        "record_entry": (
-            ">>{log_timestamp}(China Time)----------------------------------------------\n"
-            ">>Action:{action}\n"
-            "{details}"
-        ),
-        "csv_header": "Time,API,Type,url,Interval,Code,Status",
+    "en_US": {
+        "mail": {
+            "alert_subject": "Outage Alert | {service_name}",
+            "alert_body": (
+                "Status: {status_action}\n"
+                "Service: {service_name}\n"
+                "Details: {event_description}\n"
+                "{time_label}: {event_timestamp}"
+            ),
+            "recovery_subject": "Outage Recovery | {service_name}",
+            "recovery_body": (
+                "Status: {status_action}\n"
+                "Service: {service_name}\n"
+                "Details: {event_description}\n"
+                "{time_label}: {event_timestamp}"
+            ),
+        },
+        "ui": {
+            "status_line": "Time: {event_timestamp} --> Status: {service_name}{status_label}",
+        },
+        "log": {
+            "action_line": (
+                "{service_name} --- Type: {monitor_type} --- URL: {url} --- Interval: {interval}s"
+            ),
+            "detail_line": ">>>{event_timestamp}: {service_name}{status_label}",
+            "record_entry": (
+                ">>{log_timestamp}(Local Time)----------------------------------------------\n"
+                ">>Action:{action}\n"
+                "{details}"
+            ),
+            "csv_header": "Time,API,Type,url,Interval,Code,Status",
+        },
     },
 }
+
+SUPPORTED_LANGUAGES = tuple(sorted(TEMPLATE_DEFAULTS.keys()))
+LANGUAGE_SECTION = "Locale"
+LANGUAGE_OPTION = "language"
+
+_LANGUAGE_CACHE: Optional[str] = None
+
+
+_TEMPLATE_SECTION_PATTERN = re.compile(r"^(?P<category>[^\[]+?)(?:\[(?P<language>[^\]]+)\])?$")
 
 
 class TemplateManager:
     """负责加载与渲染通知模版。"""
 
     def __init__(self):
-        self._templates: Optional[Dict[str, Dict[str, str]]] = None
+        self._templates: Optional[Dict[str, Dict[str, Dict[str, str]]]] = None
 
     def _load_templates(self) -> None:
-        templates: Dict[str, Dict[str, str]] = {
-            category: values.copy() for category, values in TEMPLATE_DEFAULTS.items()
+        templates: Dict[str, Dict[str, Dict[str, str]]] = {
+            language: {category: values.copy() for category, values in categories.items()}
+            for language, categories in TEMPLATE_DEFAULTS.items()
         }
 
         config_dir = get_config_directory()
@@ -118,10 +165,16 @@ class TemplateManager:
         if config_path.is_file():
             parser.read(os.fspath(config_path), encoding="utf-8")
             for section in parser.sections():
-                section_key = section.strip().lower()
-                if not section_key:
+                match = _TEMPLATE_SECTION_PATTERN.match(section.strip())
+                if not match:
                     continue
-                section_templates = templates.setdefault(section_key, {})
+                category_key = (match.group("category") or "").strip().lower()
+                language_key = (match.group("language") or DEFAULT_LANGUAGE).strip()
+                if not category_key or not language_key:
+                    continue
+                section_templates = templates.setdefault(language_key, {}).setdefault(
+                    category_key, {}
+                )
                 for option, value in parser.items(section):
                     option_key = option.strip()
                     if not option_key:
@@ -130,21 +183,29 @@ class TemplateManager:
 
         self._templates = templates
 
-    def get_template(self, category: str, key: str) -> str:
+    def get_template(self, category: str, key: str, language: Optional[str] = None) -> str:
         if self._templates is None:
             self._load_templates()
 
         category_key = category.strip().lower()
         key_name = key.strip()
-        try:
-            category_templates = self._templates[category_key]
-        except KeyError as exc:
-            raise KeyError(f"未找到模板类别：{category}") from exc
+        if not category_key or not key_name:
+            raise KeyError(f"模板缺失：{category}.{key}")
 
-        try:
-            return category_templates[key_name]
-        except KeyError as exc:
-            raise KeyError(f"模板缺失：{category}.{key}") from exc
+        requested_language = language or get_language()
+        candidate_languages = []
+        if requested_language:
+            candidate_languages.append(requested_language)
+        if DEFAULT_LANGUAGE not in candidate_languages:
+            candidate_languages.append(DEFAULT_LANGUAGE)
+
+        for lang in candidate_languages:
+            language_templates = self._templates.get(lang, {})
+            category_templates = language_templates.get(category_key)
+            if category_templates and key_name in category_templates:
+                return category_templates[key_name]
+
+        raise KeyError(f"模板缺失：{category}.{key}")
 
     def reload(self) -> None:
         """在测试或配置更新后重新加载模版。"""
@@ -157,10 +218,16 @@ def get_template_manager() -> TemplateManager:
     return TemplateManager()
 
 
-def render_template(category: str, key: str, context: Mapping[str, object]) -> str:
+def render_template(
+    category: str,
+    key: str,
+    context: Mapping[str, object],
+    *,
+    language: Optional[str] = None,
+) -> str:
     """渲染指定类别与键的模版。"""
 
-    template = get_template_manager().get_template(category, key)
+    template = get_template_manager().get_template(category, key, language)
     try:
         return template.format(**context)
     except KeyError as exc:
@@ -168,6 +235,66 @@ def render_template(category: str, key: str, context: Mapping[str, object]) -> s
         raise ValueError(
             f"模板 {category}.{key} 渲染时缺少变量：{missing}"
         ) from exc
+
+
+def available_languages() -> Tuple[str, ...]:
+    return SUPPORTED_LANGUAGES
+
+
+def get_language() -> str:
+    global _LANGUAGE_CACHE
+    if _LANGUAGE_CACHE is None:
+        _LANGUAGE_CACHE = _load_language_setting()
+    return _LANGUAGE_CACHE
+
+
+def set_language(language: str) -> None:
+    language_code = str(language).strip()
+    if not language_code:
+        raise ValueError("语言代码不能为空")
+    if language_code not in SUPPORTED_LANGUAGES:
+        raise ValueError(f"不支持的语言：{language_code}")
+
+    config_dir = Path(get_logdir()) / "Config"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    config_path = config_dir / "Config.ini"
+
+    config = configparser.RawConfigParser()
+    if config_path.exists():
+        config.read(os.fspath(config_path))
+
+    if not config.has_section(LANGUAGE_SECTION):
+        config.add_section(LANGUAGE_SECTION)
+    config.set(LANGUAGE_SECTION, LANGUAGE_OPTION, language_code)
+
+    with config_path.open("w") as configfile:
+        config.write(configfile)
+
+    global _LANGUAGE_CACHE
+    _LANGUAGE_CACHE = language_code
+    get_template_manager().reload()
+
+
+def _load_language_setting() -> str:
+    config_path = Path(get_logdir()) / "Config" / "Config.ini"
+    parser = configparser.RawConfigParser()
+    read_files = parser.read(os.fspath(config_path))
+    if not read_files:
+        return DEFAULT_LANGUAGE
+
+    if not parser.has_section(LANGUAGE_SECTION):
+        return DEFAULT_LANGUAGE
+
+    value = parser.get(LANGUAGE_SECTION, LANGUAGE_OPTION, fallback=None)
+    if not value:
+        return DEFAULT_LANGUAGE
+
+    value = value.strip()
+    if not value:
+        return DEFAULT_LANGUAGE
+    if value not in SUPPORTED_LANGUAGES:
+        return DEFAULT_LANGUAGE
+    return value
 
 
 def _normalise_directory(
@@ -653,6 +780,9 @@ def writeconfig(configDir: str):
 
     info.add_section("TimeZone")
     info.set("TimeZone", "timezone", "8")
+
+    info.add_section(LANGUAGE_SECTION)
+    info.set(LANGUAGE_SECTION, LANGUAGE_OPTION, DEFAULT_LANGUAGE)
 
     info.add_section("Mail")
     info.set("Mail", "smtp_server", "smtp.example.com")
