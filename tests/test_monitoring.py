@@ -199,13 +199,72 @@ def test_scheduler_runs_strategies_and_emits_events(monkeypatch):
         MonitorState.RECOVERED,
     ]
 
+
+def test_scheduler_handles_payload_and_headers_monitor(monkeypatch):
+    notifications = []
+    logs = []
+    csv_rows = []
+    events = []
+    finished = threading.Event()
+
+    monkeypatch.setattr(logRecorder, "record", lambda action, detail: logs.append((action, detail)))
+    monkeypatch.setattr(
+        logRecorder,
+        "saveToFile",
+        lambda row, name: csv_rows.append((tuple(row), name)),
+    )
+
+    base_time = datetime.datetime(2023, 1, 1, 12, 0, 0)
+
+    def capture_event(event):
+        events.append(event)
+        if len(events) >= 3:
+            finished.set()
+
+    scheduler = MonitorScheduler(
+        event_handler=capture_event,
+        timezone_getter=lambda: 0,
+        clock=lambda: base_time,
+        templates=NotificationTemplates(
+            channel="email",
+            build_outage=lambda name, ts: (f"{name}-outage", ts.isoformat()),
+            build_recovery=lambda name, ts: (f"{name}-recovery", ts.isoformat()),
+        ),
+        dispatcher=lambda notification: notifications.append(notification),
+    )
+
+    scheduler.register_strategy("POST", SequenceStrategy([True, False, True]))
+
+    monitor = configuration.MonitorItem(
+        name="ServiceWithPayload",
+        url="http://example.com/api",
+        monitor_type="POST",
+        interval=0.05,
+        email="ops@example.com",
+        payload={"query": "value"},
+        headers={"Authorization": "Bearer token"},
+    )
+
+    scheduler.start([monitor])
+    try:
+        assert finished.wait(5), "调度器未在预期时间内处理带 payload 的监控"
+    finally:
+        scheduler.stop()
+
+    assert len(events) >= 3
+    statuses = [event.status for event in events[:3]]
+    assert statuses == [
+        MonitorState.HEALTHY,
+        MonitorState.OUTAGE,
+        MonitorState.RECOVERED,
+    ]
+
     assert len(notifications) == 2
     assert notifications[0].subject.endswith("-outage")
     assert notifications[1].subject.endswith("-recovery")
 
-    assert len(logs) >= 4
     assert any("服务异常" in detail for _, detail in logs)
-    assert len(csv_rows) >= 4
+    assert any(row[0][6] in {"异常", "持续异常"} for row in csv_rows)
 
 
 def test_default_notification_templates_builders():
