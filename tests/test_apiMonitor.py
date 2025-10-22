@@ -1,3 +1,4 @@
+import textwrap
 import types
 import sys
 from pathlib import Path
@@ -44,6 +45,12 @@ class DummyResponse:
 @pytest.fixture(autouse=True)
 def stub_request_timeout(monkeypatch):
     monkeypatch.setattr(configuration, "get_request_timeout", lambda: 5.0)
+
+
+@pytest.fixture(autouse=True)
+def stub_resolve_timeout(monkeypatch):
+    monkeypatch.setattr(apiMonitor, "_resolve_timeout", lambda timeout=None: 5.0, raising=False)
+    monkeypatch.setattr(apiMonitor, "resolved_timeout", 5.0, raising=False)
 
 
 @pytest.mark.parametrize("status_code", [200, 204, 301, 302])
@@ -116,3 +123,76 @@ def test_monitor_post_exception(monkeypatch, capsys):
 
     captured = capsys.readouterr()
     assert "connection aborted" in captured.out
+
+
+def _write_config(tmp_path, content: str):
+    config_dir = tmp_path / "APIMonitor" / "Config"
+    config_dir.mkdir(parents=True)
+    (config_dir / "Config.ini").write_text(textwrap.dedent(content), encoding="utf-8")
+
+
+def test_read_monitor_list_with_optional_fields(monkeypatch, tmp_path):
+    _write_config(
+        tmp_path,
+        """
+        [MonitorNum]
+        total = 1
+
+        [Monitor1]
+        name = ServiceA
+        url = https://service.example.com
+        type = API
+        interval = 30
+        email = ops@example.com
+        payload = {"token": "abc123"}
+        headers = Accept=application/json, X-Trace=42
+        """,
+    )
+
+    monkeypatch.setattr(
+        configuration, "get_logdir", lambda: str(tmp_path / "APIMonitor") + "/"
+    )
+
+    monitor_list = configuration.read_monitor_list()
+
+    assert len(monitor_list) == 1
+    monitor = monitor_list[0]
+    assert monitor["payload"] == {"token": "abc123"}
+    assert monitor["headers"] == {"Accept": "application/json", "X-Trace": "42"}
+
+
+def test_read_monitor_list_skip_invalid_optional(monkeypatch, tmp_path, caplog):
+    _write_config(
+        tmp_path,
+        """
+        [MonitorNum]
+        total = 2
+
+        [Monitor1]
+        name = ServiceA
+        url = https://service.example.com
+        type = API
+        interval = 30
+        email = ops@example.com
+        payload = key1=value1
+
+        [Monitor2]
+        name = ServiceB
+        url = https://invalid.example.com
+        type = API
+        interval = 45
+        email = ops@example.com
+        payload = invalid
+        """,
+    )
+
+    monkeypatch.setattr(
+        configuration, "get_logdir", lambda: str(tmp_path / "APIMonitor") + "/"
+    )
+    caplog.clear()
+
+    monitor_list = configuration.read_monitor_list()
+
+    assert len(monitor_list) == 1
+    assert monitor_list[0]["name"] == "ServiceA"
+    assert any("Monitor2" in record.message for record in caplog.records)
