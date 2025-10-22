@@ -8,6 +8,7 @@ import json
 import logging
 import os
 import re
+from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 from typing import Dict, Mapping, Optional, Union
@@ -31,6 +32,28 @@ REQUEST_SECTION = "Request"
 REQUEST_TIMEOUT_KEY = "timeout"
 REQUEST_TIMEOUT_ENV = "REQUEST_TIMEOUT"
 DEFAULT_REQUEST_TIMEOUT = 10.0
+
+
+SUPPORTED_MONITOR_TYPES = frozenset({"GET", "POST", "SERVER"})
+
+
+@dataclass(frozen=True)
+class MonitorItem:
+    """用于描述单个监控项的配置。"""
+
+    name: str
+    url: str
+    monitor_type: str
+    interval: int
+    email: Optional[str] = None
+    payload: Optional[Dict[str, str]] = None
+    headers: Optional[Dict[str, str]] = None
+
+    def normalised_email(self) -> Optional[str]:
+        if self.email:
+            stripped = self.email.strip()
+            return stripped or None
+        return None
 
 
 DEFAULT_TIMEZONE = "0"
@@ -228,33 +251,76 @@ def get_config_directory() -> Path:
 
 def read_monitor_list():
     logdir = get_logdir()
-    monitorlist = []
+    monitorlist: List[MonitorItem] = []
     config = configparser.RawConfigParser()
-    config.read(logdir+"Config/Config.ini")
-    totalNumber = config.get('MonitorNum', 'total')
-    for i in range(int(totalNumber)):
-        section_name = f'Monitor{i+1}'
+    config.read(logdir + "Config/Config.ini")
+
+    try:
+        total_number = config.getint("MonitorNum", "total")
+    except (configparser.NoSectionError, configparser.NoOptionError, ValueError):
+        LOGGER.error("缺少 MonitorNum.total 配置或值无效")
+        return monitorlist
+
+    for i in range(total_number):
+        section_name = f"Monitor{i + 1}"
         try:
-            monitordir = {}
-            monitordir['name'] = config.get(section_name, 'name')
-            monitordir['url'] = config.get(section_name, 'url')
-            monitordir['type'] = config.get(section_name, 'type')
-            monitordir['interval'] = config.get(section_name, 'interval')
-            monitordir['email'] = config.get(section_name, 'email')
-            payload = _load_optional_payload(config, section_name)
-            headers = _load_optional_headers(config, section_name)
-            if payload is not None:
-                monitordir['payload'] = payload
-            if headers is not None:
-                monitordir['headers'] = headers
+            monitor = _build_monitor_item(config, section_name)
         except ValueError as exc:
             LOGGER.error("监控项 %s 解析失败: %s", section_name, exc)
             continue
 
-        monitorlist.append(monitordir)
-        del monitordir
+        monitorlist.append(monitor)
 
     return monitorlist
+
+
+def _build_monitor_item(config: configparser.RawConfigParser, section_name: str) -> MonitorItem:
+    if not config.has_section(section_name):
+        raise ValueError("缺少配置节")
+
+    name = _require_non_empty(config, section_name, "name")
+    url = _require_non_empty(config, section_name, "url")
+
+    raw_type = _require_non_empty(config, section_name, "type").upper()
+    if raw_type not in SUPPORTED_MONITOR_TYPES:
+        raise ValueError(f"不支持的监控类型: {raw_type}")
+
+    interval_value = _require_non_empty(config, section_name, "interval")
+    try:
+        interval = int(interval_value)
+    except ValueError as exc:
+        raise ValueError("interval 必须为整数") from exc
+    if interval <= 0:
+        raise ValueError("interval 必须为正数")
+
+    email = config.get(section_name, "email", fallback=None)
+    email = email.strip() if isinstance(email, str) else None
+    if not email:
+        email = None
+
+    payload = _load_optional_payload(config, section_name)
+    headers = _load_optional_headers(config, section_name)
+
+    return MonitorItem(
+        name=name,
+        url=url,
+        monitor_type=raw_type,
+        interval=interval,
+        email=email,
+        payload=payload,
+        headers=headers,
+    )
+
+
+def _require_non_empty(config: configparser.RawConfigParser, section: str, option: str) -> str:
+    value = config.get(section, option, fallback="")
+    if value is None:
+        raise ValueError(f"{section}.{option} 不能为空")
+
+    stripped = str(value).strip()
+    if not stripped:
+        raise ValueError(f"{section}.{option} 不能为空")
+    return stripped
 
 
 def _load_optional_payload(config: configparser.RawConfigParser, section: str):

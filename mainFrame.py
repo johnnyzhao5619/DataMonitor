@@ -10,18 +10,16 @@ from PyQt5.QtWidgets import QInputDialog
 
 from GUI_Windows_New import MainWindow
 import apiMonitor
-import sendEmail
-import time
-import threading
 import configuration
 import datetime
-import sys
 import logRecorder
+import sys
 import queue
 from pathlib import Path
+from typing import Optional
 
-
-SUPPORTED_MONITOR_TYPES = {"GET", "POST", "SERVER"}
+from monitoring.service import MonitorScheduler, ServerMonitorStrategy
+from monitoring.state_machine import MonitorEvent
 
 NOTIFICATION_STATES = {
     "normal": {
@@ -82,32 +80,33 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
         self.time_zone = self._read_config_timezone()
         self._update_timezone_display()
         self.update_clock()
+        self.scheduler: Optional[MonitorScheduler] = None
 
     def start_monitor(self):
         if self.switch_status is True:
-            monitorList = configuration.read_monitor_list()
-            # self.printf(f"目前读取到{len(monitorList)}个监控项，分别是：")
-            self.printf_queue.put(f"目前读取到{len(monitorList)}个监控项，分别是：")
-            logRecorder.record("Start Monitor", f"目前读取到{len(monitorList)}个监控项")
-            for i in range(len(monitorList)):
-                name = monitorList[i]['name']
-                url = monitorList[i]['url']
-                interval = monitorList[i]['interval']
-                mtype = monitorList[i]['type']
-                print("name:", name)
+            monitor_list = configuration.read_monitor_list()
+            self.printf_queue.put(f"目前读取到{len(monitor_list)}个监控项，分别是：")
+            for index, monitor in enumerate(monitor_list, start=1):
+                self.printf_queue.put(
+                    f"{index}. {monitor.name} --- 类型: {monitor.monitor_type} --- 地址: {monitor.url} --- 周期: {monitor.interval}秒"
+                )
 
-                # Log和输出————————————————————————————————————————————————————————————————————————
-                # self.printf(f"{i+1}. {name} --- 类型: {mtype} --- 地址: {url} --- 周期: {interval}秒")
-                self.printf_queue.put(f"{i+1}. {name} --- 类型: {mtype} --- 地址: {url} --- 周期: {interval}秒")
-                # 记录Log日志
-                logRecorder.record("读取配置 Read Configuration", f"{i+1}.{name} --- 类型 Type: {mtype} --- 地址 url: {url} --- 周期 Interval: {interval}秒\n")
+            if not monitor_list:
+                self.status.showMessage('未读取到有效的监控配置')
+                return
 
-            self.run_with_threads(len(monitorList), monitorList)
+            self.scheduler = MonitorScheduler(
+                event_handler=self._handle_monitor_event,
+                timezone_getter=lambda: self.time_zone,
+            )
+            self.scheduler.start(monitor_list)
 
             self.switchButton.setText('关闭 Close')
             self.switch_status = False
         elif self.switch_status is False:
-            sys.exit()
+            if self.scheduler:
+                self.scheduler.stop()
+            QtWidgets.QApplication.quit()
 
     def configuration(self):
         return
@@ -140,21 +139,25 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
                 self.monitorBrowser.moveCursor(self.cursot.End)
                 QtWidgets.QApplication.processEvents()
 
+    def _handle_monitor_event(self, event: MonitorEvent):
+        self.printf_queue.put(event.message)
+        if event.status_bar_message:
+            self.status.showMessage(event.status_bar_message)
 
-    def perform_task(self, url, parsed_address, type, email, payload=None, *, headers=None):
-        # 发送请求
-        if type == "GET":
-            result = apiMonitor.monitor_get(url)
-        elif type == "POST":
-            result = apiMonitor.monitor_post(url, payload, headers=headers)
-        elif type == "SERVER":
-            if parsed_address is None:
-                parsed_address = self.parse_network_address(url)
-            result = apiMonitor.monitor_server(parsed_address)
-        else:
-            self._log_unsupported_type(type, url)
-            return False
-        return result
+    def perform_task(self, url, parsed_address, monitor_type, email, payload=None, *, headers=None):
+        monitor_type_normalised = str(monitor_type).strip().upper() if monitor_type else ""
+        if monitor_type_normalised == "GET":
+            return apiMonitor.monitor_get(url)
+        if monitor_type_normalised == "POST":
+            return apiMonitor.monitor_post(url, payload, headers=headers)
+        if monitor_type_normalised == "SERVER":
+            address = parsed_address
+            if address is None:
+                address = ServerMonitorStrategy._parse_network_address(url)
+            return apiMonitor.monitor_server(address)
+
+        self._log_unsupported_type(monitor_type, url)
+        return False
 
     def _log_unsupported_type(self, monitor_type, url, name=None):
         monitor_name = f"[{name}]" if name else ""
@@ -319,14 +322,10 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
     def _update_timezone_display(self):
         self.localTimeGroupBox.setTitle(f'本地时间 Local Time(时区 Time Zone: {self.time_zone})')
 
-    # 根据需求，为每个监控项启动独立的线程
-    def run_with_threads(self, num_threads:int, monitorList:list):
-        for i in range(num_threads):
-            monitorInfo = monitorList[i]
-            t = threading.Thread(name=monitorInfo['name'], target=self.run_periodically, args=(monitorInfo,))
-            # t = threading.Thread(target=super().run_periodically, args=(monitorInfo,))
-            t.setDaemon(True)
-            t.start()
+    def closeEvent(self, event):
+        if self.scheduler:
+            self.scheduler.stop()
+        super().closeEvent(event)
 
 
 if __name__ == '__main__':

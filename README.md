@@ -118,3 +118,23 @@ chmod 600 /etc/datamonitor/mail.ini
 
 - `monitor_server` 在检测网络连通性时会优先尝试原始 ICMP Ping。如需启用该功能，运行程序的账户必须具备管理员或 root 权限，否则程序会自动回退到系统 `ping` 命令或仅执行 HTTP 检查。
 - 在缺少权限的环境中，无需额外配置即可继续使用 HTTP 检查结果，函数会返回布尔值而非抛出异常。
+
+## 模块划分与扩展指南
+
+### 调度与状态管理
+
+- `monitoring/service.py` 实现调度层，负责读取 `configuration.read_monitor_list()` 返回的结构化监控项，按类型查找已注册的策略并以独立线程循环执行。调度层同时协调状态机、日志写入以及通知分发，使得 UI (`mainFrame.toolsetWindow`) 仅承担展示职责。
+- `monitoring/state_machine.py` 提供 `MonitorStateMachine`，根据监控结果驱动状态切换并生成统一的 `MonitorEvent`。事件中包含状态描述、日志内容、CSV 行以及通知模版信息，便于在不同渠道重用。
+
+### 策略注册
+
+- 监控类型通过策略模式解耦，默认提供 `GET`、`POST`、`SERVER` 三种策略，均在 `MonitorScheduler` 初始化时注册。若需新增类型，可实现 `MonitorStrategy.run()` 并调用 `scheduler.register_strategy('NEW_TYPE', strategy)` 即可。
+
+### 配置读取
+
+- `configuration.read_monitor_list()` 现返回 `MonitorItem` 数据类，对 `name`、`url`、`type`、`interval` 等字段完成校验与规范化（类型大写、间隔转为正整数、可选 JSON/键值对解析）。业务层无需再做重复的类型转换或合法性检查。
+
+### 单元测试
+
+- 新增的 `tests/test_monitoring.py` 覆盖调度器和状态机的核心分支，验证状态迁移、通知生成、日志写入回调等行为。
+- `tests/test_configuration.py` 增补对结构化配置读取与异常场景的测试，确保基础数据在进入调度层前即被校验。
