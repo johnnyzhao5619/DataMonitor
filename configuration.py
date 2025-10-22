@@ -167,7 +167,7 @@ def writeconfig(configDir: str):
     info.set("Mail", "password", "PLEASE_SET_PASSWORD")
     info.set("Mail", "from_addr", "ops-team@example.com")
     info.set("Mail", "to_addrs", "recipient@example.com")
-    info.set("Mail", "subject", "Outage Warning！")
+    info.set("Mail", "subject", "Outage Alert")
 
     info.add_section("MonitorNum")
     info.set("MonitorNum", "total", "5")
