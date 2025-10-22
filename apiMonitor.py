@@ -14,6 +14,12 @@ import configuration
 from myPing import *
 
 
+def _resolve_timeout(explicit_timeout=None):
+    if explicit_timeout is not None:
+        return explicit_timeout
+    return configuration.get_request_timeout()
+
+
 def _subprocess_ping(host):
     """Fallback ping using system command. Returns True on success."""
     ping_cmd = ['ping', '-c', '1', '-W', '5', host]
@@ -33,7 +39,8 @@ def _subprocess_ping(host):
         return False
 
 
-def monitor_get(url):
+def monitor_get(url, timeout=None):
+    resolved_timeout = _resolve_timeout(timeout)
     try:
         response = requests.get(url, timeout=resolved_timeout)
         if 200 <= response.status_code < 400:
@@ -50,10 +57,15 @@ def monitor_get(url):
 
 
 
-def monitor_post(url, payload, timeout=None):
+def monitor_post(url, payload=None, *, headers=None, timeout=None):
     resolved_timeout = _resolve_timeout(timeout)
     try:
-        response = requests.post(url, data=payload, timeout=resolved_timeout)
+        response = requests.post(
+            url,
+            data=payload,
+            headers=headers,
+            timeout=resolved_timeout,
+        )
         if 200 <= response.status_code < 400:
             print(f"POST request to {url} successful with status code: {response.status_code}")
             return True
