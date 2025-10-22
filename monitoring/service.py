@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import datetime as _dt
 import threading
-from typing import Callable, Dict, Iterable, Optional
+from typing import Callable, Dict, Hashable, Iterable, Optional
 
 import apiMonitor
 import configuration
@@ -101,7 +101,7 @@ class MonitorScheduler:
         self._dispatcher = dispatcher or default_notification_dispatcher
         self._threads: list[threading.Thread] = []
         self._stop_event = threading.Event()
-        self._state_machines: Dict[configuration.MonitorItem, MonitorStateMachine] = {}
+        self._state_machines: Dict[Hashable, MonitorStateMachine] = {}
 
         self.register_strategy("GET", GetMonitorStrategy())
         self.register_strategy("POST", PostMonitorStrategy())
@@ -141,27 +141,37 @@ class MonitorScheduler:
         monitor: configuration.MonitorItem,
         strategy: MonitorStrategy,
     ) -> None:
+        key = self._monitor_key(monitor)
         state_machine = self._state_machines.setdefault(
-            monitor,
+            key,
             MonitorStateMachine(monitor, self._templates),
         )
 
-        while not self._stop_event.is_set():
-            try:
-                success = bool(strategy.run(monitor))
-            except Exception as exc:  # pragma: no cover - 防御性兜底
-                success = False
-                print(f"执行监控 {monitor.name} 发生异常: {exc}")
+        try:
+            while not self._stop_event.is_set():
+                try:
+                    success = bool(strategy.run(monitor))
+                except Exception as exc:  # pragma: no cover - 防御性兜底
+                    success = False
+                    print(f"执行监控 {monitor.name} 发生异常: {exc}")
 
-            utc_now, local_now = self._now()
-            event = state_machine.transition(success, utc_now, local_now)
-            self._handle_event(event)
+                utc_now, local_now = self._now()
+                event = state_machine.transition(success, utc_now, local_now)
+                self._handle_event(event)
 
-            interval_seconds = max(float(monitor.interval), 0.0)
-            if interval_seconds == 0:
-                continue
-            if self._stop_event.wait(interval_seconds):
-                break
+                interval_seconds = max(float(monitor.interval), 0.0)
+                if interval_seconds == 0:
+                    continue
+                if self._stop_event.wait(interval_seconds):
+                    break
+        finally:
+            # 清理已完成监控的状态机实例，避免悬挂引用。
+            self._state_machines.pop(key, None)
+
+    def _monitor_key(self, monitor: configuration.MonitorItem) -> Hashable:
+        """生成用于缓存状态机的可哈希键。"""
+
+        return id(monitor)
 
     def _now(self) -> tuple[_dt.datetime, _dt.datetime]:
         utc_now = self._clock()
