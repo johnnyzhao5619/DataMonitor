@@ -10,6 +10,7 @@ import os
 import re
 from functools import lru_cache
 from pathlib import Path
+from typing import Optional, Union
 
 
 LOGGER = logging.getLogger(__name__)
@@ -32,11 +33,81 @@ REQUEST_TIMEOUT_ENV = "REQUEST_TIMEOUT"
 DEFAULT_REQUEST_TIMEOUT = 10.0
 
 
+LOG_DIR_ENV = "APIMONITOR_HOME"
+
+
+def _normalise_directory(
+    path_value: Union[str, os.PathLike[str], Path],
+    *,
+    base_dir: Optional[Path] = None,
+) -> str:
+    """将路径归一化为绝对形式，并确保以分隔符结尾。"""
+
+    if path_value is None:
+        raise ValueError("缺少目录路径值")
+
+    path = Path(path_value).expanduser()
+    if path.is_absolute():
+        resolved = path.resolve()
+    else:
+        if base_dir is not None:
+            base_path = Path(base_dir).expanduser().resolve()
+            resolved = (base_path / path).resolve()
+        else:
+            resolved = path.resolve()
+
+    normalised = str(resolved)
+    if not normalised.endswith(os.sep):
+        normalised += os.sep
+    return normalised
+
+
 def get_logdir():
-    logdir = "./APIMonitor/"
-    config = configparser.RawConfigParser()
-    config.read(logdir)
-    return logdir
+    """返回日志根目录。
+
+    优先级：
+    1. 环境变量 ``APIMONITOR_HOME``；
+    2. ``config.ini`` 与 ``APIMonitor/Config/Config.ini`` 中 ``[Logging].log_file`` 配置；
+    3. 项目默认目录 ``APIMonitor``。
+    """
+
+    env_path = os.environ.get(LOG_DIR_ENV)
+    if env_path:
+        try:
+            return _normalise_directory(env_path)
+        except Exception as exc:  # pragma: no cover - 防御性日志
+            LOGGER.warning("环境变量 %s 的值无效：%s", LOG_DIR_ENV, exc)
+
+    candidate_configs = [
+        Path("config.ini"),
+        Path(__file__).resolve().parent / "APIMonitor" / "Config" / "Config.ini",
+    ]
+
+    for config_path in candidate_configs:
+        if not config_path.is_file():
+            continue
+
+        config = configparser.RawConfigParser()
+        resolved_path = config_path.resolve()
+        config.read(os.fspath(resolved_path))
+        if not config.has_option("Logging", "log_file"):
+            continue
+
+        raw_value = config.get("Logging", "log_file", fallback="").strip()
+        if not raw_value:
+            continue
+
+        try:
+            return _normalise_directory(raw_value, base_dir=resolved_path.parent)
+        except Exception as exc:  # pragma: no cover - 防御性日志
+            LOGGER.warning(
+                "配置文件 %s 中的 [Logging].log_file 无法解析：%s",
+                config_path,
+                exc,
+            )
+
+    default_dir = Path(__file__).resolve().parent / "APIMonitor"
+    return _normalise_directory(default_dir)
 
 def read_monitor_list():
     logdir = get_logdir()
@@ -272,6 +343,10 @@ def set_timezone(timezone):
 
 
 def writeconfig(configDir: str):
+    config_path = Path(configDir).expanduser()
+    config_path.mkdir(parents=True, exist_ok=True)
+    config_file_path = config_path / "Config.ini"
+
     info = configparser.ConfigParser()
     info.add_section("General")
     info.set("General", "app_name", "Monitor Everything")
@@ -279,7 +354,8 @@ def writeconfig(configDir: str):
 
     info.add_section("Logging")
     info.set("Logging", "log_level", "info")
-    info.set("Logging", "log_file", "~/Downloads/APIMonitor/")
+    log_root = config_path.parent
+    info.set("Logging", "log_file", _normalise_directory(log_root))
 
     info.add_section("TimeZone")
     info.set("TimeZone", "timezone", "8")
@@ -331,5 +407,5 @@ def writeconfig(configDir: str):
     info.set("Monitor5", "interval", "1800")
     info.set("Monitor5", "email", "johnnyzhao56192@gmail.com")
 
-    with open('./APIMonitor/Config/Config.ini', 'w') as config_file:
+    with config_file_path.open('w') as config_file:
         info.write(config_file)

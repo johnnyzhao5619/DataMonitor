@@ -64,9 +64,19 @@ chmod 600 /etc/datamonitor/mail.ini
 恢复时间：[UTC 时间戳]
 ```
 
+## 日志目录配置
+
+日志文件及运行时生成的监控 CSV 会存放在“日志根目录”下。程序根据以下优先级确定该目录：
+
+1. 环境变量 `APIMONITOR_HOME`（推荐）。
+2. `config.ini` 或 `APIMonitor/Config/Config.ini` 中的 `[Logging].log_file` 配置项。
+3. 仓库内默认路径 `APIMonitor/`。
+
+无论采用何种方式，目录路径最终都会被归一化为绝对路径，并保证以分隔符结尾。例如：`/var/log/datamonitor/`。若配置为相对路径，则会基于对应配置文件所在目录解析。
+
 ### 生成配置模板
 
-调用 `configuration.writeconfig` 会在 `APIMonitor/Config/Config.ini` 中生成示例模板。模板仅包含占位符，运维需要手工覆盖为真实值或提供独立的外部配置文件。
+调用 `configuration.writeconfig(config_dir)` 会确保 `config_dir` 存在，并在 `config_dir/Config.ini` 中生成示例模板。模板仅包含占位符，运维需要手工覆盖为真实值或提供独立的外部配置文件。
 
 ## 安全建议
 

@@ -12,13 +12,13 @@ from GUI_Windows_New import MainWindow
 import apiMonitor
 import sendEmail
 import time
-import os
 import threading
 import configuration
 import datetime
 import sys
 import logRecorder
 import queue
+from pathlib import Path
 
 
 class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
@@ -257,19 +257,17 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
 
 
 if __name__ == '__main__':
-    if configuration.get_logdir() == "./APIMonitor/":
-        folder = os.path.expanduser('./APIMonitor/Log')
-        configDir = os.path.expanduser("./APIMonitor/Config")
-    else:
-        folder = os.path.expanduser(str(configuration.get_logdir()+"Log"))
-        configDir = os.path.expanduser(str(configuration.get_logdir()+"Config"))
-    if not os.path.exists(folder):  # 判断是否存在文件夹如果不存在则创建为文件夹
-        os.makedirs(folder)  # makedirs 创建文件时如果路径不存在会创建这个路径
-    if not os.path.exists(configDir):
-        os.makedirs(configDir)
-        configuration.writeconfig(configDir)
-    elif not os.path.exists(str(configDir + "/Config.ini")):
-        configuration.writeconfig(configDir)
+    log_root = Path(configuration.get_logdir())
+    folder = log_root / "Log"
+    configDir = log_root / "Config"
+
+    folder.mkdir(parents=True, exist_ok=True)
+    if not configDir.exists():
+        configDir.mkdir(parents=True, exist_ok=True)
+        configuration.writeconfig(str(configDir))
+    elif not (configDir / "Config.ini").exists():
+        configuration.writeconfig(str(configDir))
+
     print("folder:", folder)
     print("configDir:", configDir)
     app = QtWidgets.QApplication(sys.argv)
