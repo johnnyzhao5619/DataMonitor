@@ -241,8 +241,9 @@ class toolsetWindow(QtWidgets.QMainWindow, MainWindow):
             time.sleep(interval)
 
     def _read_config_timezone(self):
+        raw_value = configuration.get_timezone()
         try:
-            return int(configuration.get_timezone())
+            return int(str(raw_value).strip())
         except (TypeError, ValueError):
             return 0
 
