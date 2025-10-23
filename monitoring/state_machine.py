@@ -84,8 +84,8 @@ class NotificationTemplates:
     """用于构建不同状态对应的通知文案。"""
 
     channel: str
-    build_outage: Callable[[str, _dt.datetime], Tuple[str, str]]
-    build_recovery: Callable[[str, _dt.datetime], Tuple[str, str]]
+    build_outage: Callable[[str, _dt.datetime, Optional[str]], Tuple[str, str]]
+    build_recovery: Callable[[str, _dt.datetime, Optional[str]], Tuple[str, str]]
 
 
 @dataclass(frozen=True)
@@ -195,9 +195,13 @@ class MonitorStateMachine:
     ) -> Optional[NotificationMessage]:
         recipients = self._monitor.normalised_email()
         if state is MonitorState.OUTAGE:
-            subject, body = self._templates.build_outage(self._monitor.name, local_time)
+            subject, body = self._templates.build_outage(
+                self._monitor.name, local_time, self._monitor.language
+            )
         elif state is MonitorState.RECOVERED:
-            subject, body = self._templates.build_recovery(self._monitor.name, local_time)
+            subject, body = self._templates.build_recovery(
+                self._monitor.name, local_time, self._monitor.language
+            )
         else:
             return None
 
@@ -209,13 +213,19 @@ class MonitorStateMachine:
         )
 
     def _build_message(self, context: Dict[str, object]) -> str:
-        return configuration.render_template("ui", "status_line", context)
+        return configuration.render_template(
+            "ui", "status_line", context, language=self._monitor.language
+        )
 
     def _build_log_action(self, context: Dict[str, object]) -> str:
-        return configuration.render_template("log", "action_line", context)
+        return configuration.render_template(
+            "log", "action_line", context, language=self._monitor.language
+        )
 
     def _build_log_detail(self, context: Dict[str, object]) -> str:
-        return configuration.render_template("log", "detail_line", context)
+        return configuration.render_template(
+            "log", "detail_line", context, language=self._monitor.language
+        )
 
     def _build_status_bar_message(self, state: MonitorState) -> str:
         if state in (MonitorState.HEALTHY, MonitorState.RECOVERED):

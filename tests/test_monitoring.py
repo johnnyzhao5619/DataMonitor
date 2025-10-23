@@ -93,8 +93,14 @@ def test_state_machine_transitions_and_notifications():
 
     templates = NotificationTemplates(
         channel="email",
-        build_outage=lambda name, ts: (f"Outage {name}", ts.isoformat()),
-        build_recovery=lambda name, ts: (f"Recovery {name}", ts.isoformat()),
+        build_outage=lambda name, ts, language=None: (  # noqa: ARG005 - 测试桩
+            f"Outage {name}",
+            ts.isoformat(),
+        ),
+        build_recovery=lambda name, ts, language=None: (  # noqa: ARG005 - 测试桩
+            f"Recovery {name}",
+            ts.isoformat(),
+        ),
     )
 
     machine = MonitorStateMachine(monitor, templates)
@@ -135,8 +141,14 @@ def test_state_machine_respects_template_overrides(tmp_path, monkeypatch):
     )
     templates = NotificationTemplates(
         channel="email",
-        build_outage=lambda name, ts: (f"Outage {name}", ts.isoformat()),
-        build_recovery=lambda name, ts: (f"Recovery {name}", ts.isoformat()),
+        build_outage=lambda name, ts, language=None: (  # noqa: ARG005 - 测试桩
+            f"Outage {name}",
+            ts.isoformat(),
+        ),
+        build_recovery=lambda name, ts, language=None: (  # noqa: ARG005 - 测试桩
+            f"Recovery {name}",
+            ts.isoformat(),
+        ),
     )
     machine = MonitorStateMachine(monitor, templates)
     base_time = datetime.datetime(2023, 1, 1, 8, 30, 0)
@@ -171,8 +183,14 @@ def test_scheduler_runs_strategies_and_emits_events(monkeypatch):
         clock=lambda: base_time,
         templates=NotificationTemplates(
             channel="email",
-            build_outage=lambda name, ts: (f"{name}-outage", ts.isoformat()),
-            build_recovery=lambda name, ts: (f"{name}-recovery", ts.isoformat()),
+            build_outage=lambda name, ts, language=None: (  # noqa: ARG005 - 测试桩
+                f"{name}-outage",
+                ts.isoformat(),
+            ),
+            build_recovery=lambda name, ts, language=None: (  # noqa: ARG005 - 测试桩
+                f"{name}-recovery",
+                ts.isoformat(),
+            ),
         ),
         dispatcher=lambda notification: notifications.append(notification),
     )
@@ -289,8 +307,14 @@ def test_scheduler_handles_payload_and_headers_monitor(monkeypatch):
         clock=lambda: base_time,
         templates=NotificationTemplates(
             channel="email",
-            build_outage=lambda name, ts: (f"{name}-outage", ts.isoformat()),
-            build_recovery=lambda name, ts: (f"{name}-recovery", ts.isoformat()),
+            build_outage=lambda name, ts, language=None: (  # noqa: ARG005 - 测试桩
+                f"{name}-outage",
+                ts.isoformat(),
+            ),
+            build_recovery=lambda name, ts, language=None: (  # noqa: ARG005 - 测试桩
+                f"{name}-recovery",
+                ts.isoformat(),
+            ),
         ),
         dispatcher=lambda notification: notifications.append(notification),
     )
@@ -436,8 +460,14 @@ def test_scheduler_handles_monitors_with_same_name(monkeypatch):
         clock=lambda: base_time,
         templates=NotificationTemplates(
             channel="email",
-            build_outage=lambda name, ts: (f"{name}-outage", ts.isoformat()),
-            build_recovery=lambda name, ts: (f"{name}-recovery", ts.isoformat()),
+            build_outage=lambda name, ts, language=None: (  # noqa: ARG005 - 测试桩
+                f"{name}-outage",
+                ts.isoformat(),
+            ),
+            build_recovery=lambda name, ts, language=None: (  # noqa: ARG005 - 测试桩
+                f"{name}-recovery",
+                ts.isoformat(),
+            ),
         ),
         dispatcher=lambda notification: None,
     )
