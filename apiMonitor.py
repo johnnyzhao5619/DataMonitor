@@ -266,10 +266,11 @@ def monitor_server(address, timeout=None):
         return True
 
     if socket_success or ping_success:
-        print(f"{host} 网络层可达，但 HTTP 检测失败，返回回退成功。")
-        return True
+        print(f"{host} 网络层可达，但 HTTP 检测失败，仍判定为失败。")
 
-    print(f"{host} is offline")
+    else:
+        print(f"{host} is offline")
+
     return False
 
 

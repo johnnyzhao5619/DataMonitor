@@ -297,6 +297,39 @@ def test_monitor_server_handles_socket_gaierror(monkeypatch, capsys):
     assert ping_calls["subprocess"] == 1
 
 
+def test_monitor_server_requires_http_success(monkeypatch, capsys):
+    monkeypatch.setattr(
+        apiMonitor,
+        "_check_socket_connectivity",
+        lambda host, port, timeout: True,
+    )
+    monkeypatch.setattr(
+        apiMonitor,
+        "_perform_ping_probe",
+        lambda host, timeout: True,
+    )
+    monkeypatch.setattr(
+        apiMonitor,
+        "_perform_icmp_probe",
+        lambda host, timeout: None,
+    )
+
+    def fake_get(url, timeout):
+        assert timeout == 5.0
+        return DummyResponse(502)
+
+    monkeypatch.setattr(apiMonitor.requests, "get", fake_get)
+
+    result = apiMonitor.monitor_server(("http", "reachable.example", 8080, None))
+
+    assert result is False
+
+    captured = capsys.readouterr()
+    assert "探测结果: socket=True, ping=True, http=False" in captured.out
+    assert "网络层可达" in captured.out
+    assert "仍判定为失败" in captured.out
+
+
 @pytest.fixture
 def stub_monitor_server_dependencies(monkeypatch):
     class DummyConnection:
