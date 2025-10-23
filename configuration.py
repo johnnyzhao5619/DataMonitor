@@ -25,7 +25,12 @@ MAIL_ENV_MAP = {
     "password": f"{MAIL_ENV_PREFIX}PASSWORD",
     "from_addr": f"{MAIL_ENV_PREFIX}FROM",
     "to_addrs": f"{MAIL_ENV_PREFIX}TO",
+    "use_starttls": f"{MAIL_ENV_PREFIX}USE_STARTTLS",
+    "use_ssl": f"{MAIL_ENV_PREFIX}USE_SSL",
 }
+MAIL_BOOL_OPTIONS = frozenset({"use_starttls", "use_ssl"})
+_BOOL_TRUE_VALUES = {"1", "true", "yes", "on"}
+_BOOL_FALSE_VALUES = {"0", "false", "no", "off"}
 MAIL_SECTION = "Mail"
 EXTERNAL_MAIL_CONFIG_ENV = "MAIL_CONFIG_PATH"
 REQUEST_SECTION = "Request"
@@ -830,6 +835,33 @@ def read_mail_configuration():
     return _load_mail_config_from_project_file()
 
 
+def _coerce_mail_bool(value: Any, *, key: str, source: str) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)) and value in (0, 1):
+        return bool(value)
+    if isinstance(value, str):
+        normalised = value.strip().lower()
+        if normalised in _BOOL_TRUE_VALUES:
+            return True
+        if normalised in _BOOL_FALSE_VALUES:
+            return False
+    raise ValueError(f"{source} 的 {key} 不是有效的布尔值：{value!r}")
+
+
+def _normalise_mail_values(values: Mapping[str, Any], *, source: str) -> Dict[str, Any]:
+    normalised: Dict[str, Any] = {}
+    for key in MAIL_ENV_MAP:
+        if key not in values:
+            raise ValueError(f"{source} 缺少邮件配置字段：{key}")
+        value = values[key]
+        if key in MAIL_BOOL_OPTIONS:
+            normalised[key] = _coerce_mail_bool(value, key=key, source=source)
+        else:
+            normalised[key] = value
+    return normalised
+
+
 def _load_mail_config_from_env():
     values = {}
     missing_keys = []
@@ -848,7 +880,7 @@ def _load_mail_config_from_env():
         )
 
     if values:
-        return values
+        return _normalise_mail_values(values, source="环境变量")
 
     return None
 
@@ -877,7 +909,7 @@ def _load_mail_config_from_external_file():
             )
         )
 
-    return values
+    return _normalise_mail_values(values, source=f"外部配置文件 {path}")
 
 
 def _load_mail_config_from_project_file():
@@ -902,7 +934,7 @@ def _load_mail_config_from_project_file():
             )
         )
 
-    return values
+    return _normalise_mail_values(values, source=f"项目配置文件 {os.fspath(config_path)}")
 
 
 def get_timezone():
@@ -1177,6 +1209,8 @@ def writeconfig(configDir: str) -> None:
         "password": "<PASSWORD>",
         "from_addr": "<FROM_ADDRESS>",
         "to_addrs": "<TO_ADDRESSES>",
+        "use_starttls": "false",
+        "use_ssl": "false",
         "subject": "Outage Alert",
     }
     info.add_section(MAIL_SECTION)
