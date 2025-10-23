@@ -10,7 +10,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 import configuration
-from monitoring import api_monitor, log_recorder, send_email
+from monitoring import api_monitor, http_probe, log_recorder, send_email
 import threading
 
 pytest.importorskip("PyQt5")
@@ -236,8 +236,8 @@ def test_run_periodically_single_iteration(qtbot, tmp_path, monkeypatch, monitor
         assert parsed_address == expected_parsed
         return True
 
-    monkeypatch.setattr(api_monitor, "monitor_get", fake_monitor_get)
-    monkeypatch.setattr(api_monitor, "monitor_post", fake_monitor_post)
+    monkeypatch.setattr(http_probe, "monitor_get", fake_monitor_get)
+    monkeypatch.setattr(http_probe, "monitor_post", fake_monitor_post)
     monkeypatch.setattr(api_monitor, "monitor_server", fake_monitor_server)
 
     expected_parsed = None
