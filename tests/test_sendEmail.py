@@ -1,6 +1,9 @@
 import logging
 import smtplib
 import sys
+from email import message_from_string
+from email.header import decode_header, make_header
+from email.utils import getaddresses
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -85,6 +88,54 @@ def test_send_email_prefers_explicit_recipients(monkeypatch):
     assert from_addr == "from@example.com"
     assert to_addrs == ["override1@example.com", "override2@example.com"]
     assert "To: override1@example.com, override2@example.com" in message
+
+
+def test_send_email_supports_utf8_headers(monkeypatch):
+    import sendEmail
+
+    _patch_mail_configuration(
+        monkeypatch,
+        sendEmail,
+        from_addr="监控系统 <monitor@example.com>",
+        to_addrs="张三 <zhangsan@example.com>, 李四 <lisi@example.com>",
+    )
+
+    monkeypatch.setattr(sendEmail.smtplib, "SMTP", DummySMTP)
+
+    subject = "测试告警"
+    body = "系统出现异常，请关注。"
+
+    sendEmail.send_email(subject, body)
+
+    assert PROJECT_SMTP_CALLS, "应该创建 SMTP 连接"
+    smtp_instance = PROJECT_SMTP_CALLS[0]
+    assert len(smtp_instance.sent_messages) == 1
+
+    from_addr, to_addrs, message = smtp_instance.sent_messages[0]
+    assert from_addr == "monitor@example.com"
+    assert to_addrs == ["zhangsan@example.com", "lisi@example.com"]
+
+    parsed = message_from_string(message)
+    subject_header = str(make_header(decode_header(parsed["Subject"])))
+    assert subject_header == subject
+
+    to_header = parsed.get_all("To")
+    parsed_recipients = []
+    for name, addr in getaddresses(to_header):
+        decoded_name = str(make_header(decode_header(name))) if name else ""
+        parsed_recipients.append((decoded_name, addr))
+    assert parsed_recipients == [
+        ("张三", "zhangsan@example.com"),
+        ("李四", "lisi@example.com"),
+    ]
+
+    from_header = str(make_header(decode_header(parsed["From"])))
+    assert from_header == "监控系统 <monitor@example.com>"
+
+    assert parsed.is_multipart() is True
+    payload_part = parsed.get_payload()[0]
+    assert payload_part.get_content_charset() == "utf-8"
+    assert payload_part.get_payload(decode=True).decode("utf-8") == body
 
 
 def test_send_email_logs_authentication_error(monkeypatch, caplog):
