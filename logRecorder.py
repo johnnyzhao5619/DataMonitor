@@ -5,9 +5,33 @@
 # @Software: PyCharm
 import datetime
 import csv
+import re
 from pathlib import Path
 
 import configuration
+
+_FALLBACK_MONITOR_FILENAME = "monitor"
+
+
+def _sanitize_monitor_name(name) -> str:
+    """将监控名称清理为安全的文件名片段。"""
+
+    if name is None:
+        candidate = ""
+    else:
+        candidate = str(name)
+
+    # 替换路径分隔符，避免跨目录
+    candidate = re.sub(r"[\\/]+", "_", candidate)
+    # 限制可用字符范围，仅保留字母、数字、下划线、连字符与句点
+    candidate = re.sub(r"[^\w.-]", "_", candidate)
+    # 去除首尾的特殊字符，并压缩重复的下划线
+    candidate = re.sub(r"_+", "_", candidate).strip("._-")
+
+    if not candidate:
+        return _FALLBACK_MONITOR_FILENAME
+
+    return candidate
 
 
 def _now_with_timezone():
@@ -56,7 +80,8 @@ def saveToFile(dataString, API):
     nowDateTime = _now_with_timezone()
     nowDate = nowDateTime.strftime("%Y%m%d")
 
-    filename = folder / f"{API}_{nowDate}.csv"
+    sanitized_name = _sanitize_monitor_name(API)
+    filename = folder / f"{sanitized_name}_{nowDate}.csv"
     header = _csv_header()
     row = [str(item) for item in dataString]
 
