@@ -14,18 +14,18 @@ _FALLBACK_MONITOR_FILENAME = "monitor"
 
 
 def _sanitize_monitor_name(name) -> str:
-    """将监控名称清理为安全的文件名片段。"""
+    """Sanitize a monitor name so it can safely appear in a file name."""
 
     if name is None:
         candidate = ""
     else:
         candidate = str(name)
 
-    # 替换路径分隔符，避免跨目录
+    # Replace path separators so the resulting name cannot escape the log folder.
     candidate = re.sub(r"[\\/]+", "_", candidate)
-    # 限制可用字符范围，仅保留字母、数字、下划线、连字符与句点
+    # Limit the character set to letters, digits, underscores, hyphens, and periods.
     candidate = re.sub(r"[^\w.-]", "_", candidate)
-    # 去除首尾的特殊字符，并压缩重复的下划线
+    # Trim leading/trailing special characters and collapse duplicate underscores.
     candidate = re.sub(r"_+", "_", candidate).strip("._-")
 
     if not candidate:
@@ -95,5 +95,6 @@ def saveToFile(dataString, API):
             wf = csv.writer(cfa)
             wf.writerow(row)
 
-# b = ['aaa','vvvv','ssss','wwww','gggg','qqqq','rrrr','yyyy']
-# saveToFile(b, 'test')
+# Example usage for manual testing:
+# sample_row = ['aaa', 'vvvv', 'ssss', 'wwww', 'gggg', 'qqqq', 'rrrr', 'yyyy']
+# saveToFile(sample_row, 'test')

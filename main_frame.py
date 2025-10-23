@@ -1,4 +1,4 @@
-"""应用入口窗口定义。"""
+"""Entry point window definition for the application."""
 
 from importlib import import_module
 from typing import TYPE_CHECKING
@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 
 def _load_theme_resources() -> tuple["ThemeManager", tuple["ThemeDefinition", ...]]:
-    """延迟导入主题资源，兼容测试桩环境。"""
+    """Lazily import theme resources so they work in stubbed test environments."""
 
     theme_module = import_module("ui.theme")
     ThemeManager = getattr(theme_module, "ThemeManager")
@@ -31,7 +31,7 @@ class _HeadlessStatusBar:
 
 
 class ToolsetWindow(QtWidgets.QMainWindow):
-    """包含主界面与控制器的窗口封装。"""
+    """Window wrapper that bundles the main UI and its controller."""
 
     def __init__(self):
         super().__init__()

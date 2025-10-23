@@ -1,4 +1,4 @@
-"""控制器模块集合。"""
+"""Collection of controller modules."""
 
 from PyQt5 import QtCore
 
@@ -8,7 +8,7 @@ from .preferences import PreferencesController
 
 
 class ControllerEventBus(QtCore.QObject):
-    """跨控制器通信的统一事件总线。"""
+    """Unified event bus for cross-controller communication."""
 
     logMessage = QtCore.pyqtSignal(str)
     statusMessage = QtCore.pyqtSignal(str, int)

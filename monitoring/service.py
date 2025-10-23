@@ -1,4 +1,4 @@
-"""监控调度层实现。"""
+"""Implementation of the monitoring orchestration layer."""
 
 from __future__ import annotations
 
@@ -26,9 +26,9 @@ LOGGER = logging.getLogger(__name__)
 
 
 class MonitorStrategy:
-    """执行单次监控检查的策略接口。"""
+    """Strategy interface that executes a single monitoring check."""
 
-    def run(self, monitor: configuration.MonitorItem) -> bool:  # pragma: no cover - 接口定义
+    def run(self, monitor: configuration.MonitorItem) -> bool:  # pragma: no cover - interface contract
         raise NotImplementedError
 
 
@@ -47,7 +47,7 @@ class PostMonitorStrategy(MonitorStrategy):
 
 
 def parse_network_address(address: str) -> Tuple[str, str, Optional[int], str]:
-    """解析网络地址字符串，返回协议、主机、端口及路径后缀。"""
+    """Parse a network address into protocol, host, port, and trailing path."""
 
     normalized = address.strip()
     default_protocol = "http"
@@ -82,7 +82,7 @@ class ServerMonitorStrategy(MonitorStrategy):
 
 
 class MonitorScheduler:
-    """负责协调调度线程、执行策略以及管理状态机。"""
+    """Coordinate worker threads, execution strategies, and monitor state machines."""
 
     def __init__(
         self,
@@ -142,10 +142,11 @@ class MonitorScheduler:
         *,
         strategy: Optional[MonitorStrategy] = None,
     ) -> MonitorEvent:
-        """执行指定监控项的一次周期。
+        """Run a single monitoring cycle for the provided item.
 
-        该方法复用调度器的状态机、日志与通知流程，用于在外部线程中执行
-        单次检查（例如 GUI 通过定时器触发），从而避免重复实现日志与通知逻辑。
+        The scheduler's state machine, logging, and notification workflows are reused so
+        callers such as GUI timers can trigger an ad-hoc check without reimplementing the
+        bookkeeping that normally occurs in the background threads.
         """
 
         if strategy is None:
@@ -157,7 +158,7 @@ class MonitorScheduler:
 
         try:
             success = bool(strategy.run(monitor))
-        except Exception as exc:  # pragma: no cover - 防御性兜底
+        except Exception as exc:  # pragma: no cover - defensive safeguard
             success = False
             self._log_strategy_error(monitor, exc)
 
@@ -177,7 +178,7 @@ class MonitorScheduler:
             while not self._stop_event.is_set():
                 try:
                     success = bool(strategy.run(monitor))
-                except Exception as exc:  # pragma: no cover - 防御性兜底
+                except Exception as exc:  # pragma: no cover - defensive safeguard
                     success = False
                     self._log_strategy_error(monitor, exc)
 
@@ -191,11 +192,11 @@ class MonitorScheduler:
                 if self._stop_event.wait(interval_seconds):
                     break
         finally:
-            # 清理已完成监控的状态机实例，避免悬挂引用。
+            # Remove finished monitoring state machines to avoid leaking references.
             self._state_machines.pop(key, None)
 
     def _monitor_key(self, monitor: configuration.MonitorItem) -> Hashable:
-        """生成用于缓存状态机的可哈希键。"""
+        """Generate a hashable key for caching the state machine instance."""
 
         return (
             monitor.name,
@@ -218,7 +219,7 @@ class MonitorScheduler:
     def prune_state_machines(
         self, monitors: Iterable[configuration.MonitorItem]
     ) -> None:
-        """移除已经不在活动集合中的状态机。"""
+        """Drop state machines that no longer belong to the active monitor set."""
 
         active_keys = {self._monitor_key(monitor) for monitor in monitors}
         if not active_keys:
@@ -235,7 +236,7 @@ class MonitorScheduler:
         utc_now = self._clock()
         try:
             offset = int(self._timezone_getter())
-        except (TypeError, ValueError):  # pragma: no cover - 防御性兜底
+        except (TypeError, ValueError):  # pragma: no cover - defensive safeguard
             offset = 0
         local_now = utc_now + _dt.timedelta(hours=offset)
         return utc_now, local_now
@@ -245,7 +246,7 @@ class MonitorScheduler:
         self._dispatch_notification(event)
         try:
             self._event_handler(event)
-        except Exception as exc:  # pragma: no cover - 防御性兜底
+        except Exception as exc:  # pragma: no cover - defensive safeguard
             LOGGER.exception(
                 "monitor.scheduler.event_handler_error monitor=%s status=%s error=%s",
                 event.monitor.name,
@@ -262,7 +263,7 @@ class MonitorScheduler:
             return
         try:
             self._dispatcher(event.notification)
-        except Exception as exc:  # pragma: no cover - 防御性兜底
+        except Exception as exc:  # pragma: no cover - defensive safeguard
             LOGGER.exception(
                 "monitor.scheduler.notification_error monitor=%s channel=%s status=%s error=%s",
                 event.monitor.name,
