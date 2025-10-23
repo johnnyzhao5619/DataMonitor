@@ -29,6 +29,29 @@ def _write_config(base_dir: Path, content: str) -> Path:
     return config_path
 
 
+def test_writeconfig_uses_placeholder_values(tmp_path):
+    target_dir = tmp_path / "Config"
+    configuration.writeconfig(str(target_dir))
+
+    config_path = target_dir / "Config.ini"
+    parser = configparser.RawConfigParser()
+    parser.read(config_path)
+
+    assert parser.get(configuration.TIMEZONE_SECTION, configuration.TIMEZONE_OPTION) == configuration.DEFAULT_TIMEZONE
+    assert parser.get(configuration.LANGUAGE_SECTION, configuration.LANGUAGE_OPTION) == configuration.DEFAULT_LANGUAGE
+    assert parser.getint("MonitorNum", "total") == 0
+
+    mail_values = dict(parser.items(configuration.MAIL_SECTION))
+    assert mail_values["smtp_server"] == "<SMTP_SERVER>"
+    assert mail_values["smtp_port"] == "<SMTP_PORT>"
+    assert mail_values["username"] == "<USERNAME>"
+    assert mail_values["password"] == "<PASSWORD>"
+    assert mail_values["from_addr"] == "<FROM_ADDRESS>"
+    assert mail_values["to_addrs"] == "<TO_ADDRESSES>"
+    assert "http" not in config_path.read_text(encoding="utf-8")
+    assert "@" not in "".join(mail_values.values())
+
+
 @pytest.mark.parametrize(
     "config_content",
     [
@@ -138,6 +161,13 @@ def test_set_preferences_rejects_invalid_language(tmp_path, monkeypatch):
         configuration.set_preferences({"language": "fr_FR"})
 
 
+def test_set_preferences_rejects_invalid_timezone(tmp_path, monkeypatch):
+    monkeypatch.setenv(configuration.LOG_DIR_ENV, str(tmp_path))
+
+    with pytest.raises(ValueError):
+        configuration.set_preferences({"timezone": "invalid"})
+
+
 def test_set_preferences_clears_theme(tmp_path, monkeypatch):
     monkeypatch.setenv(configuration.LOG_DIR_ENV, str(tmp_path))
 
@@ -151,3 +181,10 @@ def test_set_preferences_clears_theme(tmp_path, monkeypatch):
     assert not parser.has_option(configuration.PREFERENCES_SECTION, configuration.THEME_OPTION)
     prefs = configuration.get_preferences()
     assert prefs["theme"] is None
+
+
+def test_set_preferences_requires_mapping(tmp_path, monkeypatch):
+    monkeypatch.setenv(configuration.LOG_DIR_ENV, str(tmp_path))
+
+    with pytest.raises(TypeError):
+        configuration.set_preferences(["theme", "workspace"])
