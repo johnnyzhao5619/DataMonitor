@@ -667,14 +667,14 @@
           "source": "Outage Alert | {service_name}",
           "translations": {
             "en_US": "Outage Alert | {service_name}",
-            "zh_CN": "Outage Alert | {service_name}"
+            "zh_CN": "故障告警 | {service_name}"
           }
         },
         {
           "source": "Outage Recovery | {service_name}",
           "translations": {
             "en_US": "Outage Recovery | {service_name}",
-            "zh_CN": "Outage Recovery | {service_name}"
+            "zh_CN": "故障恢复 | {service_name}"
           }
         },
         {

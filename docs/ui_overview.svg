@@ -42,5 +42,5 @@
 
   <rect x="660" y="550" width="540" height="120" class="section"/>
   <text x="690" y="590" class="subtitle">通知预览 Notification Preview</text>
-  <text x="690" y="625" class="caption">Subject: Outage Alert | 示例服务A</text>
+  <text x="690" y="625" class="caption">Subject: 故障告警 | 示例服务A</text>
 </svg>

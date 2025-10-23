@@ -106,8 +106,8 @@
       "{service_name} --- Type: {monitor_type} --- URL: {url} --- Interval: {interval}s": "{service_name} --- 类型 Type: {monitor_type} --- 地址 url: {url} --- 周期 Interval: {interval}秒"
     },
     "Template.mail": {
-      "Outage Alert | {service_name}": "Outage Alert | {service_name}",
-      "Outage Recovery | {service_name}": "Outage Recovery | {service_name}",
+      "Outage Alert | {service_name}": "故障告警 | {service_name}",
+      "Outage Recovery | {service_name}": "故障恢复 | {service_name}",
       "Status: {status_action}\nService: {service_name}\nDetails: {event_description}\n{time_label}: {event_timestamp}": "状态：{status_action}\n服务：{service_name}\n说明：{event_description}\n{time_label}：{event_timestamp}"
     },
     "Template.ui": {
