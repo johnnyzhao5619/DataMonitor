@@ -5,6 +5,7 @@ import datetime as _dt
 import json
 from dataclasses import asdict
 from typing import Dict, List, Optional
+from urllib.parse import urlsplit
 
 from PyQt5 import QtCore, QtWidgets
 
@@ -183,6 +184,7 @@ class ConfigWizard(QtWidgets.QWidget):
         self.removeButton.setText(self.tr("删除"))
         self.nameLabel.setText(self.tr("名称 Name"))
         self.urlLabel.setText(self.tr("地址 URL"))
+        self.urlEdit.setPlaceholderText(self.tr("请输入完整的服务地址，例如 https://example.com"))
         self.typeLabel.setText(self.tr("类型 Type"))
         self.intervalLabel.setText(self.tr("周期 Interval"))
         self.intervalSpin.setSuffix(self.tr(" 秒"))
@@ -290,7 +292,7 @@ class ConfigWizard(QtWidgets.QWidget):
     def _add_monitor(self) -> None:
         new_record = {
             "name": self.tr("新监控项"),
-            "url": "http://",
+            "url": "",
             "type": next(iter(sorted(configuration.SUPPORTED_MONITOR_TYPES))),
             "interval": 60,
             "email": "",
@@ -426,6 +428,10 @@ class ConfigWizard(QtWidgets.QWidget):
                 errors.append(
                     self.tr("监控项 {index} URL 不能为空").format(index=index)
                 )
+            elif not self._has_valid_hostname(url):
+                errors.append(
+                    self.tr("监控项 {index} URL 缺少有效的主机名").format(index=index)
+                )
             mtype = record.get("type", "").upper()
             if mtype not in configuration.SUPPORTED_MONITOR_TYPES:
                 allowed = ", ".join(sorted(configuration.SUPPORTED_MONITOR_TYPES))
@@ -501,3 +507,8 @@ class ConfigWizard(QtWidgets.QWidget):
             return json.dumps(value, ensure_ascii=False, indent=2)
         except (TypeError, ValueError):
             return ""
+
+    def _has_valid_hostname(self, url: str) -> bool:
+        target = url if "://" in url else f"http://{url}"
+        parts = urlsplit(target)
+        return bool(parts.hostname)
