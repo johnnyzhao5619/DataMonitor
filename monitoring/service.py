@@ -5,6 +5,7 @@ from __future__ import annotations
 import datetime as _dt
 import threading
 from typing import Callable, Dict, Hashable, Iterable, Optional, Tuple
+from urllib.parse import urlsplit
 
 import apiMonitor
 import configuration
@@ -43,32 +44,24 @@ class PostMonitorStrategy(MonitorStrategy):
 def parse_network_address(address: str) -> Tuple[str, str, Optional[int], str]:
     """解析网络地址字符串，返回协议、主机、端口及路径后缀。"""
 
-    protocol = "http"
-    url_port_suffix = address
+    normalized = address.strip()
+    default_protocol = "http"
+    has_scheme = "://" in normalized
+    parse_target = normalized if has_scheme else f"{default_protocol}://{normalized}"
 
-    if address.startswith("http://"):
-        url_port_suffix = address[len("http://") :]
-    elif address.startswith("https://"):
-        protocol = "https"
-        url_port_suffix = address[len("https://") :]
+    parts = urlsplit(parse_target)
 
-    if "/" in url_port_suffix:
-        url_port, suffix = url_port_suffix.split("/", 1)
-    else:
-        url_port = url_port_suffix
-        suffix = ""
+    protocol = parts.scheme or default_protocol
+    host = parts.hostname or ""
+    port = parts.port
 
-    if ":" in url_port:
-        url, port_str = url_port.split(":", 1)
-        try:
-            port = int(port_str)
-        except ValueError:
-            port = None
-    else:
-        url = url_port
-        port = None
+    suffix = parts.path.lstrip("/")
+    if parts.query:
+        suffix = f"{suffix}?{parts.query}" if suffix else f"?{parts.query}"
+    if parts.fragment:
+        suffix = f"{suffix}#{parts.fragment}" if suffix else f"#{parts.fragment}"
 
-    return protocol, url, port, suffix
+    return protocol, host, port, suffix
 
 
 class ServerMonitorStrategy(MonitorStrategy):

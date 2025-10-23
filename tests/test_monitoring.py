@@ -216,6 +216,18 @@ def test_parse_network_address_variants():
         None,
         "api/v1",
     )
+    assert parse_network_address("https://[2001:db8::1]:8443/status/health") == (
+        "https",
+        "2001:db8::1",
+        8443,
+        "status/health",
+    )
+    assert parse_network_address("[2001:db8::2]/metrics") == (
+        "http",
+        "2001:db8::2",
+        None,
+        "metrics",
+    )
 
 
 def test_server_strategy_uses_shared_parser(monkeypatch):
