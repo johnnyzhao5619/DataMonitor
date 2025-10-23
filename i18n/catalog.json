@@ -475,6 +475,18 @@
       ]
     },
     {
+      "name": "MainWindowUI",
+      "messages": [
+        {
+          "source": "Reports and alerts view under construction. Stay tuned!",
+          "translations": {
+            "en_US": "Reports and alerts view under construction. Stay tuned!",
+            "zh_CN": "报表与告警视图建设中，敬请期待"
+          }
+        }
+      ]
+    },
+    {
       "name": "MonitorDashboard",
       "messages": [
         {

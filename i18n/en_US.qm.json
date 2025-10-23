@@ -72,6 +72,9 @@
       "输入时区": "Set Time Zone",
       "配置已保存": "Configuration saved"
     },
+    "MainWindowUI": {
+      "Reports and alerts view under construction. Stay tuned!": "Reports and alerts view under construction. Stay tuned!"
+    },
     "MonitorDashboard": {
       "UTC时间 UTC Time": "UTC Time",
       "实时日志 Live Feed": "Live Feed",

@@ -98,3 +98,21 @@ def test_mail_templates_render_in_each_language(tmp_path, monkeypatch):
             "mail", "alert_body", config_context, language=language
         )
         assert rendered_body == expected_body_template.format(**config_context)
+
+
+def test_main_window_report_placeholder_translated():
+    languages, contexts = _load_catalog()
+    source = "Reports and alerts view under construction. Stay tuned!"
+
+    assert "MainWindowUI" in contexts, "缺少 MainWindowUI 上下文"
+    translations = contexts["MainWindowUI"].get(source)
+    assert translations is not None, "缺少报表占位文案"
+
+    expected = {
+        "en_US": source,
+        "zh_CN": "报表与告警视图建设中，敬请期待",
+    }
+    for language in languages:
+        assert language in translations, f"{language} 缺少报表占位翻译"
+        assert translations[language] == expected.get(language, translations[language])
+        assert translations[language], f"{language} 的报表占位翻译为空"
