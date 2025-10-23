@@ -104,6 +104,14 @@ chmod 600 /etc/datamonitor/mail.ini
 
 一旦修改 `Templates.ini`，重启服务即可生效；如果模版缺失或缺少占位符，程序会提供明确错误信息并回退到安全状态，避免发送不完整的通知。
 
+## 国际化资源维护
+
+- `i18n/catalog.json` 是全部界面与模版文案的单一真源，按上下文 (`context`) 列出源文本与各语言译文。
+- 修改或新增条目后执行 `python i18n/build_translations.py`，脚本会生成 `*.qm.json` 供 `JsonTranslator` 在运行时加载。
+- 新增语言时需在 `catalog.json` 的 `languages` 列表中注册编码，并补全每个上下文的译文，随后重新生成翻译文件。
+- PR 前务必运行 `pytest tests/test_i18n_integrity.py`，该用例会校验翻译键值是否一致，并验证中英通知模版可正确渲染。
+- 主窗口语言切换会自动刷新主题名称、命令条按钮等文案，并触发模版管理器 `reload()`，无需手动清理缓存。
+
 ## 日志目录配置
 
 日志文件及运行时生成的监控 CSV 会存放在“日志根目录”下。程序根据以下优先级确定该目录：

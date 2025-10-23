@@ -11,7 +11,7 @@ import re
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict, List, Mapping, Optional, Tuple, Union
+from typing import Any, Dict, List, Mapping, Optional, Tuple, Union
 
 
 LOGGER = logging.getLogger(__name__)
@@ -73,76 +73,53 @@ THEME_HIGH_CONTRAST_OPTION = "theme_high_contrast"
 TIMEZONE_SECTION = "TimeZone"
 TIMEZONE_OPTION = "timezone"
 
-TEMPLATE_DEFAULTS: Dict[str, Dict[str, Dict[str, str]]] = {
-    "zh_CN": {
-        "mail": {
-            "alert_subject": "Outage Alert | {service_name}",
-            "alert_body": (
-                "状态：{status_action}\n"
-                "服务：{service_name}\n"
-                "说明：{event_description}\n"
-                "{time_label}：{event_timestamp}"
-            ),
-            "recovery_subject": "Outage Recovery | {service_name}",
-            "recovery_body": (
-                "状态：{status_action}\n"
-                "服务：{service_name}\n"
-                "说明：{event_description}\n"
-                "{time_label}：{event_timestamp}"
-            ),
-        },
-        "ui": {
-            "status_line": "时间：{event_timestamp} --> 状态：{service_name}{status_label}",
-        },
-        "log": {
-            "action_line": (
-                "{service_name} --- 类型 Type: {monitor_type} --- 地址 url: {url} --- 周期 Interval: {interval}秒"
-            ),
-            "detail_line": ">>>{event_timestamp}: {service_name}{status_label}",
-            "record_entry": (
-                ">>{log_timestamp}(China Time)----------------------------------------------\n"
-                ">>Action:{action}\n"
-                "{details}"
-            ),
-            "csv_header": "Time,API,Type,url,Interval,Code,Status",
-        },
-    },
-    "en_US": {
-        "mail": {
-            "alert_subject": "Outage Alert | {service_name}",
-            "alert_body": (
-                "Status: {status_action}\n"
-                "Service: {service_name}\n"
-                "Details: {event_description}\n"
-                "{time_label}: {event_timestamp}"
-            ),
-            "recovery_subject": "Outage Recovery | {service_name}",
-            "recovery_body": (
-                "Status: {status_action}\n"
-                "Service: {service_name}\n"
-                "Details: {event_description}\n"
-                "{time_label}: {event_timestamp}"
-            ),
-        },
-        "ui": {
-            "status_line": "Time: {event_timestamp} --> Status: {service_name}{status_label}",
-        },
-        "log": {
-            "action_line": (
-                "{service_name} --- Type: {monitor_type} --- URL: {url} --- Interval: {interval}s"
-            ),
-            "detail_line": ">>>{event_timestamp}: {service_name}{status_label}",
-            "record_entry": (
-                ">>{log_timestamp}(Local Time)----------------------------------------------\n"
-                ">>Action:{action}\n"
-                "{details}"
-            ),
-            "csv_header": "Time,API,Type,url,Interval,Code,Status",
-        },
-    },
-}
+class TemplateResource:
+    """描述模版使用的翻译资源。"""
 
-SUPPORTED_LANGUAGES = tuple(sorted(TEMPLATE_DEFAULTS.keys()))
+    __slots__ = ("context", "source")
+
+    def __init__(self, context: str, source: str) -> None:
+        if not context or not source:
+            raise ValueError("模版资源必须同时提供上下文与源文本")
+        self.context = context
+        self.source = source
+
+    def __repr__(self) -> str:  # pragma: no cover - 调试辅助
+        return f"TemplateResource(context={self.context!r}, source={self.source!r})"
+
+
+def _i18n_root() -> Path:
+    return Path(__file__).resolve().parent / "i18n"
+
+
+@lru_cache(maxsize=1)
+def _load_catalog_payload() -> dict[str, Any]:
+    catalog_path = _i18n_root() / "catalog.json"
+    if not catalog_path.is_file():
+        raise RuntimeError(f"缺少翻译 catalog：{catalog_path}")
+    with catalog_path.open("r", encoding="utf-8") as handle:
+        payload = json.load(handle)
+    if not isinstance(payload, dict):
+        raise RuntimeError("catalog.json 格式错误：顶层必须是对象")
+    return payload
+
+
+def _load_catalog_languages() -> Tuple[str, ...]:
+    payload = _load_catalog_payload()
+    languages = payload.get("languages")
+    if not isinstance(languages, list) or not languages:
+        raise RuntimeError("catalog.json 缺少 languages 配置")
+    normalised = [str(language) for language in languages if str(language).strip()]
+    if not normalised:
+        raise RuntimeError("catalog.json 未定义有效的语言列表")
+    return tuple(sorted(dict.fromkeys(normalised)))
+
+
+SUPPORTED_LANGUAGES = _load_catalog_languages()
+if DEFAULT_LANGUAGE not in SUPPORTED_LANGUAGES:
+    raise RuntimeError(
+        f"默认语言 {DEFAULT_LANGUAGE} 未包含在 catalog 的 languages 中"
+    )
 LANGUAGE_SECTION = "Locale"
 LANGUAGE_OPTION = "language"
 
@@ -152,6 +129,93 @@ _LANGUAGE_CACHE: Optional[str] = None
 _TEMPLATE_SECTION_PATTERN = re.compile(r"^(?P<category>[^\[]+?)(?:\[(?P<language>[^\]]+)\])?$")
 
 
+@lru_cache(maxsize=None)
+def _load_language_messages(language: str) -> Dict[str, Dict[str, str]]:
+    if language not in SUPPORTED_LANGUAGES:
+        raise ValueError(f"不支持的语言：{language}")
+    path = _i18n_root() / f"{language}.qm.json"
+    if not path.is_file():
+        raise RuntimeError(f"缺少翻译文件：{path}")
+    with path.open("r", encoding="utf-8") as handle:
+        payload = json.load(handle)
+    messages = payload.get("messages")
+    if not isinstance(messages, dict):
+        raise RuntimeError(f"翻译文件 {path} 格式无效")
+    normalised: Dict[str, Dict[str, str]] = {}
+    for context, entries in messages.items():
+        if not isinstance(entries, dict):
+            continue
+        normalised[str(context)] = {str(source): str(target) for source, target in entries.items()}
+    return normalised
+
+
+def _resolve_template_resource(resource: TemplateResource, language: str) -> str:
+    translations = _load_language_messages(language)
+    context_messages = translations.get(resource.context, {})
+    if resource.source not in context_messages:
+        raise KeyError(
+            f"缺少模版翻译：{resource.context} -> {resource.source} ({language})"
+        )
+    return context_messages[resource.source]
+
+
+TEMPLATE_DEFAULTS: Dict[str, Dict[str, TemplateResource]] = {
+    "mail": {
+        "alert_subject": TemplateResource(
+            "Template.mail", "Outage Alert | {service_name}"
+        ),
+        "alert_body": TemplateResource(
+            "Template.mail",
+            (
+                "Status: {status_action}\n"
+                "Service: {service_name}\n"
+                "Details: {event_description}\n"
+                "{time_label}: {event_timestamp}"
+            ),
+        ),
+        "recovery_subject": TemplateResource(
+            "Template.mail", "Outage Recovery | {service_name}"
+        ),
+        "recovery_body": TemplateResource(
+            "Template.mail",
+            (
+                "Status: {status_action}\n"
+                "Service: {service_name}\n"
+                "Details: {event_description}\n"
+                "{time_label}: {event_timestamp}"
+            ),
+        ),
+    },
+    "ui": {
+        "status_line": TemplateResource(
+            "Template.ui",
+            "Time: {event_timestamp} --> Status: {service_name}{status_label}",
+        ),
+    },
+    "log": {
+        "action_line": TemplateResource(
+            "Template.log",
+            "{service_name} --- Type: {monitor_type} --- URL: {url} --- Interval: {interval}s",
+        ),
+        "detail_line": TemplateResource(
+            "Template.log",
+            ">>>{event_timestamp}: {service_name}{status_label}",
+        ),
+        "record_entry": TemplateResource(
+            "Template.log",
+            (
+                ">>{log_timestamp}(Local Time)----------------------------------------------\n"
+                ">>Action:{action}\n"
+                "{details}"
+            ),
+        ),
+        "csv_header": TemplateResource(
+            "Template.log", "Time,API,Type,url,Interval,Code,Status"
+        ),
+    },
+}
+
+
 class TemplateManager:
     """负责加载与渲染通知模版。"""
 
@@ -159,10 +223,19 @@ class TemplateManager:
         self._templates: Optional[Dict[str, Dict[str, Dict[str, str]]]] = None
 
     def _load_templates(self) -> None:
-        templates: Dict[str, Dict[str, Dict[str, str]]] = {
-            language: {category: values.copy() for category, values in categories.items()}
-            for language, categories in TEMPLATE_DEFAULTS.items()
-        }
+        templates: Dict[str, Dict[str, Dict[str, str]]] = {}
+        for language in SUPPORTED_LANGUAGES:
+            language_templates: Dict[str, Dict[str, str]] = {}
+            for category, entries in TEMPLATE_DEFAULTS.items():
+                category_key = category.strip().lower()
+                resolved: Dict[str, str] = {}
+                for key, resource in entries.items():
+                    if isinstance(resource, TemplateResource):
+                        resolved[key] = _resolve_template_resource(resource, language)
+                    else:  # pragma: no cover - 向后兼容
+                        resolved[key] = str(resource)
+                language_templates[category_key] = resolved
+            templates[language] = language_templates
 
         config_dir = get_config_directory()
         config_path = config_dir / TEMPLATE_CONFIG_NAME
