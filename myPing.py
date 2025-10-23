@@ -72,7 +72,7 @@ class MyPing():
                 return -1
 
     # 向特定地址发送一条ping命令
-    def send_ping(self, address):
+    def send_ping(self, address, timeout=None):
         data_type = 8
         data_code = 0
         data_checksum = 0
@@ -89,7 +89,10 @@ class MyPing():
 
         with rawsocket_context as rawsocket:
             # 数据包传输时间
-            times = self.reply_ping(send_request_ping_time, rawsocket, data_Sequence)
+            reply_kwargs = {}
+            if timeout is not None:
+                reply_kwargs["timeout"] = timeout
+            times = self.reply_ping(send_request_ping_time, rawsocket, data_Sequence, **reply_kwargs)
         if times > 0:
             return_time = int(times * 1000)
             return return_time
