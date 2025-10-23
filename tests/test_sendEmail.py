@@ -45,6 +45,10 @@ class DummySMTP:
         self.sent_messages.append((from_addr, to_addrs, message))
 
 
+class DummySMTPSSL(DummySMTP):
+    pass
+
+
 def _patch_mail_configuration(monkeypatch, module, **overrides):
     base = {
         "smtp_server": "smtp.example.com",
@@ -53,6 +57,8 @@ def _patch_mail_configuration(monkeypatch, module, **overrides):
         "password": "secret",
         "from_addr": "from@example.com",
         "to_addrs": "default@example.com",
+        "use_starttls": True,
+        "use_ssl": False,
     }
     base.update(overrides)
     monkeypatch.setattr(module.configuration, "read_mail_configuration", lambda: dict(base))
@@ -109,6 +115,7 @@ def test_send_email_supports_utf8_headers(monkeypatch):
 
     assert PROJECT_SMTP_CALLS, "应该创建 SMTP 连接"
     smtp_instance = PROJECT_SMTP_CALLS[0]
+    assert smtp_instance.started_tls is True
     assert len(smtp_instance.sent_messages) == 1
 
     from_addr, to_addrs, message = smtp_instance.sent_messages[0]
@@ -136,6 +143,71 @@ def test_send_email_supports_utf8_headers(monkeypatch):
     payload_part = parsed.get_payload()[0]
     assert payload_part.get_content_charset() == "utf-8"
     assert payload_part.get_payload(decode=True).decode("utf-8") == body
+
+
+def test_send_email_uses_ssl_when_configured(monkeypatch):
+    import sendEmail
+
+    _patch_mail_configuration(
+        monkeypatch,
+        sendEmail,
+        use_starttls=False,
+        use_ssl=True,
+    )
+
+    monkeypatch.setattr(sendEmail.smtplib, "SMTP_SSL", DummySMTPSSL)
+    monkeypatch.setattr(sendEmail.smtplib, "SMTP", DummySMTP)
+
+    sendEmail.send_email("Subject", "Body")
+
+    assert PROJECT_SMTP_CALLS, "应该创建 SMTP_SSL 连接"
+    smtp_instance = PROJECT_SMTP_CALLS[0]
+    assert isinstance(smtp_instance, DummySMTPSSL)
+    assert smtp_instance.started_tls is False
+    assert smtp_instance.logged_in is True
+
+
+def test_send_email_supports_plain_connection(monkeypatch):
+    import sendEmail
+
+    _patch_mail_configuration(
+        monkeypatch,
+        sendEmail,
+        use_starttls=False,
+        use_ssl=False,
+    )
+
+    monkeypatch.setattr(sendEmail.smtplib, "SMTP", DummySMTP)
+
+    class FailSSL:
+        def __init__(self, *args, **kwargs):
+            pytest.fail("不应使用 SMTP_SSL")
+
+    monkeypatch.setattr(sendEmail.smtplib, "SMTP_SSL", FailSSL)
+
+    sendEmail.send_email("Subject", "Body")
+
+    assert PROJECT_SMTP_CALLS, "应该创建纯文本 SMTP 连接"
+    smtp_instance = PROJECT_SMTP_CALLS[0]
+    assert isinstance(smtp_instance, DummySMTP)
+    assert smtp_instance.started_tls is False
+    assert smtp_instance.logged_in is True
+
+
+def test_send_email_rejects_conflicting_tls(monkeypatch):
+    import sendEmail
+
+    _patch_mail_configuration(
+        monkeypatch,
+        sendEmail,
+        use_starttls=True,
+        use_ssl=True,
+    )
+
+    monkeypatch.setattr(sendEmail.smtplib, "SMTP", DummySMTP)
+
+    with pytest.raises(ValueError, match="use_starttls"):
+        sendEmail.send_email("Subject", "Body")
 
 
 def test_send_email_logs_authentication_error(monkeypatch, caplog):
@@ -195,4 +267,25 @@ def test_read_mail_configuration_bootstraps_placeholder(tmp_path, monkeypatch):
         "password": "<PASSWORD>",
         "from_addr": "<FROM_ADDRESS>",
         "to_addrs": "<TO_ADDRESSES>",
+        "use_starttls": False,
+        "use_ssl": False,
     }
+
+
+def test_read_mail_configuration_rejects_invalid_boolean_env(monkeypatch):
+    env_values = {
+        configuration.MAIL_ENV_MAP["smtp_server"]: "smtp.example.com",
+        configuration.MAIL_ENV_MAP["smtp_port"]: "465",
+        configuration.MAIL_ENV_MAP["username"]: "user",
+        configuration.MAIL_ENV_MAP["password"]: "secret",
+        configuration.MAIL_ENV_MAP["from_addr"]: "from@example.com",
+        configuration.MAIL_ENV_MAP["to_addrs"]: "to@example.com",
+        configuration.MAIL_ENV_MAP["use_starttls"]: "maybe",
+        configuration.MAIL_ENV_MAP["use_ssl"]: "false",
+    }
+
+    for key, value in env_values.items():
+        monkeypatch.setenv(key, value)
+
+    with pytest.raises(ValueError, match="use_starttls"):
+        configuration.read_mail_configuration()

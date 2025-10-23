@@ -154,6 +154,11 @@ def send_email(subject: str, body: str, recipients=None):
     password = mailconfig['password']
     from_addr = mailconfig['from_addr']
     to_addrs = mailconfig['to_addrs']
+    use_starttls = mailconfig.get('use_starttls', False)
+    use_ssl = mailconfig.get('use_ssl', False)
+
+    if use_starttls and use_ssl:
+        raise ValueError(_translate("邮件配置 use_starttls 与 use_ssl 不能同时启用"))
 
     _, send_to_list = _normalize_recipients(recipients, to_addrs)
     display_from = _format_address(from_addr)
@@ -176,9 +181,12 @@ def send_email(subject: str, body: str, recipients=None):
     #         message.attach(attachment)
 
     # Connect to SMTP server and send message
+    smtp_factory = smtplib.SMTP_SSL if use_ssl else smtplib.SMTP
+
     try:
-        with smtplib.SMTP(smtp_server, smtp_port) as server:
-            server.starttls()
+        with smtp_factory(smtp_server, smtp_port) as server:
+            if use_starttls:
+                server.starttls()
             server.login(username, password)
             server.sendmail(transmit_from, transmit_to, message.as_string())
     except smtplib.SMTPAuthenticationError:
