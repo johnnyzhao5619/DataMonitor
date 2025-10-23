@@ -219,6 +219,29 @@ TEMPLATE_DEFAULTS: Dict[str, Dict[str, TemplateResource]] = {
 }
 
 
+def _materialise_template_defaults(language: str) -> Dict[str, Dict[str, str]]:
+    """将 ``TEMPLATE_DEFAULTS`` 渲染为指定语言的纯文本模版。"""
+
+    language_code = _validate_language_code(language)
+    resolved: Dict[str, Dict[str, str]] = {}
+    for category, entries in TEMPLATE_DEFAULTS.items():
+        category_key = category.strip()
+        if not category_key:
+            continue
+        rendered: Dict[str, str] = {}
+        for key, resource in entries.items():
+            key_name = key.strip()
+            if not key_name:
+                continue
+            if isinstance(resource, TemplateResource):
+                rendered[key_name] = _resolve_template_resource(resource, language_code)
+            else:  # pragma: no cover - 为向后兼容保留
+                rendered[key_name] = str(resource)
+        if rendered:
+            resolved[category_key] = rendered
+    return resolved
+
+
 class TemplateManager:
     """负责加载与渲染通知模版。"""
 
@@ -518,19 +541,83 @@ def get_config_directory() -> Path:
 
     return Path(get_logdir()).resolve() / "Config"
 
+
+def _ensure_templates_file(config_dir: Path) -> bool:
+    """确保模版配置文件存在。
+
+    返回值指示是否创建了新的示例模版文件。
+    """
+
+    templates_path = config_dir / TEMPLATE_CONFIG_NAME
+    if templates_path.exists():
+        return False
+
+    config_dir.mkdir(parents=True, exist_ok=True)
+
+    parser = configparser.RawConfigParser()
+    parser.optionxform = str
+
+    default_templates = _materialise_template_defaults(DEFAULT_LANGUAGE)
+    for category, entries in sorted(default_templates.items()):
+        parser.add_section(category)
+        for key, value in sorted(entries.items()):
+            parser.set(category, key, value)
+
+    for language in SUPPORTED_LANGUAGES:
+        if language == DEFAULT_LANGUAGE:
+            continue
+        language_templates = _materialise_template_defaults(language)
+        for category, entries in sorted(language_templates.items()):
+            section_name = f"{category}[{language}]"
+            parser.add_section(section_name)
+            for key, value in sorted(entries.items()):
+                parser.set(section_name, key, value)
+
+    header_lines = [
+        "; 此文件由系统自动生成，展示当前可用模版键的默认内容。",
+        f"; [类别] 节表示 {DEFAULT_LANGUAGE} 语言的默认文本。",
+        "; 若需覆盖其它语言，请新增 [类别[语言代码]] 节并复制所需键进行修改。",
+        "; 例如：在 [mail[en_US]] 中自定义邮件模版。",
+        "; 删除某个键即可回退到内置默认模版。",
+    ]
+
+    with templates_path.open("w", encoding="utf-8") as handle:
+        handle.write("\n".join(header_lines))
+        handle.write("\n\n")
+        parser.write(handle)
+
+    return True
+
 def read_monitor_list() -> List[MonitorItem]:
     global _CONFIG_TEMPLATE_CREATED
 
     config_path = _config_file_path()
+    config_dir = config_path.parent
+    config_created = False
+
     if not config_path.exists():
         try:
-            writeconfig(str(config_path.parent))
+            writeconfig(str(config_dir))
         except Exception as exc:  # pragma: no cover - 非预期错误
             LOGGER.error("初始配置生成失败: %s", exc)
             return []
 
+        config_created = True
+
+    template_created = False
+    try:
+        template_created = _ensure_templates_file(config_dir)
+    except Exception as exc:  # pragma: no cover - 防御性日志
+        LOGGER.error("模版文件生成失败: %s", exc)
+
+    if config_created:
         _CONFIG_TEMPLATE_CREATED = True
         LOGGER.info("配置文件缺失，已在 %s 生成示例模板", config_path)
+    elif template_created:
+        _CONFIG_TEMPLATE_CREATED = True
+        LOGGER.info(
+            "模版文件缺失，已在 %s 生成示例模版", config_dir / TEMPLATE_CONFIG_NAME
+        )
 
     parser, _ = _load_config_parser()
     monitorlist: List[MonitorItem] = []
@@ -1101,3 +1188,5 @@ def writeconfig(configDir: str) -> None:
 
     with config_file_path.open("w", encoding="utf-8") as config_file:
         info.write(config_file)
+
+    _ensure_templates_file(config_dir)
