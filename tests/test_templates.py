@@ -1,8 +1,23 @@
 import logging
 import sys
+import types
 from pathlib import Path
 
 import pytest
+
+if "requests" not in sys.modules:
+    dummy_requests = types.ModuleType("requests")
+
+    class _DummyRequestException(Exception):
+        pass
+
+    def _dummy_request(*args, **kwargs):  # pragma: no cover - 调试防护
+        raise NotImplementedError("requests 模块在测试环境中不可用")
+
+    dummy_requests.RequestException = _DummyRequestException
+    dummy_requests.get = _dummy_request
+    dummy_requests.post = _dummy_request
+    sys.modules["requests"] = dummy_requests
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
@@ -21,6 +36,7 @@ def reset_template_manager():
 
 def _prepare_config_dir(tmp_path: Path, monkeypatch, templates_content: str = None) -> Path:
     monkeypatch.setenv(configuration.LOG_DIR_ENV, str(tmp_path))
+    monkeypatch.setattr(configuration, "_LANGUAGE_CACHE", None, raising=False)
     config_dir = tmp_path / "Config"
     config_dir.mkdir(parents=True, exist_ok=True)
     if templates_content is not None:
@@ -103,6 +119,37 @@ def test_render_email_respects_template_override(tmp_path, monkeypatch):
 
     assert subject == "ALERT DemoService"
     assert body == "BODY 告警"
+
+
+def test_render_email_supports_per_monitor_language(tmp_path, monkeypatch):
+    templates_content = (
+        "[mail]\n"
+        "alert_subject = 默认 {service_name}\n"
+        "alert_body = 默认 {time_label}\n"
+        "[mail[en_US]]\n"
+        "alert_subject = EN {service_name}\n"
+        "alert_body = EN {time_label}\n"
+    )
+    _prepare_config_dir(tmp_path, monkeypatch, templates_content)
+    configuration.get_template_manager().reload()
+
+    default_context = _sample_context()
+    subject_default, body_default = send_email.render_email("alert", default_context)
+    assert subject_default == "默认 DemoService"
+    assert body_default == "默认 发生时间"
+
+    english_context = _sample_context(time_label="Occurred at")
+    subject_en, body_en = send_email.render_email(
+        "alert", english_context, language="en_US"
+    )
+    assert subject_en == "EN DemoService"
+    assert body_en == "EN Occurred at"
+
+    monkeypatch.setattr(configuration, "_LANGUAGE_CACHE", "en_US", raising=False)
+    configuration.get_template_manager().reload()
+    subject_global, body_global = send_email.render_email("alert", english_context)
+    assert subject_global == "EN DemoService"
+    assert body_global == "EN Occurred at"
 
 
 def test_render_template_warns_when_ini_invalid(tmp_path, monkeypatch, caplog):

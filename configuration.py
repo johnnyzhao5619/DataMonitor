@@ -53,6 +53,7 @@ class MonitorItem:
     email: Optional[str] = None
     payload: Optional[Dict[str, str]] = None
     headers: Optional[Dict[str, str]] = None
+    language: Optional[str] = None
 
     def normalised_email(self) -> Optional[str]:
         if self.email:
@@ -696,6 +697,17 @@ def _build_monitor_item(config: configparser.RawConfigParser, section_name: str)
     payload = _load_optional_payload(config, section_name)
     headers = _load_optional_headers(config, section_name)
 
+    language_value = config.get(section_name, "language", fallback=None)
+    if isinstance(language_value, str):
+        language_value = language_value.strip()
+    if language_value:
+        try:
+            language_code = _validate_language_code(language_value)
+        except ValueError as exc:
+            raise ValueError(f"{section_name}.language 配置无效：{exc}") from exc
+    else:
+        language_code = None
+
     return MonitorItem(
         name=name,
         url=url,
@@ -704,6 +716,7 @@ def _build_monitor_item(config: configparser.RawConfigParser, section_name: str)
         email=email,
         payload=payload,
         headers=headers,
+        language=language_code,
     )
 
 
@@ -1200,6 +1213,12 @@ def write_monitor_list(monitors: List[Dict[str, object]]) -> None:
 
         payload_text = _prepare_mapping_for_write(monitor.get("payload"))
         headers_text = _prepare_mapping_for_write(monitor.get("headers"))
+        language_value = monitor.get("language")
+        if language_value is not None:
+            language_text = str(language_value).strip()
+            if language_text:
+                language_code = _validate_language_code(language_text)
+                config.set(section, "language", language_code)
         if payload_text:
             config.set(section, "payload", payload_text)
         if headers_text:

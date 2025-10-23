@@ -11,7 +11,7 @@ from email.header import Header
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import formataddr, parseaddr
-from typing import Iterable, Mapping, Tuple
+from typing import Iterable, Mapping, Optional, Tuple
 
 try:
     from PyQt5 import QtCore
@@ -50,7 +50,9 @@ REQUIRED_CONTEXT_FIELDS = {
 }
 
 
-def render_email(event: str, context: Mapping[str, object]) -> Tuple[str, str]:
+def render_email(
+    event: str, context: Mapping[str, object], *, language: Optional[str] = None
+) -> Tuple[str, str]:
     """根据事件类型渲染邮件主题与正文。"""
 
     if event not in MAIL_EVENT_MAP:
@@ -65,8 +67,12 @@ def render_email(event: str, context: Mapping[str, object]) -> Tuple[str, str]:
         )
 
     mapping = MAIL_EVENT_MAP[event]
-    subject = configuration.render_template("mail", mapping["subject"], context)
-    body = configuration.render_template("mail", mapping["body"], context)
+    subject = configuration.render_template(
+        "mail", mapping["subject"], context, language=language
+    )
+    body = configuration.render_template(
+        "mail", mapping["body"], context, language=language
+    )
     return subject, body
 
 
@@ -78,7 +84,9 @@ def _normalise_timestamp(occurred_at) -> str:
     return str(occurred_at)
 
 
-def _build_notification(event: str, service_name, occurred_at) -> Tuple[str, str]:
+def _build_notification(
+    event: str, service_name, occurred_at, language: Optional[str] = None
+) -> Tuple[str, str]:
     context_defaults = _event_context_presets(event)
 
     context = {
@@ -86,15 +94,19 @@ def _build_notification(event: str, service_name, occurred_at) -> Tuple[str, str
         "event_timestamp": _normalise_timestamp(occurred_at),
         **context_defaults,
     }
-    return render_email(event, context)
+    return render_email(event, context, language=language)
 
 
-def build_outage_alert_message(service_name, occurred_at) -> Tuple[str, str]:
-    return _build_notification("alert", service_name, occurred_at)
+def build_outage_alert_message(
+    service_name, occurred_at, language: Optional[str] = None
+) -> Tuple[str, str]:
+    return _build_notification("alert", service_name, occurred_at, language)
 
 
-def build_outage_recovery_message(service_name, occurred_at) -> Tuple[str, str]:
-    return _build_notification("recovery", service_name, occurred_at)
+def build_outage_recovery_message(
+    service_name, occurred_at, language: Optional[str] = None
+) -> Tuple[str, str]:
+    return _build_notification("recovery", service_name, occurred_at, language)
 
 
 def _normalize_recipients(
