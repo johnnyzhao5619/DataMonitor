@@ -1,4 +1,6 @@
-# DataMonitor TDS
+# DataMonitor
+
+DataMonitor 是一款面向运维场景的桌面监控与通知管理工具，提供图形化配置、实时日志以及邮件告警能力。
 
 ## 界面预览与使用说明
 
