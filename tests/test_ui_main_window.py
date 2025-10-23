@@ -22,6 +22,8 @@ from monitoring.service import parse_network_address as service_parse_network_ad
 from ui.components.navigation import NavigationBar
 from ui.views.configuration import ConfigWizard
 
+import controllers.main_window as main_window_module
+
 
 @pytest.mark.qt
 def test_configuration_wizard_round_trip(qtbot, tmp_path, monkeypatch):
@@ -61,6 +63,43 @@ def test_configuration_wizard_round_trip(qtbot, tmp_path, monkeypatch):
     assert saved["email"] == "ops@example.com"
 
     assert window.ui.contentStack.currentIndex() == window.ui.monitor_view_index
+
+
+@pytest.mark.qt
+def test_toggle_stop_only_halts_monitoring(qtbot, monkeypatch):
+    window = toolsetWindow()
+    qtbot.addWidget(window)
+
+    class DummyScheduler:
+        def __init__(self) -> None:
+            self.stopped = False
+
+        def stop(self) -> None:
+            self.stopped = True
+
+    dummy_scheduler = DummyScheduler()
+    window.dashboard._scheduler = dummy_scheduler
+
+    quit_calls = {"count": 0}
+
+    def track_quit() -> None:
+        quit_calls["count"] += 1
+
+    monkeypatch.setattr(
+        main_window_module.QtWidgets.QApplication,
+        "quit",
+        staticmethod(track_quit),
+        raising=False,
+    )
+
+    window._on_toggle_monitoring()
+    QtWidgets.QApplication.processEvents()
+
+    assert dummy_scheduler.stopped is True
+    assert window.dashboard._scheduler is None
+    qtbot.waitUntil(lambda: "启动" in window.ui.toggleMonitoringButton.text(), timeout=1000)
+    assert "待命" in window.ui.runStatusIndicator.text()
+    assert quit_calls["count"] == 0
 
 
 @pytest.mark.qt
