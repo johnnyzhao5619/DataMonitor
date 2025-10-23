@@ -1,10 +1,20 @@
 import logging
 import smtplib
 import sys
+import types
 from email import message_from_string
 from email.header import decode_header, make_header
 from email.utils import getaddresses
 from pathlib import Path
+
+requests_stub = types.ModuleType("requests")
+requests_stub.RequestException = Exception
+requests_stub.Timeout = Exception
+requests_stub.ConnectionError = Exception
+requests_stub.get = None
+requests_stub.post = None
+
+sys.modules.setdefault("requests", requests_stub)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
@@ -143,6 +153,25 @@ def test_send_email_supports_utf8_headers(monkeypatch):
     payload_part = parsed.get_payload()[0]
     assert payload_part.get_content_charset() == "utf-8"
     assert payload_part.get_payload(decode=True).decode("utf-8") == body
+
+
+def test_build_outage_messages_localized_in_chinese(monkeypatch):
+    from monitoring import send_email
+
+    template_manager = configuration.TemplateManager()
+    monkeypatch.setattr(configuration, "get_template_manager", lambda: template_manager)
+    monkeypatch.setattr(configuration, "_LANGUAGE_CACHE", "zh_CN", raising=False)
+
+    template_manager.reload()
+
+    service_name = "示例服务"
+    occurred_at = "2024-01-02 03:04:05"
+
+    alert_subject, _ = send_email.build_outage_alert_message(service_name, occurred_at)
+    recovery_subject, _ = send_email.build_outage_recovery_message(service_name, occurred_at)
+
+    assert alert_subject == f"故障告警 | {service_name}"
+    assert recovery_subject == f"故障恢复 | {service_name}"
 
 
 def test_send_email_uses_ssl_when_configured(monkeypatch):
