@@ -250,7 +250,7 @@ def test_monitor_requests_refresh_timeout_after_configuration_reload(
 ):
     monkeypatch.delenv(configuration.REQUEST_TIMEOUT_ENV, raising=False)
 
-    config_root = tmp_path / "APIMonitor"
+    config_root = tmp_path / configuration.APPLICATION_HOME_NAME
     config_dir = config_root / "Config"
     config_dir.mkdir(parents=True)
     config_file = config_dir / "Config.ini"
@@ -529,7 +529,7 @@ def test_monitor_server_uses_timeout_from_config_file(
 ):
     monkeypatch.delenv(configuration.REQUEST_TIMEOUT_ENV, raising=False)
 
-    config_root = tmp_path / "APIMonitor"
+    config_root = tmp_path / configuration.APPLICATION_HOME_NAME
     (config_root / "Config").mkdir(parents=True)
     config_file = config_root / "Config" / "Config.ini"
     config_file.write_text("[Request]\ntimeout = 3.25\n", encoding="utf-8")
