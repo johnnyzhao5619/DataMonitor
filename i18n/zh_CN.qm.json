@@ -72,6 +72,9 @@
       "输入时区": "输入时区",
       "配置已保存": "配置已保存"
     },
+    "MainWindowUI": {
+      "Reports and alerts view under construction. Stay tuned!": "报表与告警视图建设中，敬请期待"
+    },
     "MonitorDashboard": {
       "UTC时间 UTC Time": "UTC时间 UTC Time",
       "实时日志 Live Feed": "实时日志 Live Feed",

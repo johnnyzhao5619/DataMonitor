@@ -242,7 +242,7 @@ class MainWindowUI(QtCore.QObject):
             configuration_page.retranslate_ui()
 
         self.reportPlaceholderLabel.setText(
-            self.tr("报表与告警视图建设中，敬请期待")
+            self.tr("Reports and alerts view under construction. Stay tuned!")
         )
 
 
