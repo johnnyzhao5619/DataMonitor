@@ -67,6 +67,9 @@ DEFAULT_LANGUAGE = "zh_CN"
 
 PREFERENCES_SECTION = "Preferences"
 THEME_OPTION = "theme"
+THEME_DISPLAY_NAME_OPTION = "theme_display_name"
+THEME_DESCRIPTION_OPTION = "theme_description"
+THEME_HIGH_CONTRAST_OPTION = "theme_high_contrast"
 TIMEZONE_SECTION = "TimeZone"
 TIMEZONE_OPTION = "timezone"
 
@@ -777,17 +780,49 @@ def get_preferences() -> Dict[str, Optional[str]]:
     parser, _ = _load_config_parser()
 
     theme_value: Optional[str] = None
+    theme_display: Optional[str] = None
+    theme_description: Optional[str] = None
+    theme_high_contrast = False
     if parser.has_section(PREFERENCES_SECTION):
         raw_theme = parser.get(PREFERENCES_SECTION, THEME_OPTION, fallback=None)
         if raw_theme is not None:
             stripped = raw_theme.strip()
             theme_value = stripped or None
+        raw_display = parser.get(
+            PREFERENCES_SECTION, THEME_DISPLAY_NAME_OPTION, fallback=None
+        )
+        if raw_display is not None:
+            stripped = raw_display.strip()
+            theme_display = stripped or None
+        raw_description = parser.get(
+            PREFERENCES_SECTION, THEME_DESCRIPTION_OPTION, fallback=None
+        )
+        if raw_description is not None:
+            stripped = raw_description.strip()
+            theme_description = stripped or None
+        raw_contrast = parser.get(
+            PREFERENCES_SECTION, THEME_HIGH_CONTRAST_OPTION, fallback=None
+        )
+        if raw_contrast is not None:
+            theme_high_contrast = _parse_bool(raw_contrast)
 
     return {
         "theme": theme_value,
+        "theme_display_name": theme_display,
+        "theme_description": theme_description,
+        "theme_high_contrast": theme_high_contrast,
         "language": get_language(),
         "timezone": get_timezone(),
     }
+
+
+def _parse_bool(value: object) -> bool:
+    if value is None:
+        return False
+    if isinstance(value, bool):
+        return value
+    text = str(value).strip().lower()
+    return text in {"1", "true", "yes", "on"}
 
 
 def set_preferences(preferences: Mapping[str, object]) -> None:
@@ -796,6 +831,37 @@ def set_preferences(preferences: Mapping[str, object]) -> None:
 
     parser, config_path = _load_config_parser(ensure_dir=True)
     changed = False
+
+    def _remove_preference_option(option: str) -> None:
+        nonlocal changed
+        if not parser.has_section(PREFERENCES_SECTION):
+            return
+        removed = parser.remove_option(PREFERENCES_SECTION, option)
+        if removed:
+            changed = True
+            if not parser.items(PREFERENCES_SECTION):
+                parser.remove_section(PREFERENCES_SECTION)
+
+    def _set_text_option(option: str, value: object) -> None:
+        nonlocal changed
+        if value is None:
+            _remove_preference_option(option)
+            return
+        text = str(value).strip()
+        if not text:
+            _remove_preference_option(option)
+            return
+        if _set_config_value(parser, PREFERENCES_SECTION, option, text):
+            changed = True
+
+    def _set_bool_option(option: str, value: object) -> None:
+        nonlocal changed
+        if value is None:
+            _remove_preference_option(option)
+            return
+        text = "true" if _parse_bool(value) else "false"
+        if _set_config_value(parser, PREFERENCES_SECTION, option, text):
+            changed = True
 
     language_code: Optional[str] = None
     previous_language: Optional[str] = None
@@ -819,12 +885,21 @@ def set_preferences(preferences: Mapping[str, object]) -> None:
             if _set_config_value(parser, PREFERENCES_SECTION, THEME_OPTION, theme_text):
                 changed = True
         else:
-            if parser.has_section(PREFERENCES_SECTION):
-                removed = parser.remove_option(PREFERENCES_SECTION, THEME_OPTION)
-                if removed and not parser.items(PREFERENCES_SECTION):
-                    parser.remove_section(PREFERENCES_SECTION)
-                if removed:
-                    changed = True
+            _remove_preference_option(THEME_OPTION)
+            _remove_preference_option(THEME_DISPLAY_NAME_OPTION)
+            _remove_preference_option(THEME_DESCRIPTION_OPTION)
+            _remove_preference_option(THEME_HIGH_CONTRAST_OPTION)
+
+    if "theme_display_name" in preferences:
+        _set_text_option(THEME_DISPLAY_NAME_OPTION, preferences["theme_display_name"])
+
+    if "theme_description" in preferences:
+        _set_text_option(THEME_DESCRIPTION_OPTION, preferences["theme_description"])
+
+    if "theme_high_contrast" in preferences:
+        _set_bool_option(
+            THEME_HIGH_CONTRAST_OPTION, preferences["theme_high_contrast"]
+        )
 
     if changed or not config_path.exists():
         _write_config_parser(parser, config_path)

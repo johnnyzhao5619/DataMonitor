@@ -329,7 +329,8 @@ def test_main_window_uses_navigation_bar(qtbot):
 
     theme_selector = window.ui.themeSelector
     assert theme_selector.count() >= 2
-    assert theme_selector.currentText() == window.controller.theme_manager.current_theme_name()
+    current_theme_name = window.controller.theme_manager.current_theme_name()
+    assert theme_selector.itemData(theme_selector.currentIndex()) == current_theme_name
     language_selector = window.ui.languageSelector
     assert isinstance(language_selector, QtWidgets.QComboBox)
     assert isinstance(window.ui.locationButton, QtWidgets.QPushButton)
