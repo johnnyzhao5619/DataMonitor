@@ -127,6 +127,9 @@ def test_get_preferences_returns_defaults(tmp_path, monkeypatch):
     prefs = configuration.get_preferences()
 
     assert prefs["theme"] is None
+    assert prefs["theme_display_name"] is None
+    assert prefs["theme_description"] is None
+    assert prefs["theme_high_contrast"] is False
     assert prefs["language"] == configuration.DEFAULT_LANGUAGE
     assert prefs["timezone"] == configuration.DEFAULT_TIMEZONE
 
@@ -135,7 +138,14 @@ def test_set_preferences_updates_values(tmp_path, monkeypatch):
     monkeypatch.setenv(configuration.LOG_DIR_ENV, str(tmp_path))
 
     configuration.set_preferences(
-        {"theme": "workspace_dark", "language": "en_US", "timezone": -5}
+        {
+            "theme": "workspace_dark",
+            "theme_display_name": "Workspace Dark",
+            "theme_description": "Dark theme designed for low-light work",
+            "theme_high_contrast": False,
+            "language": "en_US",
+            "timezone": -5,
+        }
     )
 
     config_path = tmp_path / "Config" / "Config.ini"
@@ -143,15 +153,34 @@ def test_set_preferences_updates_values(tmp_path, monkeypatch):
     parser.read(config_path)
 
     assert parser.get("Preferences", "theme") == "workspace_dark"
-    assert parser.get(configuration.LANGUAGE_SECTION, configuration.LANGUAGE_OPTION) == "en_US"
-    assert parser.get(configuration.TIMEZONE_SECTION, configuration.TIMEZONE_OPTION) == "-5"
+    assert (
+        parser.get(configuration.LANGUAGE_SECTION, configuration.LANGUAGE_OPTION)
+        == "en_US"
+    )
+    assert (
+        parser.get(configuration.TIMEZONE_SECTION, configuration.TIMEZONE_OPTION)
+        == "-5"
+    )
+    assert (
+        parser.get(configuration.PREFERENCES_SECTION, configuration.THEME_DISPLAY_NAME_OPTION)
+        == "Workspace Dark"
+    )
+    assert (
+        parser.get(configuration.PREFERENCES_SECTION, configuration.THEME_DESCRIPTION_OPTION)
+        == "Dark theme designed for low-light work"
+    )
+    assert (
+        parser.get(configuration.PREFERENCES_SECTION, configuration.THEME_HIGH_CONTRAST_OPTION)
+        == "false"
+    )
 
     prefs = configuration.get_preferences()
-    assert prefs == {
-        "theme": "workspace_dark",
-        "language": "en_US",
-        "timezone": "-5",
-    }
+    assert prefs["theme"] == "workspace_dark"
+    assert prefs["theme_display_name"] == "Workspace Dark"
+    assert prefs["theme_description"] == "Dark theme designed for low-light work"
+    assert prefs["theme_high_contrast"] is False
+    assert prefs["language"] == "en_US"
+    assert prefs["timezone"] == "-5"
 
 
 def test_set_preferences_rejects_invalid_language(tmp_path, monkeypatch):
@@ -171,7 +200,14 @@ def test_set_preferences_rejects_invalid_timezone(tmp_path, monkeypatch):
 def test_set_preferences_clears_theme(tmp_path, monkeypatch):
     monkeypatch.setenv(configuration.LOG_DIR_ENV, str(tmp_path))
 
-    configuration.set_preferences({"theme": "workspace_light"})
+    configuration.set_preferences(
+        {
+            "theme": "workspace_light",
+            "theme_display_name": "Workspace Light",
+            "theme_description": "Default light theme",
+            "theme_high_contrast": False,
+        }
+    )
     configuration.set_preferences({"theme": ""})
 
     config_path = tmp_path / "Config" / "Config.ini"
@@ -179,8 +215,20 @@ def test_set_preferences_clears_theme(tmp_path, monkeypatch):
     parser.read(config_path)
 
     assert not parser.has_option(configuration.PREFERENCES_SECTION, configuration.THEME_OPTION)
+    assert not parser.has_option(
+        configuration.PREFERENCES_SECTION, configuration.THEME_DISPLAY_NAME_OPTION
+    )
+    assert not parser.has_option(
+        configuration.PREFERENCES_SECTION, configuration.THEME_DESCRIPTION_OPTION
+    )
+    assert not parser.has_option(
+        configuration.PREFERENCES_SECTION, configuration.THEME_HIGH_CONTRAST_OPTION
+    )
     prefs = configuration.get_preferences()
     assert prefs["theme"] is None
+    assert prefs["theme_display_name"] is None
+    assert prefs["theme_description"] is None
+    assert prefs["theme_high_contrast"] is False
 
 
 def test_set_preferences_requires_mapping(tmp_path, monkeypatch):

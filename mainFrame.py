@@ -17,14 +17,17 @@ if TYPE_CHECKING:
     from ui.theme import ThemeDefinition, ThemeManager
 
 
-def _load_theme_resources() -> tuple["ThemeManager", "ThemeDefinition", "ThemeDefinition"]:
+def _load_theme_resources() -> tuple["ThemeManager", tuple["ThemeDefinition", ...]]:
     """延迟导入主题资源，兼容测试桩环境。"""
 
     theme_module = import_module("ui.theme")
     ThemeManager = getattr(theme_module, "ThemeManager")
-    light_theme = getattr(theme_module, "workspace_light")
-    dark_theme = getattr(theme_module, "workspace_dark")
-    return ThemeManager, light_theme, dark_theme
+    builtin = getattr(theme_module, "BUILTIN_THEMES", None)
+    if builtin is None:
+        light_theme = getattr(theme_module, "workspace_light")
+        dark_theme = getattr(theme_module, "workspace_dark")
+        builtin = (light_theme, dark_theme)
+    return ThemeManager, tuple(builtin)
 
 
 class _HeadlessStatusBar:
@@ -40,10 +43,11 @@ class ToolsetWindow(QtWidgets.QMainWindow):
         self.ui = MainWindowUI()
         self.ui.setup_ui(self)
 
-        ThemeManager, light_theme, dark_theme = _load_theme_resources()
+        ThemeManager, builtin_themes = _load_theme_resources()
         self.theme_manager = ThemeManager()
-        self.theme_manager.register_many((light_theme, dark_theme))
-        self.theme_manager.apply_theme(light_theme.name)
+        self.theme_manager.register_many(builtin_themes)
+        if builtin_themes:
+            self.theme_manager.apply_theme(builtin_themes[0].name)
 
         self.controller = MainWindowController(self, self.ui, self.theme_manager)
         self._headless_controller: MainWindowController | None = None

@@ -9,7 +9,7 @@ import threading
 from pathlib import Path
 from typing import Optional, Tuple, TYPE_CHECKING
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtWidgets import QInputDialog, QMessageBox
 
 import apiMonitor
@@ -24,7 +24,7 @@ from monitoring.state_machine import MonitorEvent
 from ui.main_window import MainWindowUI
 
 if TYPE_CHECKING:
-    from ui.theme import ThemeManager
+    from ui.theme import ThemeDefinition, ThemeManager
 
 
 PeriodicMonitorKey = Tuple[str, str, str]
@@ -200,16 +200,37 @@ class MainWindowController(_QObjectBase):
         names = self.theme_manager.available_themes()
         selector.blockSignals(True)
         selector.clear()
-        selector.addItems(names)
+
+        language = self._current_language or configuration.get_language()
+        for name in names:
+            theme = self.theme_manager.get_theme(name)
+            display_name = theme.metadata.display_name or name
+            display_text = (
+                self.tr("{name}（高对比）").format(name=display_name)
+                if theme.metadata.is_high_contrast
+                else display_name
+            )
+            description = theme.metadata.description_for(language)
+            selector.addItem(display_text, name)
+            index = selector.count() - 1
+            selector.setItemData(index, description, QtCore.Qt.ToolTipRole)
+            selector.setItemData(index, theme.metadata.is_high_contrast, QtCore.Qt.UserRole + 1)
 
         preferred_theme = None
         if hasattr(self, "_preferences"):
             preferred_theme = self._preferences.get("theme")
 
         current = self.theme_manager.current_theme_name()
+        applied_theme: Optional["ThemeDefinition"] = None
+        if preferred_theme and preferred_theme not in names:
+            for name in names:
+                theme = self.theme_manager.get_theme(name)
+                if theme.metadata.display_name == preferred_theme:
+                    preferred_theme = name
+                    break
         if preferred_theme and preferred_theme in names and preferred_theme != current:
             try:
-                self.theme_manager.apply_theme(preferred_theme)
+                applied_theme = self.theme_manager.apply_theme(preferred_theme)
                 current = preferred_theme
             except KeyError:
                 configuration.LOGGER.warning(
@@ -218,19 +239,23 @@ class MainWindowController(_QObjectBase):
 
         if current is None and names:
             current = names[0]
-            self.theme_manager.apply_theme(current)
+            applied_theme = self.theme_manager.apply_theme(current)
+        elif current and applied_theme is None:
+            applied_theme = self.theme_manager.get_theme(current)
 
         if current:
-            index = selector.findText(current)
+            index = selector.findData(current)
             if index >= 0:
                 selector.setCurrentIndex(index)
 
         selector.blockSignals(False)
-        selector.currentTextChanged.connect(self._on_theme_changed)
+        selector.currentIndexChanged.connect(self._on_theme_changed)
         self._refresh_theme_widgets()
 
-        if hasattr(self, "_preferences"):
-            self._preferences["theme"] = current
+        if applied_theme is None and current:
+            applied_theme = self.theme_manager.get_theme(current)
+        if applied_theme is not None:
+            self._persist_theme_preference(applied_theme)
 
     def _initialise_language_selector(self) -> None:
         selector = self.ui.languageSelector
@@ -253,20 +278,79 @@ class MainWindowController(_QObjectBase):
         if isinstance(selected_code, str) and selected_code:
             self._apply_language(selected_code, persist=False, notify=False)
 
-    def _on_theme_changed(self, name: str) -> None:
-        if not name:
+    def _persist_theme_preference(
+        self, theme: "ThemeDefinition", *, force: bool = False
+    ) -> None:
+        metadata = theme.metadata
+        display_name = metadata.display_name or theme.name
+        language = self._current_language or configuration.get_language()
+        description = metadata.description_for(language)
+        payload = {
+            "theme": theme.name,
+            "theme_display_name": display_name,
+            "theme_description": description,
+            "theme_high_contrast": metadata.is_high_contrast,
+        }
+
+        preferences = getattr(self, "_preferences", None)
+        if (
+            not force
+            and isinstance(preferences, dict)
+            and preferences.get("theme") == payload["theme"]
+            and preferences.get("theme_display_name") == payload["theme_display_name"]
+            and preferences.get("theme_description") == payload["theme_description"]
+            and preferences.get("theme_high_contrast") == payload["theme_high_contrast"]
+        ):
+            return
+
+        configuration.set_preferences(payload)
+        if isinstance(preferences, dict):
+            preferences.update(payload)
+
+    def _display_theme_name(self, theme: "ThemeDefinition") -> str:
+        display_name = theme.metadata.display_name or theme.name
+        if theme.metadata.is_high_contrast:
+            return self.tr("{name}（高对比）").format(name=display_name)
+        return display_name
+
+    def _update_theme_selector_metadata(self) -> None:
+        selector = self.ui.themeSelector
+        language = self._current_language or configuration.get_language()
+        for index in range(selector.count()):
+            name = selector.itemData(index)
+            if not isinstance(name, str) or not name:
+                continue
+            theme = self.theme_manager.get_theme(name)
+            selector.setItemText(index, self._display_theme_name(theme))
+            selector.setItemData(
+                index,
+                theme.metadata.description_for(language),
+                QtCore.Qt.ToolTipRole,
+            )
+            selector.setItemData(
+                index,
+                theme.metadata.is_high_contrast,
+                QtCore.Qt.UserRole + 1,
+            )
+
+    def _on_theme_changed(self, index: int) -> None:
+        name = self.ui.themeSelector.itemData(index)
+        if not isinstance(name, str) or not name:
             return
 
         previous = self.theme_manager.current_theme_name()
         if previous != name:
-            self.theme_manager.apply_theme(name)
+            theme = self.theme_manager.apply_theme(name)
+        else:
+            theme = self.theme_manager.get_theme(name)
 
         self._refresh_theme_widgets()
-        configuration.set_preferences({"theme": name})
-        if hasattr(self, "_preferences"):
-            self._preferences["theme"] = name
+        self._persist_theme_preference(theme, force=True)
         self.status.showMessage(
-            self.tr('已切换至主题: {name}').format(name=name), 3000
+            self.tr('已切换至主题: {name}').format(
+                name=self._display_theme_name(theme)
+            ),
+            3000,
         )
 
     def _on_language_changed(self, index: int) -> None:
@@ -336,6 +420,10 @@ class MainWindowController(_QObjectBase):
         self._refresh_language_items()
         self.ui.update_monitoring_controls(not self.switch_status)
         self._refresh_theme_widgets()
+        self._update_theme_selector_metadata()
+        current_theme = self.theme_manager.current_theme()
+        if current_theme is not None:
+            self._persist_theme_preference(current_theme, force=True)
         self._update_timezone_display()
 
         if notify:
@@ -360,8 +448,16 @@ class MainWindowController(_QObjectBase):
             "Ctrl+2": "configuration",
             "Ctrl+3": "reports",
         }
+        try:
+            from PyQt5 import QtGui as _QtGui  # type: ignore
+        except Exception:  # pragma: no cover - 测试桩环境不提供 QtGui
+            _QtGui = None
+        key_sequence = getattr(_QtGui, "QKeySequence", None)
         for sequence, nav_id in mapping.items():
-            shortcut = QtWidgets.QShortcut(QtGui.QKeySequence(sequence), self.window)
+            sequence_value = (
+                key_sequence(sequence) if callable(key_sequence) else sequence
+            )
+            shortcut = QtWidgets.QShortcut(sequence_value, self.window)
             shortcut.setContext(QtCore.Qt.ApplicationShortcut)
             shortcut.activated.connect(lambda _checked=False, value=nav_id: self._handle_navigation_request(value))
             shortcuts.append(shortcut)
