@@ -152,11 +152,7 @@ class MonitorScheduler:
             if strategy is None:
                 raise ValueError(f"未注册监控类型 {monitor.monitor_type}")
 
-        key = self._monitor_key(monitor)
-        state_machine = self._state_machines.setdefault(
-            key,
-            MonitorStateMachine(monitor, self._templates),
-        )
+        key, state_machine = self._ensure_state_machine(monitor)
 
         try:
             success = bool(strategy.run(monitor))
@@ -174,11 +170,7 @@ class MonitorScheduler:
         monitor: configuration.MonitorItem,
         strategy: MonitorStrategy,
     ) -> None:
-        key = self._monitor_key(monitor)
-        state_machine = self._state_machines.setdefault(
-            key,
-            MonitorStateMachine(monitor, self._templates),
-        )
+        key, state_machine = self._ensure_state_machine(monitor)
 
         try:
             while not self._stop_event.is_set():
@@ -204,7 +196,39 @@ class MonitorScheduler:
     def _monitor_key(self, monitor: configuration.MonitorItem) -> Hashable:
         """生成用于缓存状态机的可哈希键。"""
 
-        return id(monitor)
+        return (
+            monitor.name,
+            monitor.url,
+            monitor.monitor_type.upper(),
+        )
+
+    def _ensure_state_machine(
+        self, monitor: configuration.MonitorItem
+    ) -> tuple[Hashable, MonitorStateMachine]:
+        key = self._monitor_key(monitor)
+        state_machine = self._state_machines.get(key)
+        if state_machine is None:
+            state_machine = MonitorStateMachine(monitor, self._templates)
+            self._state_machines[key] = state_machine
+        else:
+            state_machine.update_monitor(monitor)
+        return key, state_machine
+
+    def prune_state_machines(
+        self, monitors: Iterable[configuration.MonitorItem]
+    ) -> None:
+        """移除已经不在活动集合中的状态机。"""
+
+        active_keys = {self._monitor_key(monitor) for monitor in monitors}
+        if not active_keys:
+            self._state_machines.clear()
+            return
+
+        stale_keys = [
+            key for key in list(self._state_machines) if key not in active_keys
+        ]
+        for key in stale_keys:
+            self._state_machines.pop(key, None)
 
     def _now(self) -> tuple[_dt.datetime, _dt.datetime]:
         utc_now = self._clock()

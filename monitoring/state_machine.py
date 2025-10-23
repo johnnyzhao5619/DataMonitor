@@ -112,6 +112,17 @@ class MonitorStateMachine:
         self._templates = templates
         self._last_success = True
 
+    @property
+    def monitor(self) -> MonitorItem:
+        """返回当前绑定的监控项。"""
+
+        return self._monitor
+
+    def update_monitor(self, monitor: MonitorItem) -> None:
+        """更新状态机绑定的监控项信息。"""
+
+        self._monitor = monitor
+
     def transition(
         self,
         success: bool,

@@ -574,3 +574,45 @@ def test_scheduler_logs_notification_exception(caplog):
         and monitor.name in record.message
         for record in caplog.records
     )
+
+
+def test_scheduler_reuses_state_machine_for_repeated_cycles(monkeypatch):
+    monkeypatch.setattr(logRecorder, "record", lambda action, detail: None)
+    monkeypatch.setattr(logRecorder, "saveToFile", lambda row, name: None)
+
+    scheduler = MonitorScheduler(
+        event_handler=lambda event: None,
+        timezone_getter=lambda: 0,
+        clock=lambda: datetime.datetime(2023, 1, 1, 0, 0, 0),
+    )
+
+    sequence = SequenceStrategy([True, False, False, True])
+
+    def build_monitor(index: int) -> configuration.MonitorItem:
+        return configuration.MonitorItem(
+            name="PeriodicService",
+            url="http://example.com/api",
+            monitor_type="GET",
+            interval=index,
+            email=f"ops+{index}@example.com",
+        )
+
+    statuses = []
+    machine_sizes = []
+    for idx in range(4):
+        monitor = build_monitor(idx)
+        event = scheduler.run_single_cycle(monitor, strategy=sequence)
+        statuses.append(event.status)
+        machine_sizes.append(len(scheduler._state_machines))
+        assert event.monitor is monitor
+
+    assert statuses == [
+        MonitorState.HEALTHY,
+        MonitorState.OUTAGE,
+        MonitorState.OUTAGE_ONGOING,
+        MonitorState.RECOVERED,
+    ]
+    assert all(size == 1 for size in machine_sizes)
+
+    scheduler.prune_state_machines([])
+    assert scheduler._state_machines == {}
