@@ -228,6 +228,7 @@ class MainWindowController(QtCore.QObject):
             self.ui.show_monitor_page()
 
     def _reload_monitors(self) -> None:
+        configuration.get_template_manager().reload()
         monitors = configuration.read_monitor_list()
         self.ui.configWizard.load_monitors(monitors)
         if configuration.consume_config_template_created_flag():

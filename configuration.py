@@ -638,6 +638,9 @@ def read_monitor_list() -> List[MonitorItem]:
 
         monitorlist.append(monitor)
 
+    if config_created or template_created:
+        get_template_manager().reload()
+
     return monitorlist
 
 

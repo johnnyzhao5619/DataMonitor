@@ -200,6 +200,32 @@ def test_read_monitor_list_recovers_missing_template(tmp_path, monkeypatch, capl
 
     _assert_template_file_matches_defaults(template_path)
 
+
+def test_render_template_refreshes_after_manual_update(tmp_path, monkeypatch):
+    monkeypatch.setenv(configuration.LOG_DIR_ENV, str(tmp_path))
+    config_dir = tmp_path / "Config"
+    configuration.writeconfig(str(config_dir))
+    template_path = config_dir / configuration.TEMPLATE_CONFIG_NAME
+
+    configuration.get_template_manager().reload()
+    original_value = configuration.render_template("log", "csv_header", {})
+
+    parser = configparser.RawConfigParser()
+    parser.optionxform = str
+    parser.read(template_path, encoding="utf-8")
+    updated_value = "Timestamp,Service,Type,url,Interval,Code,Status"
+    parser.set("log", "csv_header", updated_value)
+    with template_path.open("w", encoding="utf-8") as handle:
+        parser.write(handle)
+
+    configuration.get_template_manager().reload()
+    configuration.read_monitor_list()
+    refreshed_value = configuration.render_template("log", "csv_header", {})
+
+    assert refreshed_value == updated_value
+    assert refreshed_value != original_value
+
+
 def test_get_preferences_returns_defaults(tmp_path, monkeypatch):
     monkeypatch.setenv(configuration.LOG_DIR_ENV, str(tmp_path))
 
