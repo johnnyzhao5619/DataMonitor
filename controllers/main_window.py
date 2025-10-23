@@ -204,12 +204,7 @@ class MainWindowController(_QObjectBase):
         language = self._current_language or configuration.get_language()
         for name in names:
             theme = self.theme_manager.get_theme(name)
-            display_name = theme.metadata.display_name or name
-            display_text = (
-                self.tr("{name}（高对比）").format(name=display_name)
-                if theme.metadata.is_high_contrast
-                else display_name
-            )
+            display_text = self._display_theme_name(theme)
             description = theme.metadata.description_for(language)
             selector.addItem(display_text, name)
             index = selector.count() - 1
@@ -308,10 +303,11 @@ class MainWindowController(_QObjectBase):
             preferences.update(payload)
 
     def _display_theme_name(self, theme: "ThemeDefinition") -> str:
-        display_name = theme.metadata.display_name or theme.name
+        base_name = theme.metadata.display_name or theme.name
+        translated = QtCore.QCoreApplication.translate("Theme", base_name)
         if theme.metadata.is_high_contrast:
-            return self.tr("{name}（高对比）").format(name=display_name)
-        return display_name
+            return self.tr("{name}（高对比）").format(name=translated)
+        return translated
 
     def _update_theme_selector_metadata(self) -> None:
         selector = self.ui.themeSelector
@@ -370,9 +366,10 @@ class MainWindowController(_QObjectBase):
 
     def _translation_path(self, code: str) -> Optional[Path]:
         base_dir = Path(__file__).resolve().parents[1] / "i18n"
-        candidate = base_dir / f"{code}.qm"
-        if candidate.is_file():
-            return candidate
+        for filename in (f"{code}.qm.json", f"{code}.json", f"{code}.qm"):
+            candidate = base_dir / filename
+            if candidate.is_file():
+                return candidate
         return None
 
     def _apply_language(
@@ -425,6 +422,7 @@ class MainWindowController(_QObjectBase):
         if current_theme is not None:
             self._persist_theme_preference(current_theme, force=True)
         self._update_timezone_display()
+        configuration.get_template_manager().reload()
 
         if notify:
             self.status.showMessage(

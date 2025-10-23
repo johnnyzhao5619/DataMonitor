@@ -1,0 +1,119 @@
+{
+  "language": "en_US",
+  "messages": {
+    "ConfigWizard": {
+      " 秒": " s",
+      "(未命名)": "(Unnamed)",
+      "Headers": "Headers",
+      "Payload": "Payload",
+      "Subject": "Subject",
+      "{label} 无法解析: {error}": "Unable to parse {label}: {error}",
+      "{name} [{mtype}]": "{name} [{mtype}]",
+      "保存": "Save",
+      "删除": "Delete",
+      "可选，JSON 或 key=value 格式": "Optional, JSON or key=value format",
+      "可选，支持逗号分隔多个邮箱": "Optional, comma-separated email addresses",
+      "名称 Name": "Name",
+      "告警 Alert": "Alert",
+      "周期 Interval": "Interval",
+      "在左侧选择监控项，可新增、删除或修改配置，保存后立即写入配置文件。": "Select a monitor on the left to add, remove, or update settings. Saved changes are written to the configuration immediately.",
+      "地址 URL": "URL",
+      "恢复 Recovery": "Recovery",
+      "恢复配置": "Reload",
+      "新增": "Add",
+      "新监控项": "New Monitor",
+      "未命名服务": "Unnamed Service",
+      "监控项 {index} URL 不能为空": "Monitor {index} requires a URL",
+      "监控项 {index} 名称不能为空": "Monitor {index} requires a name",
+      "监控项 {index} 的通知邮箱格式不正确": "Monitor {index} email format is invalid",
+      "监控项 {index} 类型必须为 {types} 之一": "Monitor {index} must use one of {types}",
+      "监控项 {index} 轮询周期必须大于 0": "Monitor {index} interval must be greater than 0",
+      "类型 Type": "Type",
+      "通知邮箱": "Notification Email",
+      "通知预览 Notification Preview": "Notification Preview",
+      "配置向导 Configuration Wizard": "Configuration Wizard"
+    },
+    "Email": {
+      "SMTP 端口配置必须为整数": "SMTP port must be an integer",
+      "SMTP 身份验证失败：": "SMTP authentication failed:",
+      "SMTP 通信异常：": "SMTP communication error:",
+      "发生时间": "Occurred at",
+      "发生未知错误：": "An unknown error occurred:",
+      "告警": "Alert",
+      "恢复": "Recovery",
+      "恢复时间": "Recovered at",
+      "收件人地址不能为空": "Recipient addresses cannot be empty",
+      "收件人必须为字符串或可迭代对象": "Recipients must be a string or an iterable",
+      "未知的邮件事件类型：{event}": "Unknown email event type: {event}",
+      "未配置任何收件人地址": "No recipient addresses configured",
+      "监控检测到服务不可达": "Monitoring detected that the service is unreachable",
+      "监控检测到服务恢复至正常状态": "Monitoring detected that the service has returned to normal",
+      "邮件模版缺少必要字段：{fields}": "Email template missing required fields: {fields}"
+    },
+    "MainWindowController": {
+      ">>初始化...": ">> Initialising...",
+      ">>配置模式": ">> Configuration",
+      "English": "English",
+      "Monitor Everything v0.2": "Monitor Everything v0.2",
+      "{index}. {name} --- 类型: {monitor_type} --- 地址: {url} --- 周期: {interval}秒": "{index}. {name} --- Type: {monitor_type} --- URL: {url} --- Interval: {interval}s",
+      "保存失败": "Save Failed",
+      "保存失败: {error}": "Save failed: {error}",
+      "关闭 Close": "Stop",
+      "已切换至主题: {name}": "Switched to theme: {name}",
+      "已切换至语言: {name}": "Switched to language: {name}",
+      "未读取到有效的监控配置": "No monitor configuration found",
+      "本地时间 Local Time(时区 Time Zone: {zone})": "Local Time (Time Zone: {zone})",
+      "监控项[{name}]的周期配置无效: {value}": "Monitor '{name}' has invalid interval: {value}",
+      "监控项{monitor_name}类型 '{monitor_type}' 未被支持，URL: {url}": "Monitor {monitor_name} type '{monitor_type}' is not supported, URL: {url}",
+      "监控项配置缺少名称或地址": "Monitor configuration requires both name and URL",
+      "目前读取到{count}个监控项，分别是：": "Loaded {count} monitors:",
+      "简体中文": "Simplified Chinese",
+      "请输入所在时区(整数):": "Enter your time zone (integer):",
+      "输入时区": "Set Time Zone",
+      "配置已保存": "Configuration saved"
+    },
+    "MonitorDashboard": {
+      "UTC时间 UTC Time": "UTC Time",
+      "实时日志 Live Feed": "Live Feed",
+      "本地时间 Local Time": "Local Time"
+    },
+    "MonitorState": {
+      ">>>运行中...": ">>> Running...",
+      "异常": "Outage",
+      "恢复": "Recovered",
+      "持续异常": "Ongoing outage",
+      "服务异常": "Service outage",
+      "服务恢复": "Service recovered",
+      "服务持续异常": "Service still failing",
+      "服务正常": "Service healthy",
+      "正常": "Healthy"
+    },
+    "NavigationBar": {
+      "Monitor Center": "Monitor Center",
+      "主题 Theme": "Theme",
+      "时区 Time Zone": "Time Zone",
+      "监控 Monitor": "Monitor",
+      "语言 Language": "Language",
+      "配置 Configuration": "Configuration"
+    },
+    "Template.log": {
+      ">>>{event_timestamp}: {service_name}{status_label}": ">>>{event_timestamp}: {service_name}{status_label}",
+      ">>{log_timestamp}(Local Time)----------------------------------------------\n>>Action:{action}\n{details}": ">>{log_timestamp}(Local Time)----------------------------------------------\n>>Action:{action}\n{details}",
+      "Time,API,Type,url,Interval,Code,Status": "Time,API,Type,url,Interval,Code,Status",
+      "{service_name} --- Type: {monitor_type} --- URL: {url} --- Interval: {interval}s": "{service_name} --- Type: {monitor_type} --- URL: {url} --- Interval: {interval}s"
+    },
+    "Template.mail": {
+      "Outage Alert | {service_name}": "Outage Alert | {service_name}",
+      "Outage Recovery | {service_name}": "Outage Recovery | {service_name}",
+      "Status: {status_action}\nService: {service_name}\nDetails: {event_description}\n{time_label}: {event_timestamp}": "Status: {status_action}\nService: {service_name}\nDetails: {event_description}\n{time_label}: {event_timestamp}"
+    },
+    "Template.ui": {
+      "Time: {event_timestamp} --> Status: {service_name}{status_label}": "Time: {event_timestamp} --> Status: {service_name}{status_label}"
+    },
+    "Theme": {
+      "High Contrast": "High Contrast",
+      "Workspace Dark": "Workspace Dark",
+      "Workspace Light": "Workspace Light"
+    }
+  }
+}

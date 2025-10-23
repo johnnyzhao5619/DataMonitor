@@ -1,0 +1,716 @@
+{
+  "languages": [
+    "en_US",
+    "zh_CN"
+  ],
+  "contexts": [
+    {
+      "name": "ConfigWizard",
+      "messages": [
+        {
+          "source": " 秒",
+          "translations": {
+            "en_US": " s",
+            "zh_CN": " 秒"
+          }
+        },
+        {
+          "source": "(未命名)",
+          "translations": {
+            "en_US": "(Unnamed)",
+            "zh_CN": "(未命名)"
+          }
+        },
+        {
+          "source": "Headers",
+          "translations": {
+            "en_US": "Headers",
+            "zh_CN": "Headers"
+          }
+        },
+        {
+          "source": "Payload",
+          "translations": {
+            "en_US": "Payload",
+            "zh_CN": "Payload"
+          }
+        },
+        {
+          "source": "Subject",
+          "translations": {
+            "en_US": "Subject",
+            "zh_CN": "Subject"
+          }
+        },
+        {
+          "source": "{label} 无法解析: {error}",
+          "translations": {
+            "en_US": "Unable to parse {label}: {error}",
+            "zh_CN": "{label} 无法解析: {error}"
+          }
+        },
+        {
+          "source": "{name} [{mtype}]",
+          "translations": {
+            "en_US": "{name} [{mtype}]",
+            "zh_CN": "{name} [{mtype}]"
+          }
+        },
+        {
+          "source": "保存",
+          "translations": {
+            "en_US": "Save",
+            "zh_CN": "保存"
+          }
+        },
+        {
+          "source": "删除",
+          "translations": {
+            "en_US": "Delete",
+            "zh_CN": "删除"
+          }
+        },
+        {
+          "source": "可选，JSON 或 key=value 格式",
+          "translations": {
+            "en_US": "Optional, JSON or key=value format",
+            "zh_CN": "可选，JSON 或 key=value 格式"
+          }
+        },
+        {
+          "source": "可选，支持逗号分隔多个邮箱",
+          "translations": {
+            "en_US": "Optional, comma-separated email addresses",
+            "zh_CN": "可选，支持逗号分隔多个邮箱"
+          }
+        },
+        {
+          "source": "名称 Name",
+          "translations": {
+            "en_US": "Name",
+            "zh_CN": "名称 Name"
+          }
+        },
+        {
+          "source": "告警 Alert",
+          "translations": {
+            "en_US": "Alert",
+            "zh_CN": "告警 Alert"
+          }
+        },
+        {
+          "source": "周期 Interval",
+          "translations": {
+            "en_US": "Interval",
+            "zh_CN": "周期 Interval"
+          }
+        },
+        {
+          "source": "在左侧选择监控项，可新增、删除或修改配置，保存后立即写入配置文件。",
+          "translations": {
+            "en_US": "Select a monitor on the left to add, remove, or update settings. Saved changes are written to the configuration immediately.",
+            "zh_CN": "在左侧选择监控项，可新增、删除或修改配置，保存后立即写入配置文件。"
+          }
+        },
+        {
+          "source": "地址 URL",
+          "translations": {
+            "en_US": "URL",
+            "zh_CN": "地址 URL"
+          }
+        },
+        {
+          "source": "恢复 Recovery",
+          "translations": {
+            "en_US": "Recovery",
+            "zh_CN": "恢复 Recovery"
+          }
+        },
+        {
+          "source": "恢复配置",
+          "translations": {
+            "en_US": "Reload",
+            "zh_CN": "恢复配置"
+          }
+        },
+        {
+          "source": "新增",
+          "translations": {
+            "en_US": "Add",
+            "zh_CN": "新增"
+          }
+        },
+        {
+          "source": "新监控项",
+          "translations": {
+            "en_US": "New Monitor",
+            "zh_CN": "新监控项"
+          }
+        },
+        {
+          "source": "未命名服务",
+          "translations": {
+            "en_US": "Unnamed Service",
+            "zh_CN": "未命名服务"
+          }
+        },
+        {
+          "source": "监控项 {index} URL 不能为空",
+          "translations": {
+            "en_US": "Monitor {index} requires a URL",
+            "zh_CN": "监控项 {index} URL 不能为空"
+          }
+        },
+        {
+          "source": "监控项 {index} 名称不能为空",
+          "translations": {
+            "en_US": "Monitor {index} requires a name",
+            "zh_CN": "监控项 {index} 名称不能为空"
+          }
+        },
+        {
+          "source": "监控项 {index} 的通知邮箱格式不正确",
+          "translations": {
+            "en_US": "Monitor {index} email format is invalid",
+            "zh_CN": "监控项 {index} 的通知邮箱格式不正确"
+          }
+        },
+        {
+          "source": "监控项 {index} 类型必须为 {types} 之一",
+          "translations": {
+            "en_US": "Monitor {index} must use one of {types}",
+            "zh_CN": "监控项 {index} 类型必须为 {types} 之一"
+          }
+        },
+        {
+          "source": "监控项 {index} 轮询周期必须大于 0",
+          "translations": {
+            "en_US": "Monitor {index} interval must be greater than 0",
+            "zh_CN": "监控项 {index} 轮询周期必须大于 0"
+          }
+        },
+        {
+          "source": "类型 Type",
+          "translations": {
+            "en_US": "Type",
+            "zh_CN": "类型 Type"
+          }
+        },
+        {
+          "source": "通知邮箱",
+          "translations": {
+            "en_US": "Notification Email",
+            "zh_CN": "通知邮箱"
+          }
+        },
+        {
+          "source": "通知预览 Notification Preview",
+          "translations": {
+            "en_US": "Notification Preview",
+            "zh_CN": "通知预览 Notification Preview"
+          }
+        },
+        {
+          "source": "配置向导 Configuration Wizard",
+          "translations": {
+            "en_US": "Configuration Wizard",
+            "zh_CN": "配置向导 Configuration Wizard"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Email",
+      "messages": [
+        {
+          "source": "SMTP 端口配置必须为整数",
+          "translations": {
+            "en_US": "SMTP port must be an integer",
+            "zh_CN": "SMTP 端口配置必须为整数"
+          }
+        },
+        {
+          "source": "SMTP 身份验证失败：",
+          "translations": {
+            "en_US": "SMTP authentication failed:",
+            "zh_CN": "SMTP 身份验证失败："
+          }
+        },
+        {
+          "source": "SMTP 通信异常：",
+          "translations": {
+            "en_US": "SMTP communication error:",
+            "zh_CN": "SMTP 通信异常："
+          }
+        },
+        {
+          "source": "发生时间",
+          "translations": {
+            "en_US": "Occurred at",
+            "zh_CN": "发生时间"
+          }
+        },
+        {
+          "source": "发生未知错误：",
+          "translations": {
+            "en_US": "An unknown error occurred:",
+            "zh_CN": "发生未知错误："
+          }
+        },
+        {
+          "source": "告警",
+          "translations": {
+            "en_US": "Alert",
+            "zh_CN": "告警"
+          }
+        },
+        {
+          "source": "恢复",
+          "translations": {
+            "en_US": "Recovery",
+            "zh_CN": "恢复"
+          }
+        },
+        {
+          "source": "恢复时间",
+          "translations": {
+            "en_US": "Recovered at",
+            "zh_CN": "恢复时间"
+          }
+        },
+        {
+          "source": "收件人地址不能为空",
+          "translations": {
+            "en_US": "Recipient addresses cannot be empty",
+            "zh_CN": "收件人地址不能为空"
+          }
+        },
+        {
+          "source": "收件人必须为字符串或可迭代对象",
+          "translations": {
+            "en_US": "Recipients must be a string or an iterable",
+            "zh_CN": "收件人必须为字符串或可迭代对象"
+          }
+        },
+        {
+          "source": "未知的邮件事件类型：{event}",
+          "translations": {
+            "en_US": "Unknown email event type: {event}",
+            "zh_CN": "未知的邮件事件类型：{event}"
+          }
+        },
+        {
+          "source": "未配置任何收件人地址",
+          "translations": {
+            "en_US": "No recipient addresses configured",
+            "zh_CN": "未配置任何收件人地址"
+          }
+        },
+        {
+          "source": "监控检测到服务不可达",
+          "translations": {
+            "en_US": "Monitoring detected that the service is unreachable",
+            "zh_CN": "监控检测到服务不可达"
+          }
+        },
+        {
+          "source": "监控检测到服务恢复至正常状态",
+          "translations": {
+            "en_US": "Monitoring detected that the service has returned to normal",
+            "zh_CN": "监控检测到服务恢复至正常状态"
+          }
+        },
+        {
+          "source": "邮件模版缺少必要字段：{fields}",
+          "translations": {
+            "en_US": "Email template missing required fields: {fields}",
+            "zh_CN": "邮件模版缺少必要字段：{fields}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "MainWindowController",
+      "messages": [
+        {
+          "source": ">>初始化...",
+          "translations": {
+            "en_US": ">> Initialising...",
+            "zh_CN": ">>初始化..."
+          }
+        },
+        {
+          "source": ">>配置模式",
+          "translations": {
+            "en_US": ">> Configuration",
+            "zh_CN": ">>配置模式"
+          }
+        },
+        {
+          "source": "English",
+          "translations": {
+            "en_US": "English",
+            "zh_CN": "English"
+          }
+        },
+        {
+          "source": "Monitor Everything v0.2",
+          "translations": {
+            "en_US": "Monitor Everything v0.2",
+            "zh_CN": "Monitor Everything v0.2"
+          }
+        },
+        {
+          "source": "{index}. {name} --- 类型: {monitor_type} --- 地址: {url} --- 周期: {interval}秒",
+          "translations": {
+            "en_US": "{index}. {name} --- Type: {monitor_type} --- URL: {url} --- Interval: {interval}s",
+            "zh_CN": "{index}. {name} --- 类型: {monitor_type} --- 地址: {url} --- 周期: {interval}秒"
+          }
+        },
+        {
+          "source": "保存失败",
+          "translations": {
+            "en_US": "Save Failed",
+            "zh_CN": "保存失败"
+          }
+        },
+        {
+          "source": "保存失败: {error}",
+          "translations": {
+            "en_US": "Save failed: {error}",
+            "zh_CN": "保存失败: {error}"
+          }
+        },
+        {
+          "source": "关闭 Close",
+          "translations": {
+            "en_US": "Stop",
+            "zh_CN": "关闭 Close"
+          }
+        },
+        {
+          "source": "已切换至主题: {name}",
+          "translations": {
+            "en_US": "Switched to theme: {name}",
+            "zh_CN": "已切换至主题: {name}"
+          }
+        },
+        {
+          "source": "已切换至语言: {name}",
+          "translations": {
+            "en_US": "Switched to language: {name}",
+            "zh_CN": "已切换至语言: {name}"
+          }
+        },
+        {
+          "source": "未读取到有效的监控配置",
+          "translations": {
+            "en_US": "No monitor configuration found",
+            "zh_CN": "未读取到有效的监控配置"
+          }
+        },
+        {
+          "source": "本地时间 Local Time(时区 Time Zone: {zone})",
+          "translations": {
+            "en_US": "Local Time (Time Zone: {zone})",
+            "zh_CN": "本地时间 Local Time(时区 Time Zone: {zone})"
+          }
+        },
+        {
+          "source": "监控项[{name}]的周期配置无效: {value}",
+          "translations": {
+            "en_US": "Monitor '{name}' has invalid interval: {value}",
+            "zh_CN": "监控项[{name}]的周期配置无效: {value}"
+          }
+        },
+        {
+          "source": "监控项{monitor_name}类型 '{monitor_type}' 未被支持，URL: {url}",
+          "translations": {
+            "en_US": "Monitor {monitor_name} type '{monitor_type}' is not supported, URL: {url}",
+            "zh_CN": "监控项{monitor_name}类型 '{monitor_type}' 未被支持，URL: {url}"
+          }
+        },
+        {
+          "source": "监控项配置缺少名称或地址",
+          "translations": {
+            "en_US": "Monitor configuration requires both name and URL",
+            "zh_CN": "监控项配置缺少名称或地址"
+          }
+        },
+        {
+          "source": "目前读取到{count}个监控项，分别是：",
+          "translations": {
+            "en_US": "Loaded {count} monitors:",
+            "zh_CN": "目前读取到{count}个监控项，分别是："
+          }
+        },
+        {
+          "source": "简体中文",
+          "translations": {
+            "en_US": "Simplified Chinese",
+            "zh_CN": "简体中文"
+          }
+        },
+        {
+          "source": "请输入所在时区(整数):",
+          "translations": {
+            "en_US": "Enter your time zone (integer):",
+            "zh_CN": "请输入所在时区(整数):"
+          }
+        },
+        {
+          "source": "输入时区",
+          "translations": {
+            "en_US": "Set Time Zone",
+            "zh_CN": "输入时区"
+          }
+        },
+        {
+          "source": "配置已保存",
+          "translations": {
+            "en_US": "Configuration saved",
+            "zh_CN": "配置已保存"
+          }
+        }
+      ]
+    },
+    {
+      "name": "MonitorDashboard",
+      "messages": [
+        {
+          "source": "UTC时间 UTC Time",
+          "translations": {
+            "en_US": "UTC Time",
+            "zh_CN": "UTC时间 UTC Time"
+          }
+        },
+        {
+          "source": "实时日志 Live Feed",
+          "translations": {
+            "en_US": "Live Feed",
+            "zh_CN": "实时日志 Live Feed"
+          }
+        },
+        {
+          "source": "本地时间 Local Time",
+          "translations": {
+            "en_US": "Local Time",
+            "zh_CN": "本地时间 Local Time"
+          }
+        }
+      ]
+    },
+    {
+      "name": "MonitorState",
+      "messages": [
+        {
+          "source": ">>>运行中...",
+          "translations": {
+            "en_US": ">>> Running...",
+            "zh_CN": ">>>运行中..."
+          }
+        },
+        {
+          "source": "异常",
+          "translations": {
+            "en_US": "Outage",
+            "zh_CN": "异常"
+          }
+        },
+        {
+          "source": "恢复",
+          "translations": {
+            "en_US": "Recovered",
+            "zh_CN": "恢复"
+          }
+        },
+        {
+          "source": "持续异常",
+          "translations": {
+            "en_US": "Ongoing outage",
+            "zh_CN": "持续异常"
+          }
+        },
+        {
+          "source": "服务异常",
+          "translations": {
+            "en_US": "Service outage",
+            "zh_CN": "服务异常"
+          }
+        },
+        {
+          "source": "服务恢复",
+          "translations": {
+            "en_US": "Service recovered",
+            "zh_CN": "服务恢复"
+          }
+        },
+        {
+          "source": "服务持续异常",
+          "translations": {
+            "en_US": "Service still failing",
+            "zh_CN": "服务持续异常"
+          }
+        },
+        {
+          "source": "服务正常",
+          "translations": {
+            "en_US": "Service healthy",
+            "zh_CN": "服务正常"
+          }
+        },
+        {
+          "source": "正常",
+          "translations": {
+            "en_US": "Healthy",
+            "zh_CN": "正常"
+          }
+        }
+      ]
+    },
+    {
+      "name": "NavigationBar",
+      "messages": [
+        {
+          "source": "Monitor Center",
+          "translations": {
+            "en_US": "Monitor Center",
+            "zh_CN": "Monitor Center"
+          }
+        },
+        {
+          "source": "主题 Theme",
+          "translations": {
+            "en_US": "Theme",
+            "zh_CN": "主题 Theme"
+          }
+        },
+        {
+          "source": "时区 Time Zone",
+          "translations": {
+            "en_US": "Time Zone",
+            "zh_CN": "时区 Time Zone"
+          }
+        },
+        {
+          "source": "监控 Monitor",
+          "translations": {
+            "en_US": "Monitor",
+            "zh_CN": "监控 Monitor"
+          }
+        },
+        {
+          "source": "语言 Language",
+          "translations": {
+            "en_US": "Language",
+            "zh_CN": "语言 Language"
+          }
+        },
+        {
+          "source": "配置 Configuration",
+          "translations": {
+            "en_US": "Configuration",
+            "zh_CN": "配置 Configuration"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Template.log",
+      "messages": [
+        {
+          "source": ">>>{event_timestamp}: {service_name}{status_label}",
+          "translations": {
+            "en_US": ">>>{event_timestamp}: {service_name}{status_label}",
+            "zh_CN": ">>>{event_timestamp}: {service_name}{status_label}"
+          }
+        },
+        {
+          "source": ">>{log_timestamp}(Local Time)----------------------------------------------\n>>Action:{action}\n{details}",
+          "translations": {
+            "en_US": ">>{log_timestamp}(Local Time)----------------------------------------------\n>>Action:{action}\n{details}",
+            "zh_CN": ">>{log_timestamp}(China Time)----------------------------------------------\n>>Action:{action}\n{details}"
+          }
+        },
+        {
+          "source": "Time,API,Type,url,Interval,Code,Status",
+          "translations": {
+            "en_US": "Time,API,Type,url,Interval,Code,Status",
+            "zh_CN": "Time,API,Type,url,Interval,Code,Status"
+          }
+        },
+        {
+          "source": "{service_name} --- Type: {monitor_type} --- URL: {url} --- Interval: {interval}s",
+          "translations": {
+            "en_US": "{service_name} --- Type: {monitor_type} --- URL: {url} --- Interval: {interval}s",
+            "zh_CN": "{service_name} --- 类型 Type: {monitor_type} --- 地址 url: {url} --- 周期 Interval: {interval}秒"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Template.mail",
+      "messages": [
+        {
+          "source": "Outage Alert | {service_name}",
+          "translations": {
+            "en_US": "Outage Alert | {service_name}",
+            "zh_CN": "Outage Alert | {service_name}"
+          }
+        },
+        {
+          "source": "Outage Recovery | {service_name}",
+          "translations": {
+            "en_US": "Outage Recovery | {service_name}",
+            "zh_CN": "Outage Recovery | {service_name}"
+          }
+        },
+        {
+          "source": "Status: {status_action}\nService: {service_name}\nDetails: {event_description}\n{time_label}: {event_timestamp}",
+          "translations": {
+            "en_US": "Status: {status_action}\nService: {service_name}\nDetails: {event_description}\n{time_label}: {event_timestamp}",
+            "zh_CN": "状态：{status_action}\n服务：{service_name}\n说明：{event_description}\n{time_label}：{event_timestamp}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Template.ui",
+      "messages": [
+        {
+          "source": "Time: {event_timestamp} --> Status: {service_name}{status_label}",
+          "translations": {
+            "en_US": "Time: {event_timestamp} --> Status: {service_name}{status_label}",
+            "zh_CN": "时间：{event_timestamp} --> 状态：{service_name}{status_label}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Theme",
+      "messages": [
+        {
+          "source": "High Contrast",
+          "translations": {
+            "en_US": "High Contrast",
+            "zh_CN": "高对比"
+          }
+        },
+        {
+          "source": "Workspace Dark",
+          "translations": {
+            "en_US": "Workspace Dark",
+            "zh_CN": "工作区（深色）"
+          }
+        },
+        {
+          "source": "Workspace Light",
+          "translations": {
+            "en_US": "Workspace Light",
+            "zh_CN": "工作区（浅色）"
+          }
+        }
+      ]
+    }
+  ]
+}
