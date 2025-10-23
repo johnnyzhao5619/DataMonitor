@@ -15,11 +15,12 @@ import sendEmail
 import threading
 
 pytest.importorskip("PyQt5")
-from PyQt5 import QtCore
+from PyQt5 import QtCore, QtWidgets
 
 from mainFrame import MainWindowController, toolsetWindow
 from monitoring.service import parse_network_address as service_parse_network_address
-from ui.main_window import ConfigWizard, NavigationBar
+from ui.components.navigation import NavigationBar
+from ui.views.configuration import ConfigWizard
 
 
 @pytest.mark.qt
@@ -319,21 +320,26 @@ def test_main_window_uses_navigation_bar(qtbot):
 
     assert isinstance(window.controller, MainWindowController)
     assert isinstance(window.ui.navigationBar, NavigationBar)
-    assert window.ui.switchButton is window.ui.navigationBar.monitorButton
-    assert window.ui.configButton is window.ui.navigationBar.configButton
-    assert window.ui.locationButton is window.ui.navigationBar.locationButton
+    assert isinstance(window.ui.toggleMonitoringButton, QtWidgets.QPushButton)
+    assert isinstance(window.ui.reloadConfigButton, QtWidgets.QPushButton)
     assert window.ui.navigationBar.monitorButton.isCheckable()
     assert window.ui.navigationBar.configButton.isCheckable()
-    assert not window.ui.navigationBar.locationButton.isCheckable()
+    assert window.ui.navigationBar.reportButton.isCheckable()
     assert window.ui.navigationBar.monitorButton.isChecked()
 
-    theme_selector = window.ui.navigationBar.themeSelector
+    theme_selector = window.ui.themeSelector
     assert theme_selector.count() >= 2
     assert theme_selector.currentText() == window.controller.theme_manager.current_theme_name()
+    language_selector = window.ui.languageSelector
+    assert isinstance(language_selector, QtWidgets.QComboBox)
+    assert isinstance(window.ui.locationButton, QtWidgets.QPushButton)
 
     window.controller.show_configuration()
     assert window.ui.navigationBar.configButton.isChecked()
     assert not window.ui.navigationBar.monitorButton.isChecked()
+
+    window.controller.show_reports()
+    assert window.ui.navigationBar.reportButton.isChecked()
 
 
 @pytest.mark.qt
@@ -356,7 +362,7 @@ def test_language_switch_updates_ui_and_templates(qtbot, tmp_path, monkeypatch):
     qtbot.waitUntil(lambda: window.controller._current_language == "en_US", timeout=2000)
 
     assert wizard.addButton.text() == "Add"
-    assert window.ui.navigationBar.languageLabel.text() == "Language"
+    assert window.ui.languageLabel.text().startswith("Language")
     assert window.ui.navigationBar.monitorButton.text() == "Monitor"
 
     context = {

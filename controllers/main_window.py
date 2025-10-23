@@ -9,7 +9,7 @@ import threading
 from pathlib import Path
 from typing import Optional, Tuple, TYPE_CHECKING
 
-from PyQt5 import QtCore, QtWidgets
+from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import QInputDialog, QMessageBox
 
 import apiMonitor
@@ -175,9 +175,10 @@ class MainWindowController(_QObjectBase):
         self._clock_timer.timeout.connect(self.update_clock)
         self._clock_timer.start(1000)
 
-        self.ui.switchButton.clicked.connect(self.start_monitor)
-        self.ui.configButton.clicked.connect(self.show_configuration)
+        self.ui.toggleMonitoringButton.clicked.connect(self.start_monitor)
+        self.ui.reloadConfigButton.clicked.connect(self.reload_configuration)
         self.ui.locationButton.clicked.connect(self.set_location)
+        self.ui.navigationRequested.connect(self._handle_navigation_request)
         self.ui.configWizard.monitorsSaved.connect(self._handle_monitors_saved)
         self.ui.configWizard.requestReload.connect(self._reload_monitors)
 
@@ -186,6 +187,8 @@ class MainWindowController(_QObjectBase):
 
         self._initialise_theme_selector()
         self._initialise_language_selector()
+
+        self._navigation_shortcuts = self._create_navigation_shortcuts()
 
         self._reload_monitors()
         self._update_timezone_display()
@@ -331,8 +334,7 @@ class MainWindowController(_QObjectBase):
 
         self.ui.retranslate_ui()
         self._refresh_language_items()
-        if not self.switch_status:
-            self.ui.switchButton.setText(self.tr('关闭 Close'))
+        self.ui.update_monitoring_controls(not self.switch_status)
         self._refresh_theme_widgets()
         self._update_timezone_display()
 
@@ -351,6 +353,28 @@ class MainWindowController(_QObjectBase):
             if isinstance(code, str) and code:
                 selector.setItemText(index, self._describe_language(code))
 
+    def _create_navigation_shortcuts(self) -> list[QtWidgets.QShortcut]:
+        shortcuts: list[QtWidgets.QShortcut] = []
+        mapping = {
+            "Ctrl+1": "monitor",
+            "Ctrl+2": "configuration",
+            "Ctrl+3": "reports",
+        }
+        for sequence, nav_id in mapping.items():
+            shortcut = QtWidgets.QShortcut(QtGui.QKeySequence(sequence), self.window)
+            shortcut.setContext(QtCore.Qt.ApplicationShortcut)
+            shortcut.activated.connect(lambda _checked=False, value=nav_id: self._handle_navigation_request(value))
+            shortcuts.append(shortcut)
+        return shortcuts
+
+    def _handle_navigation_request(self, nav_id: str) -> None:
+        if nav_id == "monitor":
+            self.ui.show_monitor_page()
+        elif nav_id == "configuration":
+            self.show_configuration()
+        elif nav_id == "reports":
+            self.show_reports()
+
     def _refresh_theme_widgets(self) -> None:
         app = QtWidgets.QApplication.instance()
         if app is None:
@@ -359,10 +383,12 @@ class MainWindowController(_QObjectBase):
         for widget in (
             self.window,
             self.ui.central_widget,
+            getattr(self.ui, "commandBar", None),
             self.ui.navigationBar,
             self.ui.contentStack,
             self.ui.monitorBrowser,
             self.ui.configWizard,
+            getattr(self.ui, "timezoneDisplay", None),
         ):
             if widget is None:
                 continue
@@ -403,11 +429,12 @@ class MainWindowController(_QObjectBase):
             self.scheduler.start(monitor_list)
 
             self.ui.show_monitor_page()
-            self.ui.switchButton.setText(self.tr('关闭 Close'))
+            self.ui.update_monitoring_controls(True)
             self.switch_status = False
         else:
             if self.scheduler:
                 self.scheduler.stop()
+            self.ui.update_monitoring_controls(False)
             QtWidgets.QApplication.quit()
 
     def perform_task(self, url, parsed_address, monitor_type, email, payload=None, *, headers=None):
@@ -448,6 +475,14 @@ class MainWindowController(_QObjectBase):
         self._reload_monitors()
         self.ui.show_configuration_page()
         self.status.showMessage(self.tr('>>配置模式'), 3000)
+
+    def show_reports(self) -> None:
+        self.ui.show_reports_page()
+        self.status.showMessage(self.tr('>>报表/告警视图预览'), 3000)
+
+    def reload_configuration(self) -> None:
+        self._reload_monitors()
+        self.status.showMessage(self.tr('配置已刷新'), 3000)
 
     def set_location(self) -> None:
         time_zone, ok = QInputDialog.getInt(
@@ -562,6 +597,8 @@ class MainWindowController(_QObjectBase):
             zone=self.time_zone
         )
         self.ui.localTimeGroupBox.setTitle(title)
+        if hasattr(self.ui, "set_timezone_hint"):
+            self.ui.set_timezone_hint(self.time_zone)
 
     # --- 时钟与日志 -----------------------------------------------------
     def update_clock(self) -> None:

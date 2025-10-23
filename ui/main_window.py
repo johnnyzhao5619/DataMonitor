@@ -1,175 +1,13 @@
-"""主界面与配置向导 UI。"""
+"""主界面与装配逻辑。"""
 from __future__ import annotations
 
-import datetime as _dt
-import json
-from dataclasses import asdict
-from typing import Dict, Iterable, List, Optional
+from typing import Optional
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5 import QtCore, QtWidgets
 
-import configuration
-import sendEmail
-
-
-class NavigationBar(QtWidgets.QFrame):
-    """遵循现代协同主题的侧边导航栏。"""
-
-    def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
-        super().__init__(parent)
-        self.setObjectName("navigationBar")
-
-        layout = QtWidgets.QVBoxLayout(self)
-        layout.setContentsMargins(18, 24, 18, 24)
-        layout.setSpacing(12)
-
-        self.titleLabel = QtWidgets.QLabel()
-        self.titleLabel.setAlignment(QtCore.Qt.AlignHCenter)
-        self.titleLabel.setProperty("role", "heading")
-        layout.addWidget(self.titleLabel)
-
-        layout.addSpacing(12)
-
-        self.monitorButton = self._create_button("", checkable=True)
-        self.configButton = self._create_button("", checkable=True)
-
-        layout.addWidget(self.monitorButton)
-        layout.addWidget(self.configButton)
-
-        layout.addStretch(1)
-
-        self.locationButton = self._create_button("", checkable=False)
-        layout.addWidget(self.locationButton)
-
-        self.themeLabel = QtWidgets.QLabel()
-        self.themeLabel.setProperty("role", "hint")
-        layout.addWidget(self.themeLabel)
-
-        self.themeSelector = QtWidgets.QComboBox()
-        self.themeSelector.setObjectName("themeSelector")
-        self.themeSelector.setSizeAdjustPolicy(QtWidgets.QComboBox.AdjustToContents)
-        layout.addWidget(self.themeSelector)
-
-        self.languageLabel = QtWidgets.QLabel()
-        self.languageLabel.setProperty("role", "hint")
-        layout.addWidget(self.languageLabel)
-
-        self.languageSelector = QtWidgets.QComboBox()
-        self.languageSelector.setObjectName("languageSelector")
-        self.languageSelector.setSizeAdjustPolicy(QtWidgets.QComboBox.AdjustToContents)
-        layout.addWidget(self.languageSelector)
-
-        self.retranslate_ui()
-
-    def set_active(self, button: QtWidgets.QPushButton) -> None:
-        for item in self._iter_nav_buttons():
-            if item.isCheckable():
-                item.setChecked(item is button)
-
-    def _iter_nav_buttons(self) -> Iterable[QtWidgets.QPushButton]:
-        return (self.monitorButton, self.configButton, self.locationButton)
-
-    def _create_button(self, text: str, *, checkable: bool) -> QtWidgets.QPushButton:
-        button = QtWidgets.QPushButton(text)
-        button.setCheckable(checkable)
-        button.setProperty("category", "navigation")
-        button.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
-        return button
-
-    def retranslate_ui(self) -> None:
-        self.titleLabel.setText(self.tr("Monitor Center"))
-        self.monitorButton.setText(self.tr("监控 Monitor"))
-        self.configButton.setText(self.tr("配置 Configuration"))
-        self.locationButton.setText(self.tr("时区 Time Zone"))
-        self.themeLabel.setText(self.tr("主题 Theme"))
-        self.languageLabel.setText(self.tr("语言 Language"))
-
-
-class MonitorDashboard(QtWidgets.QWidget):
-    """监控信息仪表盘。"""
-
-    def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
-        super().__init__(parent)
-
-        layout = QtWidgets.QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(16)
-
-        cards_row = QtWidgets.QHBoxLayout()
-        cards_row.setSpacing(16)
-        layout.addLayout(cards_row)
-
-        self.localTimeGroupBox = QtWidgets.QGroupBox()
-        self.localTimeGroupBox.setProperty("role", "card")
-        local_layout = QtWidgets.QVBoxLayout(self.localTimeGroupBox)
-        local_layout.setContentsMargins(16, 20, 16, 16)
-
-        self.localTimeLabel = QtWidgets.QLabel()
-        font = QtGui.QFont()
-        font.setPointSize(20)
-        font.setBold(True)
-        self.localTimeLabel.setFont(font)
-        local_layout.addWidget(self.localTimeLabel)
-
-        self.utcTimeGroupBox = QtWidgets.QGroupBox()
-        self.utcTimeGroupBox.setProperty("role", "card")
-        utc_layout = QtWidgets.QVBoxLayout(self.utcTimeGroupBox)
-        utc_layout.setContentsMargins(16, 20, 16, 16)
-
-        self.utcTimeLabel = QtWidgets.QLabel()
-        self.utcTimeLabel.setFont(font)
-        utc_layout.addWidget(self.utcTimeLabel)
-
-        cards_row.addWidget(self.localTimeGroupBox, 1)
-        cards_row.addWidget(self.utcTimeGroupBox, 1)
-
-        self.logCard = QtWidgets.QFrame()
-        self.logCard.setProperty("role", "card")
-        log_layout = QtWidgets.QVBoxLayout(self.logCard)
-        log_layout.setContentsMargins(16, 16, 16, 16)
-        log_layout.setSpacing(12)
-
-        self.logTitleLabel = QtWidgets.QLabel()
-        self.logTitleLabel.setProperty("role", "cardTitle")
-        log_layout.addWidget(self.logTitleLabel)
-
-        self.monitorBrowser = QtWidgets.QTextBrowser()
-        self.monitorBrowser.setMinimumHeight(320)
-        log_layout.addWidget(self.monitorBrowser)
-
-        layout.addWidget(self.logCard, 1)
-
-        self.retranslate_ui()
-
-    def retranslate_ui(self) -> None:
-        self.localTimeGroupBox.setTitle(self.tr("本地时间 Local Time"))
-        self.utcTimeGroupBox.setTitle(self.tr("UTC时间 UTC Time"))
-        self.logTitleLabel.setText(self.tr("实时日志 Live Feed"))
-
-
-class ConfigurationWorkspace(QtWidgets.QWidget):
-    """承载配置向导的卡片化工作区。"""
-
-    def __init__(self, config_wizard: QtWidgets.QWidget, parent: Optional[QtWidgets.QWidget] = None) -> None:
-        super().__init__(parent)
-
-        layout = QtWidgets.QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
-
-        card = QtWidgets.QFrame()
-        card.setProperty("role", "card")
-        card_layout = QtWidgets.QVBoxLayout(card)
-        card_layout.setContentsMargins(16, 16, 16, 16)
-        card_layout.setSpacing(0)
-        card_layout.addWidget(config_wizard)
-
-        layout.addWidget(card)
-        self._config_wizard = config_wizard
-
-    def retranslate_ui(self) -> None:
-        if hasattr(self._config_wizard, "retranslate_ui"):
-            self._config_wizard.retranslate_ui()
+from .components.navigation import NavigationBar
+from .views.configuration import ConfigWizard, ConfigurationWorkspace
+from .views.dashboard import MonitorDashboard
 
 
 class MainWindowUI(QtCore.QObject):
@@ -177,60 +15,158 @@ class MainWindowUI(QtCore.QObject):
 
     monitor_view_index = 0
     config_view_index = 1
+    report_view_index = 2
+
+    navigationRequested = QtCore.pyqtSignal(str)
 
     def __init__(self) -> None:
         super().__init__()
+        self._monitoring_active = False
+        self._timezone_offset = 0
+
         self.central_widget: Optional[QtWidgets.QWidget] = None
-        self.switchButton: QtWidgets.QPushButton
-        self.configButton: QtWidgets.QPushButton
-        self.locationButton: QtWidgets.QPushButton
-        self.themeSelector: QtWidgets.QComboBox
-        self.languageSelector: QtWidgets.QComboBox
+        self.navigationBar: NavigationBar
+        self.commandBar: QtWidgets.QFrame
+        self.runStatusIndicator: QtWidgets.QLabel
+        self.toggleMonitoringButton: QtWidgets.QPushButton
+        self.reloadConfigButton: QtWidgets.QPushButton
+        self.contentStack: QtWidgets.QStackedWidget
+        self.configWizard: ConfigWizard
         self.localTimeGroupBox: QtWidgets.QGroupBox
         self.localTimeLabel: QtWidgets.QLabel
         self.utcTimeGroupBox: QtWidgets.QGroupBox
         self.utcTimeLabel: QtWidgets.QLabel
         self.monitorBrowser: QtWidgets.QTextBrowser
-        self.contentStack: QtWidgets.QStackedWidget
-        self.configWizard: ConfigWizard
+        self.locationButton: QtWidgets.QPushButton
+        self.themeLabel: QtWidgets.QLabel
+        self.themeSelector: QtWidgets.QComboBox
+        self.languageLabel: QtWidgets.QLabel
+        self.languageSelector: QtWidgets.QComboBox
+        self.timezoneHeading: QtWidgets.QLabel
+        self.timezoneDisplay: QtWidgets.QLabel
+        self.reportPlaceholderLabel: QtWidgets.QLabel
 
     def setup_ui(self, window: QtWidgets.QMainWindow) -> None:
-        window.resize(1080, 700)
-        window.setMinimumSize(920, 600)
+        window.resize(1180, 760)
+        window.setMinimumSize(960, 640)
+
         self.central_widget = QtWidgets.QWidget(window)
         self.central_widget.setObjectName("centralWidget")
         window.setCentralWidget(self.central_widget)
 
-        shell_layout = QtWidgets.QHBoxLayout(self.central_widget)
-        shell_layout.setContentsMargins(0, 0, 0, 0)
-        shell_layout.setSpacing(0)
+        root_layout = QtWidgets.QVBoxLayout(self.central_widget)
+        root_layout.setContentsMargins(0, 0, 0, 0)
+        root_layout.setSpacing(0)
+
+        self.commandBar = QtWidgets.QFrame()
+        self.commandBar.setObjectName("commandBar")
+        command_layout = QtWidgets.QHBoxLayout(self.commandBar)
+        command_layout.setContentsMargins(24, 12, 24, 12)
+        command_layout.setSpacing(12)
+
+        self.runStatusIndicator = QtWidgets.QLabel()
+        self.runStatusIndicator.setObjectName("runStatusIndicator")
+        self.runStatusIndicator.setProperty("role", "hint")
+        command_layout.addWidget(self.runStatusIndicator)
+
+        command_layout.addStretch(1)
+
+        self.toggleMonitoringButton = QtWidgets.QPushButton()
+        self.toggleMonitoringButton.setObjectName("toggleMonitoringButton")
+        command_layout.addWidget(self.toggleMonitoringButton)
+
+        self.reloadConfigButton = QtWidgets.QPushButton()
+        self.reloadConfigButton.setObjectName("reloadConfigButton")
+        command_layout.addWidget(self.reloadConfigButton)
+
+        root_layout.addWidget(self.commandBar, 0)
+
+        splitter = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
+        splitter.setObjectName("mainSplitter")
+        root_layout.addWidget(splitter, 1)
 
         self.navigationBar = NavigationBar()
-        shell_layout.addWidget(self.navigationBar, 0)
+        splitter.addWidget(self.navigationBar)
 
-        content_container = QtWidgets.QWidget()
+        content_container = QtWidgets.QFrame()
+        content_container.setObjectName("contentContainer")
         content_layout = QtWidgets.QVBoxLayout(content_container)
-        content_layout.setContentsMargins(24, 24, 24, 24)
+        content_layout.setContentsMargins(24, 16, 24, 16)
         content_layout.setSpacing(16)
-        shell_layout.addWidget(content_container, 1)
+        splitter.addWidget(content_container)
 
         self.contentStack = QtWidgets.QStackedWidget()
+        self.contentStack.setObjectName("contentStack")
         content_layout.addWidget(self.contentStack, 1)
 
-        # 监控视图
+        info_panel = QtWidgets.QFrame()
+        info_panel.setObjectName("infoPanel")
+        info_layout = QtWidgets.QVBoxLayout(info_panel)
+        info_layout.setContentsMargins(16, 24, 16, 24)
+        info_layout.setSpacing(12)
+
+        self.timezoneHeading = QtWidgets.QLabel()
+        self.timezoneHeading.setObjectName("timezoneHeading")
+        self.timezoneHeading.setProperty("role", "heading")
+        info_layout.addWidget(self.timezoneHeading)
+
+        self.timezoneDisplay = QtWidgets.QLabel()
+        self.timezoneDisplay.setObjectName("timezoneDisplay")
+        info_layout.addWidget(self.timezoneDisplay)
+
+        self.locationButton = QtWidgets.QPushButton()
+        self.locationButton.setObjectName("locationButton")
+        info_layout.addWidget(self.locationButton)
+
+        info_layout.addSpacing(12)
+
+        self.themeLabel = QtWidgets.QLabel()
+        self.themeLabel.setObjectName("themeLabel")
+        self.themeLabel.setProperty("role", "hint")
+        info_layout.addWidget(self.themeLabel)
+
+        self.themeSelector = QtWidgets.QComboBox()
+        self.themeSelector.setObjectName("themeSelector")
+        self.themeSelector.setSizeAdjustPolicy(QtWidgets.QComboBox.AdjustToContents)
+        info_layout.addWidget(self.themeSelector)
+
+        self.languageLabel = QtWidgets.QLabel()
+        self.languageLabel.setObjectName("languageLabel")
+        self.languageLabel.setProperty("role", "hint")
+        info_layout.addWidget(self.languageLabel)
+
+        self.languageSelector = QtWidgets.QComboBox()
+        self.languageSelector.setObjectName("languageSelector")
+        self.languageSelector.setSizeAdjustPolicy(QtWidgets.QComboBox.AdjustToContents)
+        info_layout.addWidget(self.languageSelector)
+
+        info_layout.addStretch(1)
+
+        splitter.addWidget(info_panel)
+
+        splitter.setStretchFactor(0, 0)
+        splitter.setStretchFactor(1, 1)
+        splitter.setStretchFactor(2, 0)
+
         monitor_page = MonitorDashboard()
         self.contentStack.addWidget(monitor_page)
 
-        # 配置视图
         self.configWizard = ConfigWizard()
         configuration_page = ConfigurationWorkspace(self.configWizard)
+        configuration_page.setObjectName("configurationWorkspace")
         self.contentStack.addWidget(configuration_page)
 
-        self.switchButton = self.navigationBar.monitorButton
-        self.configButton = self.navigationBar.configButton
-        self.locationButton = self.navigationBar.locationButton
-        self.themeSelector = self.navigationBar.themeSelector
-        self.languageSelector = self.navigationBar.languageSelector
+        reports_placeholder = QtWidgets.QFrame()
+        reports_placeholder.setObjectName("reportsPlaceholder")
+        placeholder_layout = QtWidgets.QVBoxLayout(reports_placeholder)
+        placeholder_layout.setContentsMargins(16, 16, 16, 16)
+        placeholder_layout.addStretch(1)
+        self.reportPlaceholderLabel = QtWidgets.QLabel()
+        self.reportPlaceholderLabel.setObjectName("reportsPlaceholderLabel")
+        self.reportPlaceholderLabel.setAlignment(QtCore.Qt.AlignCenter)
+        placeholder_layout.addWidget(self.reportPlaceholderLabel)
+        placeholder_layout.addStretch(1)
+        self.contentStack.addWidget(reports_placeholder)
 
         self.localTimeGroupBox = monitor_page.localTimeGroupBox
         self.localTimeLabel = monitor_page.localTimeLabel
@@ -238,20 +174,66 @@ class MainWindowUI(QtCore.QObject):
         self.utcTimeLabel = monitor_page.utcTimeLabel
         self.monitorBrowser = monitor_page.monitorBrowser
 
+        self.navigationBar.navigationTriggered.connect(self.navigationRequested.emit)
+
         self.retranslate_ui()
         self.show_monitor_page()
 
     # 导航方法
     def show_monitor_page(self) -> None:
         self.contentStack.setCurrentIndex(self.monitor_view_index)
-        self.navigationBar.set_active(self.switchButton)
+        self.navigationBar.set_active("monitor")
 
     def show_configuration_page(self) -> None:
         self.contentStack.setCurrentIndex(self.config_view_index)
-        self.navigationBar.set_active(self.configButton)
+        self.navigationBar.set_active("configuration")
+
+    def show_reports_page(self) -> None:
+        self.contentStack.setCurrentIndex(self.report_view_index)
+        self.navigationBar.set_active("reports")
+
+    def update_monitoring_controls(self, running: bool) -> None:
+        self._monitoring_active = running
+        self.toggleMonitoringButton.setText(
+            self.tr("关闭 Close") if running else self.tr("启动 Start")
+        )
+        self.runStatusIndicator.setText(
+            self.tr("运行中 Running") if running else self.tr("待命 Standby")
+        )
+
+    def set_timezone_hint(self, timezone: int) -> None:
+        self._timezone_offset = timezone
+        self.timezoneDisplay.setText(
+            self.tr("当前时区: UTC{offset:+d}").format(offset=timezone)
+        )
 
     def retranslate_ui(self) -> None:
+        self.commandBar.setToolTip(self.tr("全局操作"))
+        self.runStatusIndicator.setText(
+            self.tr("运行中 Running")
+            if self._monitoring_active
+            else self.tr("待命 Standby")
+        )
+        self.toggleMonitoringButton.setText(
+            self.tr("关闭 Close")
+            if self._monitoring_active
+            else self.tr("启动 Start")
+        )
+        self.reloadConfigButton.setText(self.tr("重载配置 Reload"))
+
         self.navigationBar.retranslate_ui()
+
+        self.timezoneHeading.setText(self.tr("运行信息 Runtime"))
+        self.timezoneDisplay.setText(
+            self.tr("当前时区: UTC{offset:+d}").format(offset=self._timezone_offset)
+        )
+        self.locationButton.setText(self.tr("设置时区 Set Timezone"))
+
+        self.themeLabel.setText(self.tr("主题 Theme"))
+        self.themeSelector.setToolTip(self.tr("选择主题"))
+        self.languageLabel.setText(self.tr("语言 Language"))
+        self.languageSelector.setToolTip(self.tr("选择语言"))
+
         monitor_page = self.contentStack.widget(self.monitor_view_index)
         if isinstance(monitor_page, MonitorDashboard):
             monitor_page.retranslate_ui()
@@ -259,469 +241,15 @@ class MainWindowUI(QtCore.QObject):
         if isinstance(configuration_page, ConfigurationWorkspace):
             configuration_page.retranslate_ui()
 
-
-class ConfigWizard(QtWidgets.QWidget):
-    """配置界面，负责展示与编辑监控项。"""
-
-    monitorsSaved = QtCore.pyqtSignal(list)
-    requestReload = QtCore.pyqtSignal()
-
-    def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
-        super().__init__(parent)
-        self._monitors: List[Dict[str, object]] = []
-        self._payload_error: Optional[str] = None
-        self._headers_error: Optional[str] = None
-        self._is_updating_form = False
-
-        self._build_ui()
-        self.retranslate_ui()
-
-    # UI 构建
-    def _build_ui(self) -> None:
-        layout = QtWidgets.QVBoxLayout(self)
-        layout.setSpacing(16)
-
-        self.titleLabel = QtWidgets.QLabel()
-        self.titleLabel.setProperty("role", "heading")
-        layout.addWidget(self.titleLabel)
-
-        self.hintLabel = QtWidgets.QLabel()
-        self.hintLabel.setWordWrap(True)
-        self.hintLabel.setProperty("role", "hint")
-        layout.addWidget(self.hintLabel)
-
-        content_layout = QtWidgets.QHBoxLayout()
-        content_layout.setSpacing(16)
-        layout.addLayout(content_layout, 1)
-
-        list_container = QtWidgets.QVBoxLayout()
-        list_container.setSpacing(8)
-        self.monitorList = QtWidgets.QListWidget()
-        self.monitorList.currentRowChanged.connect(self._on_current_row_changed)
-        list_container.addWidget(self.monitorList, 1)
-
-        list_button_layout = QtWidgets.QHBoxLayout()
-        list_button_layout.setSpacing(8)
-        self.addButton = QtWidgets.QPushButton()
-        self.addButton.clicked.connect(self._add_monitor)
-        self.removeButton = QtWidgets.QPushButton()
-        self.removeButton.clicked.connect(self._remove_current_monitor)
-        list_button_layout.addWidget(self.addButton)
-        list_button_layout.addWidget(self.removeButton)
-        list_container.addLayout(list_button_layout)
-
-        content_layout.addLayout(list_container, 1)
-
-        form_container = QtWidgets.QVBoxLayout()
-        form_container.setSpacing(12)
-
-        form_widget = QtWidgets.QWidget()
-        form_layout = QtWidgets.QFormLayout(form_widget)
-        form_layout.setLabelAlignment(QtCore.Qt.AlignRight)
-        form_layout.setFormAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
-        form_layout.setHorizontalSpacing(18)
-        form_layout.setVerticalSpacing(12)
-
-        self.nameEdit = QtWidgets.QLineEdit()
-        self.nameEdit.textChanged.connect(self._on_form_changed)
-        self.nameLabel = QtWidgets.QLabel()
-        form_layout.addRow(self.nameLabel, self.nameEdit)
-
-        self.urlEdit = QtWidgets.QLineEdit()
-        self.urlEdit.textChanged.connect(self._on_form_changed)
-        self.urlLabel = QtWidgets.QLabel()
-        form_layout.addRow(self.urlLabel, self.urlEdit)
-
-        self.typeCombo = QtWidgets.QComboBox()
-        for monitor_type in sorted(configuration.SUPPORTED_MONITOR_TYPES):
-            self.typeCombo.addItem(monitor_type)
-        self.typeCombo.currentTextChanged.connect(self._on_form_changed)
-        self.typeLabel = QtWidgets.QLabel()
-        form_layout.addRow(self.typeLabel, self.typeCombo)
-
-        self.intervalSpin = QtWidgets.QSpinBox()
-        self.intervalSpin.setRange(5, 86400)
-        self.intervalSpin.valueChanged.connect(self._on_form_changed)
-        self.intervalLabel = QtWidgets.QLabel()
-        form_layout.addRow(self.intervalLabel, self.intervalSpin)
-
-        self.emailEdit = QtWidgets.QLineEdit()
-        self.emailEdit.textChanged.connect(self._on_form_changed)
-        self.emailLabel = QtWidgets.QLabel()
-        form_layout.addRow(self.emailLabel, self.emailEdit)
-
-        self.payloadEdit = QtWidgets.QPlainTextEdit()
-        self.payloadEdit.textChanged.connect(self._on_form_changed)
-        self.payloadEdit.setFixedHeight(80)
-        self.payloadLabel = QtWidgets.QLabel()
-        form_layout.addRow(self.payloadLabel, self.payloadEdit)
-
-        self.headersEdit = QtWidgets.QPlainTextEdit()
-        self.headersEdit.textChanged.connect(self._on_form_changed)
-        self.headersEdit.setFixedHeight(80)
-        self.headersLabel = QtWidgets.QLabel()
-        form_layout.addRow(self.headersLabel, self.headersEdit)
-
-        form_container.addWidget(form_widget)
-
-        self.validationLabel = QtWidgets.QLabel()
-        self.validationLabel.setProperty("role", "error")
-        self.validationLabel.setWordWrap(True)
-        form_container.addWidget(self.validationLabel)
-
-        button_layout = QtWidgets.QHBoxLayout()
-        button_layout.addStretch(1)
-        self.saveButton = QtWidgets.QPushButton()
-        self.saveButton.clicked.connect(self._emit_save)
-        self.revertButton = QtWidgets.QPushButton()
-        self.revertButton.clicked.connect(self.requestReload.emit)
-        button_layout.addWidget(self.revertButton)
-        button_layout.addWidget(self.saveButton)
-        form_container.addLayout(button_layout)
-
-        self.previewGroup = QtWidgets.QGroupBox()
-        preview_layout = QtWidgets.QVBoxLayout(self.previewGroup)
-        preview_layout.setContentsMargins(12, 16, 12, 12)
-        self.previewTabs = QtWidgets.QTabWidget()
-        self.alertPreview = QtWidgets.QPlainTextEdit()
-        self.alertPreview.setReadOnly(True)
-        self.recoveryPreview = QtWidgets.QPlainTextEdit()
-        self.recoveryPreview.setReadOnly(True)
-        self.previewTabs.addTab(self.alertPreview, "")
-        self.previewTabs.addTab(self.recoveryPreview, "")
-        preview_layout.addWidget(self.previewTabs)
-        form_container.addWidget(self.previewGroup, 1)
-
-        content_layout.addLayout(form_container, 2)
-
-        self._set_form_enabled(False)
-        self._update_validation_state()
-
-    def retranslate_ui(self) -> None:
-        self.titleLabel.setText(self.tr("配置向导 Configuration Wizard"))
-        self.hintLabel.setText(
-            self.tr("在左侧选择监控项，可新增、删除或修改配置，保存后立即写入配置文件。")
+        self.reportPlaceholderLabel.setText(
+            self.tr("报表与告警视图建设中，敬请期待")
         )
-        self.addButton.setText(self.tr("新增"))
-        self.removeButton.setText(self.tr("删除"))
-        self.nameLabel.setText(self.tr("名称 Name"))
-        self.urlLabel.setText(self.tr("地址 URL"))
-        self.typeLabel.setText(self.tr("类型 Type"))
-        self.intervalLabel.setText(self.tr("周期 Interval"))
-        self.intervalSpin.setSuffix(self.tr(" 秒"))
-        self.emailLabel.setText(self.tr("通知邮箱"))
-        self.emailEdit.setPlaceholderText(self.tr("可选，支持逗号分隔多个邮箱"))
-        self.payloadLabel.setText(self.tr("Payload"))
-        self.payloadEdit.setPlaceholderText(self.tr("可选，JSON 或 key=value 格式"))
-        self.headersLabel.setText(self.tr("Headers"))
-        self.headersEdit.setPlaceholderText(self.tr("可选，JSON 或 key=value 格式"))
-        self.saveButton.setText(self.tr("保存"))
-        self.revertButton.setText(self.tr("恢复配置"))
-        self.previewGroup.setTitle(self.tr("通知预览 Notification Preview"))
-        self.previewTabs.setTabText(0, self.tr("告警 Alert"))
-        self.previewTabs.setTabText(1, self.tr("恢复 Recovery"))
 
-        current_row = self.monitorList.currentRow()
-        self._refresh_list()
-        if self.monitorList.count():
-            if 0 <= current_row < self.monitorList.count():
-                self.monitorList.setCurrentRow(current_row)
-            else:
-                self.monitorList.setCurrentRow(0)
-        self._update_preview()
-        self._update_validation_state()
 
-    # 数据交互
-    def load_monitors(self, monitors: List[Dict[str, object]]) -> None:
-        self._monitors = []
-        for item in monitors:
-            if isinstance(item, configuration.MonitorItem):
-                data = asdict(item)
-            elif hasattr(item, "get"):
-                data = item  # type: ignore[assignment]
-            else:
-                data = {
-                    "name": getattr(item, "name", ""),
-                    "url": getattr(item, "url", ""),
-                    "type": getattr(item, "type", getattr(item, "monitor_type", "")),
-                    "interval": getattr(item, "interval", 60),
-                    "email": getattr(item, "email", ""),
-                    "payload": getattr(item, "payload", None),
-                    "headers": getattr(item, "headers", None),
-                }
-
-            type_value = data.get("type") or data.get("monitor_type") or ""
-            interval_value = data.get("interval", 60)
-            if interval_value is None:
-                interval_value = 60
-            email_value = data.get("email")
-            record = {
-                "name": str(data.get("name", "")),
-                "url": str(data.get("url", "")),
-                "type": str(type_value).upper(),
-                "interval": int(interval_value),
-                "email": "" if email_value is None else str(email_value),
-                "payload": data.get("payload"),
-                "headers": data.get("headers"),
-            }
-            record["_payload_text"] = self._serialise_mapping(record.get("payload"))
-            record["_headers_text"] = self._serialise_mapping(record.get("headers"))
-            self._monitors.append(record)
-
-        self._refresh_list()
-        has_items = bool(self._monitors)
-        self._set_form_enabled(has_items)
-        if has_items:
-            self.monitorList.setCurrentRow(0)
-        else:
-            self._clear_form()
-        self._update_validation_state()
-
-    def get_monitors(self) -> List[Dict[str, object]]:
-        result: List[Dict[str, object]] = []
-        for record in self._monitors:
-            payload = self._parse_optional_mapping(record.get("_payload_text", ""))
-            headers = self._parse_optional_mapping(record.get("_headers_text", ""))
-            item = {
-                "name": record.get("name", ""),
-                "url": record.get("url", ""),
-                "type": record.get("type", ""),
-                "interval": int(record.get("interval", 60)),
-                "email": record.get("email", ""),
-            }
-            if payload is not None:
-                item["payload"] = payload
-            if headers is not None:
-                item["headers"] = headers
-            result.append(item)
-        return result
-
-    # 列表维护
-    def _refresh_list(self) -> None:
-        self.monitorList.blockSignals(True)
-        self.monitorList.clear()
-        for record in self._monitors:
-            title = self._format_item_title(record)
-            self.monitorList.addItem(title)
-        self.monitorList.blockSignals(False)
-
-    def _format_item_title(self, record: Dict[str, object]) -> str:
-        name = record.get("name") or self.tr("(未命名)")
-        mtype = record.get("type") or "?"
-        return self.tr("{name} [{mtype}]").format(name=name, mtype=mtype)
-
-    def _add_monitor(self) -> None:
-        new_record = {
-            "name": self.tr("新监控项"),
-            "url": "http://",
-            "type": next(iter(sorted(configuration.SUPPORTED_MONITOR_TYPES))),
-            "interval": 60,
-            "email": "",
-            "payload": None,
-            "headers": None,
-            "_payload_text": "",
-            "_headers_text": "",
-        }
-        self._monitors.append(new_record)
-        self._refresh_list()
-        self.monitorList.setCurrentRow(len(self._monitors) - 1)
-        self._set_form_enabled(True)
-        self._update_validation_state()
-
-    def _remove_current_monitor(self) -> None:
-        row = self.monitorList.currentRow()
-        if row < 0 or row >= len(self._monitors):
-            return
-        del self._monitors[row]
-        self._refresh_list()
-        if self._monitors:
-            self.monitorList.setCurrentRow(min(row, len(self._monitors) - 1))
-        else:
-            self._clear_form()
-            self._set_form_enabled(False)
-        self._update_validation_state()
-
-    # 表单交互
-    def _clear_form(self) -> None:
-        self._is_updating_form = True
-        try:
-            self.nameEdit.clear()
-            self.urlEdit.clear()
-            self.typeCombo.setCurrentIndex(0)
-            self.intervalSpin.setValue(60)
-            self.emailEdit.clear()
-            self.payloadEdit.clear()
-            self.headersEdit.clear()
-            self.alertPreview.clear()
-            self.recoveryPreview.clear()
-        finally:
-            self._is_updating_form = False
-
-    def _set_form_enabled(self, enabled: bool) -> None:
-        for widget in (
-            self.nameEdit,
-            self.urlEdit,
-            self.typeCombo,
-            self.intervalSpin,
-            self.emailEdit,
-            self.payloadEdit,
-            self.headersEdit,
-            self.saveButton,
-        ):
-            widget.setEnabled(enabled)
-        self.removeButton.setEnabled(enabled)
-
-    def _on_current_row_changed(self, row: int) -> None:
-        if row < 0 or row >= len(self._monitors):
-            self._clear_form()
-            return
-        record = self._monitors[row]
-        self._is_updating_form = True
-        try:
-            self.nameEdit.setText(record.get("name", ""))
-            self.urlEdit.setText(record.get("url", ""))
-            type_value = record.get("type", "")
-            index = max(self.typeCombo.findText(type_value), 0)
-            self.typeCombo.setCurrentIndex(index)
-            self.intervalSpin.setValue(int(record.get("interval", 60)))
-            self.emailEdit.setText(record.get("email", ""))
-            self.payloadEdit.setPlainText(record.get("_payload_text", ""))
-            self.headersEdit.setPlainText(record.get("_headers_text", ""))
-        finally:
-            self._is_updating_form = False
-        self._payload_error = None
-        self._headers_error = None
-        self._update_preview()
-        self._update_validation_state()
-
-    def _on_form_changed(self) -> None:
-        if self._is_updating_form:
-            return
-        row = self.monitorList.currentRow()
-        if row < 0 or row >= len(self._monitors):
-            return
-        record = self._monitors[row]
-        record["name"] = self.nameEdit.text().strip()
-        record["url"] = self.urlEdit.text().strip()
-        record["type"] = self.typeCombo.currentText().strip().upper()
-        record["interval"] = int(self.intervalSpin.value())
-        record["email"] = self.emailEdit.text().strip()
-        record["_payload_text"] = self.payloadEdit.toPlainText().strip()
-        record["_headers_text"] = self.headersEdit.toPlainText().strip()
-
-        self._payload_error = self._validate_mapping_text(
-            record["_payload_text"], self.tr("Payload")
-        )
-        self._headers_error = self._validate_mapping_text(
-            record["_headers_text"], self.tr("Headers")
-        )
-        if self._payload_error is None:
-            record["payload"] = self._parse_optional_mapping(record["_payload_text"])
-        if self._headers_error is None:
-            record["headers"] = self._parse_optional_mapping(record["_headers_text"])
-
-        item = self.monitorList.item(row)
-        if item is not None:
-            item.setText(self._format_item_title(record))
-        self._update_preview()
-        self._update_validation_state()
-
-    def _validate_mapping_text(self, text: str, label: str) -> Optional[str]:
-        if not text:
-            return None
-        try:
-            self._parse_optional_mapping(text)
-        except ValueError as exc:
-            return self.tr("{label} 无法解析: {error}").format(label=label, error=exc)
-        return None
-
-    def _update_validation_state(self) -> None:
-        errors: List[str] = []
-        is_valid = True
-        for index, record in enumerate(self._monitors, start=1):
-            name = record.get("name", "").strip()
-            url = record.get("url", "").strip()
-            if not name:
-                errors.append(
-                    self.tr("监控项 {index} 名称不能为空").format(index=index)
-                )
-            if not url:
-                errors.append(
-                    self.tr("监控项 {index} URL 不能为空").format(index=index)
-                )
-            mtype = record.get("type", "").upper()
-            if mtype not in configuration.SUPPORTED_MONITOR_TYPES:
-                allowed = ", ".join(sorted(configuration.SUPPORTED_MONITOR_TYPES))
-                errors.append(
-                    self.tr("监控项 {index} 类型必须为 {types} 之一").format(
-                        index=index, types=allowed
-                    )
-                )
-            interval = int(record.get("interval", 0))
-            if interval <= 0:
-                errors.append(
-                    self.tr("监控项 {index} 轮询周期必须大于 0").format(index=index)
-                )
-            email = record.get("email", "").strip()
-            if email and not self._validate_emails(email):
-                errors.append(
-                    self.tr("监控项 {index} 的通知邮箱格式不正确").format(index=index)
-                )
-        if self._payload_error:
-            errors.append(self._payload_error)
-        if self._headers_error:
-            errors.append(self._headers_error)
-
-        is_valid = not errors
-        self.saveButton.setEnabled(is_valid and bool(self._monitors))
-        if errors:
-            self.validationLabel.setText("\n".join(errors))
-        else:
-            self.validationLabel.clear()
-
-    def _validate_emails(self, value: str) -> bool:
-        for address in value.split(","):
-            address = address.strip()
-            if not address:
-                continue
-            if "@" not in address or address.startswith("@") or address.endswith("@"):
-                return False
-        return True
-
-    def _update_preview(self) -> None:
-        row = self.monitorList.currentRow()
-        if row < 0 or row >= len(self._monitors):
-            self.alertPreview.clear()
-            self.recoveryPreview.clear()
-            return
-        record = self._monitors[row]
-        now = _dt.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
-        service_name = record.get("name") or self.tr("未命名服务")
-        alert_subject, alert_body = sendEmail.build_outage_alert_message(service_name, now)
-        recovery_subject, recovery_body = sendEmail.build_outage_recovery_message(service_name, now)
-        subject_prefix = self.tr("Subject")
-        alert_preview = f"{subject_prefix}: {alert_subject}\n\n{alert_body}"
-        recovery_preview = f"{subject_prefix}: {recovery_subject}\n\n{recovery_body}"
-        self.alertPreview.setPlainText(alert_preview)
-        self.recoveryPreview.setPlainText(recovery_preview)
-
-    def _emit_save(self) -> None:
-        if not self.saveButton.isEnabled():
-            return
-        monitors = self.get_monitors()
-        self.monitorsSaved.emit(monitors)
-
-    # 工具方法
-    def _parse_optional_mapping(self, text: str) -> Optional[Dict[str, object]]:
-        if not text:
-            return None
-        return configuration.parse_mapping_string(text)
-
-    def _serialise_mapping(self, value: Optional[Dict[str, object]]) -> str:
-        if not value:
-            return ""
-        try:
-            return json.dumps(value, ensure_ascii=False, indent=2)
-        except (TypeError, ValueError):
-            return ""
-
+__all__ = [
+    "MainWindowUI",
+    "NavigationBar",
+    "MonitorDashboard",
+    "ConfigWizard",
+    "ConfigurationWorkspace",
+]
