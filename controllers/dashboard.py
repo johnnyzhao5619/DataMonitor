@@ -104,6 +104,7 @@ class DashboardController(QtCore.QObject):
 
         monitor_key = self._make_periodic_key(monitor)
         self._periodic_monitors[monitor_key] = monitor
+        self._sync_periodic_state()
         self._trigger_periodic_monitor(monitor_key)
         self._schedule_periodic_monitor(monitor, monitor_key)
 
@@ -113,6 +114,7 @@ class DashboardController(QtCore.QObject):
             timer = self._periodic_timers.pop(monitor_key, None)
             if timer:
                 timer.stop()
+            self._sync_periodic_state()
             return
 
         if monitor_key in self._running_periodic:
@@ -164,6 +166,11 @@ class DashboardController(QtCore.QObject):
         self._running_periodic.clear()
         self._periodic_scheduler.stop()
         self._periodic_scheduler = self._create_scheduler()
+
+    def _sync_periodic_state(self) -> None:
+        self._periodic_scheduler.prune_state_machines(
+            self._periodic_monitors.values()
+        )
 
     # --- 工具方法 ----------------------------------------------------
     def _create_scheduler(self) -> MonitorScheduler:

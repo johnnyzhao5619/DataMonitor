@@ -26,6 +26,7 @@ class DummyScheduler:
         self.timezone_getter = timezone_getter
         self.started = False
         self.monitors = []
+        self.prune_calls = []
 
     def start(self, monitors):
         self.started = True
@@ -46,6 +47,9 @@ class DummyScheduler:
 
     def register_strategy(self, *_args, **_kwargs):
         return None
+
+    def prune_state_machines(self, monitors):
+        self.prune_calls.append(tuple(monitors))
 
 
 @pytest.mark.qt
@@ -104,6 +108,8 @@ def test_dashboard_run_periodically_triggers_event(qtbot, monkeypatch):
     controller.run_periodically(monitor_info)
     qtbot.waitUntil(lambda: any(msg.startswith("cycle:") for msg in captured), timeout=2000)
     assert any("周期服务" in msg for msg in captured)
+    prune_calls = controller._periodic_scheduler.prune_calls
+    assert prune_calls and len(prune_calls[-1]) == 1
 
 
 @pytest.mark.qt
