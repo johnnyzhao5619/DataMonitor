@@ -1,3 +1,11 @@
+import sys
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+import configuration
 import pytest
 
 
@@ -69,3 +77,25 @@ def test_send_email_prefers_explicit_recipients(monkeypatch):
     assert from_addr == "from@example.com"
     assert to_addrs == ["override1@example.com", "override2@example.com"]
     assert "To: override1@example.com, override2@example.com" in message
+
+
+def test_read_mail_configuration_bootstraps_placeholder(tmp_path, monkeypatch):
+    monkeypatch.setenv(configuration.LOG_DIR_ENV, str(tmp_path))
+
+    config_dir = tmp_path / "Config"
+    config_file = config_dir / "Config.ini"
+
+    assert not config_file.exists()
+
+    values = configuration.read_mail_configuration()
+
+    assert config_dir.is_dir()
+    assert config_file.is_file()
+    assert values == {
+        "smtp_server": "<SMTP_SERVER>",
+        "smtp_port": "<SMTP_PORT>",
+        "username": "<USERNAME>",
+        "password": "<PASSWORD>",
+        "from_addr": "<FROM_ADDRESS>",
+        "to_addrs": "<TO_ADDRESSES>",
+    }

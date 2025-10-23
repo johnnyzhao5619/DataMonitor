@@ -770,6 +770,9 @@ def _load_mail_config_from_external_file():
 
 def _load_mail_config_from_project_file():
     config_path = _config_file_path()
+    if not config_path.exists():
+        writeconfig(str(config_path.parent))
+
     config = configparser.RawConfigParser()
     config.read(os.fspath(config_path))
 
