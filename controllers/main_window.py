@@ -230,6 +230,9 @@ class MainWindowController(QtCore.QObject):
     def _reload_monitors(self) -> None:
         monitors = configuration.read_monitor_list()
         self.ui.configWizard.load_monitors(monitors)
+        if configuration.consume_config_template_created_flag():
+            message = self.tr('已生成示例配置，请在 Config 目录中填写后重新加载')
+            self.events.statusMessage.emit(message, 6000)
 
     # --- 时钟 ---------------------------------------------------------
     def update_clock(self) -> None:

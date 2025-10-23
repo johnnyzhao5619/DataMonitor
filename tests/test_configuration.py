@@ -16,9 +16,12 @@ import configuration  # noqa: E402  pylint: disable=wrong-import-position
 @pytest.fixture(autouse=True)
 def _reset_language_cache():
     original = configuration._LANGUAGE_CACHE
+    original_template_flag = configuration._CONFIG_TEMPLATE_CREATED
     configuration._LANGUAGE_CACHE = None
+    configuration._CONFIG_TEMPLATE_CREATED = False
     yield
     configuration._LANGUAGE_CACHE = original
+    configuration._CONFIG_TEMPLATE_CREATED = original_template_flag
 
 
 def _write_config(base_dir: Path, content: str) -> Path:
@@ -119,6 +122,33 @@ def test_read_monitor_list_returns_empty_when_total_missing(tmp_path, monkeypatc
 
     assert items == []
     assert "MonitorNum.total" in caplog.text
+
+
+def test_read_monitor_list_creates_template_when_missing(tmp_path, monkeypatch, caplog):
+    monkeypatch.setenv(configuration.LOG_DIR_ENV, str(tmp_path))
+    config_path = tmp_path / "Config" / "Config.ini"
+    assert not config_path.exists()
+
+    caplog.set_level(logging.INFO, logger=configuration.LOGGER.name)
+
+    items = configuration.read_monitor_list()
+
+    assert items == []
+    assert config_path.exists()
+
+    relevant_records = [
+        record for record in caplog.records if record.name == configuration.LOGGER.name
+    ]
+    assert relevant_records
+    assert not any(record.levelno >= logging.ERROR for record in relevant_records)
+    assert any("示例模板" in record.getMessage() for record in relevant_records)
+
+    parser = configparser.RawConfigParser()
+    parser.read(config_path)
+    assert parser.getint("MonitorNum", "total") == 0
+
+    assert configuration.consume_config_template_created_flag() is True
+    assert configuration.consume_config_template_created_flag() is False
 
 
 def test_get_preferences_returns_defaults(tmp_path, monkeypatch):

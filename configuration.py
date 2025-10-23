@@ -126,6 +126,9 @@ LANGUAGE_OPTION = "language"
 _LANGUAGE_CACHE: Optional[str] = None
 
 
+_CONFIG_TEMPLATE_CREATED = False
+
+
 _TEMPLATE_SECTION_PATTERN = re.compile(r"^(?P<category>[^\[]+?)(?:\[(?P<language>[^\]]+)\])?$")
 
 
@@ -516,6 +519,19 @@ def get_config_directory() -> Path:
     return Path(get_logdir()).resolve() / "Config"
 
 def read_monitor_list() -> List[MonitorItem]:
+    global _CONFIG_TEMPLATE_CREATED
+
+    config_path = _config_file_path()
+    if not config_path.exists():
+        try:
+            writeconfig(str(config_path.parent))
+        except Exception as exc:  # pragma: no cover - 非预期错误
+            LOGGER.error("初始配置生成失败: %s", exc)
+            return []
+
+        _CONFIG_TEMPLATE_CREATED = True
+        LOGGER.info("配置文件缺失，已在 %s 生成示例模板", config_path)
+
     parser, _ = _load_config_parser()
     monitorlist: List[MonitorItem] = []
 
@@ -536,6 +552,15 @@ def read_monitor_list() -> List[MonitorItem]:
         monitorlist.append(monitor)
 
     return monitorlist
+
+
+def consume_config_template_created_flag() -> bool:
+    """返回并清除示例配置创建标记。"""
+
+    global _CONFIG_TEMPLATE_CREATED
+    created = _CONFIG_TEMPLATE_CREATED
+    _CONFIG_TEMPLATE_CREATED = False
+    return created
 
 
 def _build_monitor_item(config: configparser.RawConfigParser, section_name: str) -> MonitorItem:
