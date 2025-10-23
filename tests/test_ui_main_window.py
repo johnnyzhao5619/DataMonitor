@@ -66,6 +66,33 @@ def test_configuration_wizard_round_trip(qtbot, tmp_path, monkeypatch):
 
 
 @pytest.mark.qt
+def test_config_wizard_requires_hostname_before_save(qtbot):
+    wizard = ConfigWizard()
+    qtbot.addWidget(wizard)
+    wizard.show()
+
+    qtbot.mouseClick(wizard.addButton, QtCore.Qt.LeftButton)
+    QtWidgets.QApplication.processEvents()
+
+    assert wizard.urlEdit.text() == ""
+    assert wizard.saveButton.isEnabled() is False
+    assert "URL" in wizard.validationLabel.text()
+
+
+@pytest.mark.qt
+def test_config_wizard_accepts_valid_hostname(qtbot):
+    wizard = ConfigWizard()
+    qtbot.addWidget(wizard)
+    wizard.show()
+
+    qtbot.mouseClick(wizard.addButton, QtCore.Qt.LeftButton)
+    wizard.urlEdit.setText("https://example.com/service")
+    qtbot.waitUntil(lambda: wizard.saveButton.isEnabled(), timeout=1000)
+
+    assert wizard.validationLabel.text() == ""
+
+
+@pytest.mark.qt
 def test_toggle_stop_only_halts_monitoring(qtbot, monkeypatch):
     window = toolsetWindow()
     qtbot.addWidget(window)
