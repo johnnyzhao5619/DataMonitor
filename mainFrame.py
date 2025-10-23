@@ -1,6 +1,5 @@
 """应用入口窗口定义。"""
 
-import queue
 from importlib import import_module
 from typing import TYPE_CHECKING
 
@@ -50,42 +49,15 @@ class ToolsetWindow(QtWidgets.QMainWindow):
             self.theme_manager.apply_theme(builtin_themes[0].name)
 
         self.controller = MainWindowController(self, self.ui, self.theme_manager)
-        self._headless_controller: MainWindowController | None = None
 
     def __getattr__(self, item):
         try:
             return super().__getattribute__(item)
         except AttributeError:
-            controller = self._resolve_controller()
-            if hasattr(controller, item):
+            controller = getattr(self, "controller", None)
+            if controller is not None and hasattr(controller, item):
                 return getattr(controller, item)
             raise
-
-    def perform_task(self, *args, **kwargs):
-        controller = self._resolve_controller()
-        return controller.perform_task(*args, **kwargs)
-
-    def _resolve_controller(self) -> MainWindowController:
-        try:
-            controller = object.__getattribute__(self, "controller")
-        except AttributeError:
-            controller = None
-        if controller is not None:
-            return controller
-
-        try:
-            proxy = object.__getattribute__(self, "_headless_controller")
-        except AttributeError:
-            proxy = None
-        if proxy is None:
-            proxy = MainWindowController.__new__(MainWindowController)
-            proxy.printf_queue = queue.Queue()
-            proxy.status = _HeadlessStatusBar()
-            proxy._preferences = configuration.get_preferences()
-            proxy.time_zone = proxy._read_config_timezone()
-            proxy.tr = lambda text, *_args, **_kwargs: text
-            self._headless_controller = proxy
-        return proxy
 
 
 toolsetWindow = ToolsetWindow
