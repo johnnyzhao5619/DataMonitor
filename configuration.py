@@ -253,7 +253,7 @@ class TemplateManager:
     def __init__(self):
         self._templates: Optional[Dict[str, Dict[str, Dict[str, str]]]] = None
 
-    def _load_templates(self) -> None:
+    def _load_templates(self) -> bool:
         templates: Dict[str, Dict[str, Dict[str, str]]] = {}
         for language in SUPPORTED_LANGUAGES:
             language_templates: Dict[str, Dict[str, str]] = {}
@@ -274,26 +274,36 @@ class TemplateManager:
         parser = configparser.RawConfigParser()
         parser.optionxform = str  # 保留键大小写
 
+        load_failed = False
+
         if config_path.is_file():
-            parser.read(os.fspath(config_path), encoding="utf-8")
-            for section in parser.sections():
-                match = _TEMPLATE_SECTION_PATTERN.match(section.strip())
-                if not match:
-                    continue
-                category_key = (match.group("category") or "").strip().lower()
-                language_key = (match.group("language") or DEFAULT_LANGUAGE).strip()
-                if not category_key or not language_key:
-                    continue
-                section_templates = templates.setdefault(language_key, {}).setdefault(
-                    category_key, {}
+            try:
+                parser.read(os.fspath(config_path), encoding="utf-8")
+            except (configparser.Error, OSError) as exc:
+                load_failed = True
+                LOGGER.warning(
+                    "模板配置文件 %s 读取失败，将使用内置模板：%s", config_path, exc
                 )
-                for option, value in parser.items(section):
-                    option_key = option.strip()
-                    if not option_key:
+            else:
+                for section in parser.sections():
+                    match = _TEMPLATE_SECTION_PATTERN.match(section.strip())
+                    if not match:
                         continue
-                    section_templates[option_key] = value
+                    category_key = (match.group("category") or "").strip().lower()
+                    language_key = (match.group("language") or DEFAULT_LANGUAGE).strip()
+                    if not category_key or not language_key:
+                        continue
+                    section_templates = templates.setdefault(language_key, {}).setdefault(
+                        category_key, {}
+                    )
+                    for option, value in parser.items(section):
+                        option_key = option.strip()
+                        if not option_key:
+                            continue
+                        section_templates[option_key] = value
 
         self._templates = templates
+        return not load_failed
 
     def get_template(self, category: str, key: str, language: Optional[str] = None) -> str:
         if self._templates is None:
@@ -319,10 +329,11 @@ class TemplateManager:
 
         raise KeyError(f"模板缺失：{category}.{key}")
 
-    def reload(self) -> None:
+    def reload(self) -> bool:
         """在测试或配置更新后重新加载模版。"""
 
         self._templates = None
+        return self._load_templates()
 
 
 @lru_cache(maxsize=1)
