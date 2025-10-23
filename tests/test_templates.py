@@ -1,3 +1,4 @@
+import logging
 import sys
 from pathlib import Path
 
@@ -102,3 +103,23 @@ def test_render_email_respects_template_override(tmp_path, monkeypatch):
 
     assert subject == "ALERT DemoService"
     assert body == "BODY 告警"
+
+
+def test_render_template_warns_when_ini_invalid(tmp_path, monkeypatch, caplog):
+    templates_content = """[ui\nstatus_line = 无效配置"""
+    _prepare_config_dir(tmp_path, monkeypatch, templates_content)
+
+    context = {
+        "service_name": "DemoService",
+        "status_label": "服务正常",
+        "event_timestamp": "2023-01-01 00:00:00",
+    }
+
+    logger_name = configuration.LOGGER.name
+    with caplog.at_level(logging.WARNING, logger=logger_name):
+        rendered = configuration.render_template("ui", "status_line", context)
+
+    assert rendered == "时间：2023-01-01 00:00:00 --> 状态：DemoService服务正常"
+    relevant_records = [record for record in caplog.records if record.name == logger_name]
+    assert relevant_records
+    assert any("模板配置文件" in record.getMessage() for record in relevant_records)

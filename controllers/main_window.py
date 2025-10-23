@@ -256,12 +256,21 @@ class MainWindowController(QtCore.QObject):
             self.ui.show_monitor_page()
 
     def _reload_monitors(self) -> None:
-        configuration.get_template_manager().reload()
+        template_manager = configuration.get_template_manager()
+        templates_valid = template_manager.reload()
         monitors = configuration.read_monitor_list()
         self.ui.configWizard.load_monitors(monitors)
+        status_messages: list[tuple[str, int]] = []
         if configuration.consume_config_template_created_flag():
-            message = self.tr('已生成示例配置，请在 Config 目录中填写后重新加载')
-            self.events.statusMessage.emit(message, 6000)
+            status_messages.append(
+                (self.tr('已生成示例配置，请在 Config 目录中填写后重新加载'), 6000)
+            )
+        if not templates_valid:
+            status_messages.append(
+                (self.tr('模板配置文件格式无效，已恢复默认文案'), 6000)
+            )
+        for message, duration in status_messages:
+            self.events.statusMessage.emit(message, duration)
 
     # --- 时钟 ---------------------------------------------------------
     def update_clock(self) -> None:
