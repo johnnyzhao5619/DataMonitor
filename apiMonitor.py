@@ -142,6 +142,21 @@ def _check_socket_connectivity(host, port, timeout):
 
 def _perform_ping_probe(host, timeout):
     try:
+        resolved_timeout = max(float(timeout), 0.0)
+    except (TypeError, ValueError):
+        LOGGER.warning(
+            "monitor.ping.raw.invalid_timeout host=%s timeout=%s", host, timeout
+        )
+        resolved_timeout = 0.0
+
+    attempts = 3
+    per_attempt_timeout = (
+        resolved_timeout / attempts if resolved_timeout > 0 and attempts else 0.0
+    )
+    sleep_interval = min(per_attempt_timeout, 0.7) if per_attempt_timeout > 0 else 0.0
+    remaining_budget = resolved_timeout
+
+    try:
         ping = MyPing()
         status = []
         data_type = 8
@@ -157,7 +172,7 @@ def _perform_ping_probe(host, timeout):
             dst_addr,
             len(payload_body),
         )
-        for i in range(3):
+        for i in range(attempts):
             icmp_packet = ping.request_ping(
                 data_type,
                 data_code,
@@ -170,8 +185,20 @@ def _perform_ping_probe(host, timeout):
             if not hasattr(rawsocket_resource, "__enter__") or not hasattr(rawsocket_resource, "__exit__"):
                 rawsocket_resource = closing(rawsocket_resource)
 
+            attempt_timeout = per_attempt_timeout
+            if remaining_budget > 0:
+                attempt_timeout = min(per_attempt_timeout, remaining_budget)
+            else:
+                attempt_timeout = 0.0
+
             with rawsocket_resource as rawsocket:
-                times = ping.reply_ping(send_request_ping_time, rawsocket, data_sequence + i)
+                times = ping.reply_ping(
+                    send_request_ping_time,
+                    rawsocket,
+                    data_sequence + i,
+                    timeout=attempt_timeout,
+                )
+            remaining_budget = max(0.0, remaining_budget - attempt_timeout)
             if times > 0:
                 LOGGER.info(
                     "monitor.ping.raw.reply host=%s destination=%s sequence=%s rtt_ms=%s",
@@ -181,7 +208,10 @@ def _perform_ping_probe(host, timeout):
                     int(times * 1000),
                 )
                 status.append(True)
-                time.sleep(0.7)
+                if sleep_interval > 0 and remaining_budget > 0:
+                    sleep_duration = min(sleep_interval, remaining_budget)
+                    time.sleep(sleep_duration)
+                    remaining_budget = max(0.0, remaining_budget - sleep_duration)
             else:
                 status.append(False)
                 LOGGER.warning(

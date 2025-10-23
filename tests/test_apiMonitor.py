@@ -392,6 +392,57 @@ def test_monitor_server_requires_http_success(monkeypatch, caplog):
     assert "monitor.server.network_only" in caplog.text
 
 
+def test_perform_ping_probe_distributes_timeout(monkeypatch):
+    configured_timeout = 0.6
+    sleep_calls = []
+
+    class DummySocket:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    reply_results = [0.05, -1, -1]
+
+    class DummyPing:
+        def __init__(self):
+            self.reply_timeouts = []
+            self.sequences = []
+
+        def request_ping(self, *args, **kwargs):
+            return b"icmp"
+
+        def raw_socket(self, dst_addr, icmp_packet):
+            return 0.0, DummySocket()
+
+        def reply_ping(self, send_request_ping_time, rawsocket, sequence, timeout=None):
+            self.reply_timeouts.append(timeout)
+            self.sequences.append(sequence)
+            return reply_results.pop(0)
+
+    dummy_ping = DummyPing()
+
+    monkeypatch.setattr(apiMonitor, "MyPing", lambda: dummy_ping)
+    monkeypatch.setattr(apiMonitor.socket, "gethostbyname", lambda host: "127.0.0.1")
+
+    def fake_sleep(duration):
+        sleep_calls.append(duration)
+
+    monkeypatch.setattr(apiMonitor.time, "sleep", fake_sleep)
+
+    result = apiMonitor._perform_ping_probe("example.com", configured_timeout)
+
+    assert result is True
+    per_attempt_timeout = configured_timeout / 3
+    assert dummy_ping.reply_timeouts[0] == pytest.approx(per_attempt_timeout)
+    assert dummy_ping.reply_timeouts[1] == pytest.approx(per_attempt_timeout)
+    assert dummy_ping.reply_timeouts[2] == pytest.approx(0.0)
+    assert dummy_ping.sequences == [1, 2, 3]
+    assert sleep_calls == [pytest.approx(min(per_attempt_timeout, 0.7))]
+    assert reply_results == []
+
+
 @pytest.fixture
 def stub_monitor_server_dependencies(monkeypatch):
     class DummyConnection:
