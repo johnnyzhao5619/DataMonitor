@@ -30,6 +30,7 @@ class MainWindowUI(QtCore.QObject):
         self.runStatusIndicator: QtWidgets.QLabel
         self.toggleMonitoringButton: QtWidgets.QPushButton
         self.reloadConfigButton: QtWidgets.QPushButton
+        self.exitButton: QtWidgets.QPushButton
         self.contentStack: QtWidgets.QStackedWidget
         self.configWizard: ConfigWizard
         self.localTimeGroupBox: QtWidgets.QGroupBox
@@ -78,6 +79,10 @@ class MainWindowUI(QtCore.QObject):
         self.reloadConfigButton = QtWidgets.QPushButton()
         self.reloadConfigButton.setObjectName("reloadConfigButton")
         command_layout.addWidget(self.reloadConfigButton)
+
+        self.exitButton = QtWidgets.QPushButton()
+        self.exitButton.setObjectName("exitButton")
+        command_layout.addWidget(self.exitButton)
 
         root_layout.addWidget(self.commandBar, 0)
 
@@ -220,6 +225,7 @@ class MainWindowUI(QtCore.QObject):
             else self.tr("启动 Start")
         )
         self.reloadConfigButton.setText(self.tr("重载配置 Reload"))
+        self.exitButton.setText(self.tr("退出 Exit"))
 
         self.navigationBar.retranslate_ui()
 

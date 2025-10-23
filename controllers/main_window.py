@@ -101,6 +101,7 @@ class MainWindowController(QtCore.QObject):
         self.ui.toggleMonitoringButton.clicked.connect(self._on_toggle_monitoring)
         self.ui.reloadConfigButton.clicked.connect(self.reload_configuration)
         self.ui.locationButton.clicked.connect(self.set_location)
+        self.ui.exitButton.clicked.connect(self._on_exit_requested)
         self.ui.navigationRequested.connect(self._handle_navigation_request)
         self.ui.themeSelector.currentIndexChanged.connect(self.preferences.on_theme_changed)
         self.ui.languageSelector.currentIndexChanged.connect(self.preferences.on_language_changed)
@@ -183,9 +184,12 @@ class MainWindowController(QtCore.QObject):
                 self.events.statusMessage.emit(str(exc), 5000)
         else:
             self.dashboard.stop_monitoring()
-            app = QtWidgets.QApplication.instance()
-            if app is not None:
-                app.quit()
+
+    def _on_exit_requested(self) -> None:
+        self.dashboard.on_close()
+        app = QtWidgets.QApplication.instance()
+        if app is not None:
+            app.quit()
 
     def start_monitor(self) -> None:
         self.dashboard.start_monitoring()
