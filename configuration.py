@@ -439,22 +439,20 @@ def get_config_directory() -> Path:
 
     return Path(get_logdir()).resolve() / "Config"
 
-def read_monitor_list():
-    logdir = get_logdir()
+def read_monitor_list() -> List[MonitorItem]:
+    parser, _ = _load_config_parser()
     monitorlist: List[MonitorItem] = []
-    config = configparser.RawConfigParser()
-    config.read(logdir + "Config/Config.ini")
 
     try:
-        total_number = config.getint("MonitorNum", "total")
+        total_number = parser.getint("MonitorNum", "total")
     except (configparser.NoSectionError, configparser.NoOptionError, ValueError):
         LOGGER.error("缺少 MonitorNum.total 配置或值无效")
         return monitorlist
 
-    for i in range(total_number):
-        section_name = f"Monitor{i + 1}"
+    for index in range(total_number):
+        section_name = f"Monitor{index + 1}"
         try:
-            monitor = _build_monitor_item(config, section_name)
+            monitor = _build_monitor_item(parser, section_name)
         except ValueError as exc:
             LOGGER.error("监控项 %s 解析失败: %s", section_name, exc)
             continue
@@ -609,21 +607,22 @@ def get_request_timeout():
                 f"环境变量 {REQUEST_TIMEOUT_ENV} 的值无效，需为正数。"
             ) from exc
 
-    config_paths = []
-    logdir = get_logdir()
-    config_paths.append(os.path.join(logdir, "Config", "Config.ini"))
-    config_paths.append("config.ini")
+    config_paths = [
+        _config_file_path(),
+        Path("config.ini"),
+    ]
 
     for path in config_paths:
-        if not os.path.isfile(path):
+        path_obj = Path(path)
+        if not path_obj.is_file():
             continue
         config = configparser.RawConfigParser()
-        config.read(path)
+        config.read(os.fspath(path_obj))
         if config.has_option(REQUEST_SECTION, REQUEST_TIMEOUT_KEY):
             timeout_value = config.getfloat(REQUEST_SECTION, REQUEST_TIMEOUT_KEY)
             if timeout_value <= 0:
                 raise ValueError(
-                    f"配置文件 {path} 中的 {REQUEST_SECTION}.{REQUEST_TIMEOUT_KEY} 必须为正数"
+                    f"配置文件 {path_obj} 中的 {REQUEST_SECTION}.{REQUEST_TIMEOUT_KEY} 必须为正数"
                 )
             return timeout_value
 
@@ -887,10 +886,10 @@ def write_monitor_list(monitors: List[Dict[str, object]]) -> None:
 
 
 
-def writeconfig(configDir: str):
-    config_path = Path(configDir).expanduser()
-    config_path.mkdir(parents=True, exist_ok=True)
-    config_file_path = config_path / "Config.ini"
+def writeconfig(configDir: str) -> None:
+    config_dir = Path(configDir).expanduser()
+    config_dir.mkdir(parents=True, exist_ok=True)
+    config_file_path = config_dir / "Config.ini"
 
     info = configparser.ConfigParser()
     info.add_section("General")
@@ -899,7 +898,7 @@ def writeconfig(configDir: str):
 
     info.add_section("Logging")
     info.set("Logging", "log_level", "info")
-    log_root = config_path.parent
+    log_root = config_dir.parent
     info.set("Logging", "log_file", _normalise_directory(log_root))
 
     info.add_section(TIMEZONE_SECTION)
@@ -908,17 +907,21 @@ def writeconfig(configDir: str):
     info.add_section(LANGUAGE_SECTION)
     info.set(LANGUAGE_SECTION, LANGUAGE_OPTION, DEFAULT_LANGUAGE)
 
-    info.add_section("Mail")
-    info.set("Mail", "smtp_server", "smtp.example.com")
-    info.set("Mail", "smtp_port", "587")
-    info.set("Mail", "username", "ops@example.com")
-    info.set("Mail", "password", "PLEASE_SET_PASSWORD")
-    info.set("Mail", "from_addr", "ops@example.com")
-    info.set("Mail", "to_addrs", "alerts@example.com")
-    info.set("Mail", "subject", "Outage Alert")
+    mail_placeholders = {
+        "smtp_server": "<SMTP_SERVER>",
+        "smtp_port": "<SMTP_PORT>",
+        "username": "<USERNAME>",
+        "password": "<PASSWORD>",
+        "from_addr": "<FROM_ADDRESS>",
+        "to_addrs": "<TO_ADDRESSES>",
+        "subject": "Outage Alert",
+    }
+    info.add_section(MAIL_SECTION)
+    for option, value in mail_placeholders.items():
+        info.set(MAIL_SECTION, option, value)
 
     info.add_section("MonitorNum")
     info.set("MonitorNum", "total", "0")
 
-    with config_file_path.open('w') as config_file:
+    with config_file_path.open("w", encoding="utf-8") as config_file:
         info.write(config_file)
