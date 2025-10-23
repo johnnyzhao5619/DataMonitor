@@ -32,6 +32,23 @@ def _write_config(base_dir: Path, content: str) -> Path:
     return config_path
 
 
+def _assert_template_file_matches_defaults(template_path: Path) -> None:
+    parser = configparser.RawConfigParser()
+    parser.optionxform = str
+    parser.read(template_path, encoding="utf-8")
+
+    for language in configuration.SUPPORTED_LANGUAGES:
+        expected = configuration._materialise_template_defaults(language)
+        for category, entries in expected.items():
+            if language == configuration.DEFAULT_LANGUAGE:
+                section_name = category
+            else:
+                section_name = f"{category}[{language}]"
+            assert parser.has_section(section_name)
+            for key, value in entries.items():
+                assert parser.get(section_name, key) == value
+
+
 def test_writeconfig_uses_placeholder_values(tmp_path):
     target_dir = tmp_path / "Config"
     configuration.writeconfig(str(target_dir))
@@ -53,6 +70,10 @@ def test_writeconfig_uses_placeholder_values(tmp_path):
     assert mail_values["to_addrs"] == "<TO_ADDRESSES>"
     assert "http" not in config_path.read_text(encoding="utf-8")
     assert "@" not in "".join(mail_values.values())
+
+    template_path = target_dir / configuration.TEMPLATE_CONFIG_NAME
+    assert template_path.exists()
+    _assert_template_file_matches_defaults(template_path)
 
 
 @pytest.mark.parametrize(
@@ -127,7 +148,9 @@ def test_read_monitor_list_returns_empty_when_total_missing(tmp_path, monkeypatc
 def test_read_monitor_list_creates_template_when_missing(tmp_path, monkeypatch, caplog):
     monkeypatch.setenv(configuration.LOG_DIR_ENV, str(tmp_path))
     config_path = tmp_path / "Config" / "Config.ini"
+    template_path = tmp_path / "Config" / configuration.TEMPLATE_CONFIG_NAME
     assert not config_path.exists()
+    assert not template_path.exists()
 
     caplog.set_level(logging.INFO, logger=configuration.LOGGER.name)
 
@@ -135,6 +158,7 @@ def test_read_monitor_list_creates_template_when_missing(tmp_path, monkeypatch, 
 
     assert items == []
     assert config_path.exists()
+    assert template_path.exists()
 
     relevant_records = [
         record for record in caplog.records if record.name == configuration.LOGGER.name
@@ -147,9 +171,34 @@ def test_read_monitor_list_creates_template_when_missing(tmp_path, monkeypatch, 
     parser.read(config_path)
     assert parser.getint("MonitorNum", "total") == 0
 
+    _assert_template_file_matches_defaults(template_path)
+
     assert configuration.consume_config_template_created_flag() is True
     assert configuration.consume_config_template_created_flag() is False
 
+
+def test_read_monitor_list_recovers_missing_template(tmp_path, monkeypatch, caplog):
+    config_dir = tmp_path / "Config"
+    configuration.writeconfig(str(config_dir))
+    template_path = config_dir / configuration.TEMPLATE_CONFIG_NAME
+    template_path.unlink()
+
+    monkeypatch.setenv(configuration.LOG_DIR_ENV, str(tmp_path))
+    caplog.set_level(logging.INFO, logger=configuration.LOGGER.name)
+
+    configuration.get_template_manager().reload()
+    items = configuration.read_monitor_list()
+
+    assert items == []
+    assert template_path.exists()
+    assert configuration.consume_config_template_created_flag() is True
+
+    relevant_records = [
+        record for record in caplog.records if record.name == configuration.LOGGER.name
+    ]
+    assert any("模版文件缺失" in record.getMessage() for record in relevant_records)
+
+    _assert_template_file_matches_defaults(template_path)
 
 def test_get_preferences_returns_defaults(tmp_path, monkeypatch):
     monkeypatch.setenv(configuration.LOG_DIR_ENV, str(tmp_path))
