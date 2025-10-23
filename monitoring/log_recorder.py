@@ -1,7 +1,7 @@
 # -*- codeing = utf-8 -*-
 # @Time : 2023-02-16 3:37 p.m.
 # @Author: weijiazhao
-# @File : logRecorder.py
+# @File : log_recorder.py
 # @Software: PyCharm
 import datetime
 import csv

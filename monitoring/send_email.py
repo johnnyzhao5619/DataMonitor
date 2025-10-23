@@ -1,7 +1,7 @@
 # -*- codeing = utf-8 -*-
 # @Time : 2023-03-29 3:56 p.m.
 # @Author: weijiazhao
-# @File : sendEmail.py
+# @File : send_email.py
 # @Software: PyCharm
 
 import datetime as _dt

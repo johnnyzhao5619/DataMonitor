@@ -10,7 +10,7 @@ from urllib.parse import urlsplit
 from PyQt5 import QtCore, QtWidgets
 
 import configuration
-import sendEmail
+from monitoring import send_email
 
 
 class ConfigurationWorkspace(QtWidgets.QWidget):
@@ -480,8 +480,8 @@ class ConfigWizard(QtWidgets.QWidget):
         record = self._monitors[row]
         now = _dt.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
         service_name = record.get("name") or self.tr("未命名服务")
-        alert_subject, alert_body = sendEmail.build_outage_alert_message(service_name, now)
-        recovery_subject, recovery_body = sendEmail.build_outage_recovery_message(service_name, now)
+        alert_subject, alert_body = send_email.build_outage_alert_message(service_name, now)
+        recovery_subject, recovery_body = send_email.build_outage_recovery_message(service_name, now)
         subject_prefix = self.tr("Subject")
         alert_preview = f"{subject_prefix}: {alert_subject}\n\n{alert_body}"
         recovery_preview = f"{subject_prefix}: {recovery_subject}\n\n{recovery_body}"
