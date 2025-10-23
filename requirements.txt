@@ -1,0 +1,7 @@
+# Runtime dependencies
+PyQt5==5.15.10
+requests==2.31.0
+
+# Development/test dependencies
+pytest==8.3.3
+pytest-qt==4.4.0
