@@ -22,7 +22,7 @@
    - `MAIL_FROM`
    - `MAIL_TO`
 2. **外部配置文件**：设置环境变量 `MAIL_CONFIG_PATH` 指向一份不纳入版本控制的 `ini` 文件。该文件需包含 `[Mail]` 节点，并提供上表中的全部字段。
-3. **项目内默认模板**：仅当未提供上述配置时才会回退到仓库内的 `APIMonitor/Config/Config.ini`。仓库中提供的是占位示例值，部署前务必覆盖。
+3. **项目内默认模板**：仅当未提供上述配置时才会回退到仓库内的 `data_monitor/Config/Config.ini`。仓库中提供的是占位示例值，部署前务必覆盖。
 
 ### 监控项覆盖默认收件人
 
@@ -122,8 +122,8 @@ chmod 600 /etc/datamonitor/mail.ini
 日志文件及运行时生成的监控 CSV 会存放在“日志根目录”下。程序根据以下优先级确定该目录：
 
 1. 环境变量 `APIMONITOR_HOME`（推荐）。
-2. `config.ini` 或 `APIMonitor/Config/Config.ini` 中的 `[Logging].log_file` 配置项。
-3. 仓库内默认路径 `APIMonitor/`。
+2. `config.ini` 或 `data_monitor/Config/Config.ini` 中的 `[Logging].log_file` 配置项。
+3. 仓库内默认路径 `data_monitor/`。
 
 无论采用何种方式，目录路径最终都会被归一化为绝对路径，并保证以分隔符结尾。例如：`/var/log/datamonitor/`。若配置为相对路径，则会基于对应配置文件所在目录解析。
 

@@ -66,6 +66,11 @@ DEFAULT_TIMEZONE = "0"
 
 LOG_DIR_ENV = "APIMONITOR_HOME"
 
+PROJECT_ROOT = Path(__file__).resolve().parent
+APPLICATION_HOME_NAME = "data_monitor"
+DEFAULT_APPLICATION_HOME = PROJECT_ROOT / APPLICATION_HOME_NAME
+DEFAULT_CONFIG_FILE = DEFAULT_APPLICATION_HOME / "Config" / "Config.ini"
+
 TEMPLATE_CONFIG_NAME = "Templates.ini"
 
 DEFAULT_LANGUAGE = "zh_CN"
@@ -505,12 +510,12 @@ def _normalise_directory(
 
 
 def get_logdir():
-    """返回日志根目录。
+    f"""返回日志根目录。
 
     优先级：
     1. 环境变量 ``APIMONITOR_HOME``；
-    2. ``config.ini`` 与 ``APIMonitor/Config/Config.ini`` 中 ``[Logging].log_file`` 配置；
-    3. 项目默认目录 ``APIMonitor``。
+    2. ``config.ini`` 与 ``{APPLICATION_HOME_NAME}/Config/Config.ini`` 中 ``[Logging].log_file`` 配置；
+    3. 项目默认目录 ``{APPLICATION_HOME_NAME}``。
     """
 
     env_path = os.environ.get(LOG_DIR_ENV)
@@ -522,7 +527,7 @@ def get_logdir():
 
     candidate_configs = [
         Path("config.ini"),
-        Path(__file__).resolve().parent / "APIMonitor" / "Config" / "Config.ini",
+        DEFAULT_CONFIG_FILE,
     ]
 
     for config_path in candidate_configs:
@@ -548,7 +553,7 @@ def get_logdir():
                 exc,
             )
 
-    default_dir = Path(__file__).resolve().parent / "APIMonitor"
+    default_dir = DEFAULT_APPLICATION_HOME
     return _normalise_directory(default_dir)
 
 
