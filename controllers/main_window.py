@@ -208,8 +208,21 @@ class MainWindowController(QtCore.QObject):
         self.events.statusMessage.emit(self.tr('>>报表/告警视图预览'), 3000)
 
     def reload_configuration(self) -> None:
+        timeout_error: Optional[Exception] = None
+        try:
+            configuration.reset_request_timeout_cache()
+        except ValueError as exc:
+            timeout_error = exc
+
         self._reload_monitors()
-        self.events.statusMessage.emit(self.tr('配置已刷新'), 3000)
+
+        if timeout_error is None:
+            self.events.statusMessage.emit(self.tr('配置已刷新'), 3000)
+        else:
+            self.events.statusMessage.emit(
+                self.tr('配置已刷新，但请求超时配置无效: {error}').format(error=timeout_error),
+                5000,
+            )
 
     def set_location(self) -> None:
         self.preferences.choose_timezone()
@@ -223,7 +236,22 @@ class MainWindowController(QtCore.QObject):
                 self.tr('保存失败: {error}').format(error=exc), 5000
             )
         else:
-            self.events.statusMessage.emit(self.tr('配置已保存'), 4000)
+            timeout_error: Optional[Exception] = None
+            try:
+                configuration.reset_request_timeout_cache()
+            except ValueError as exc:
+                timeout_error = exc
+
+            if timeout_error is None:
+                message = self.tr('配置已保存')
+                duration = 4000
+            else:
+                message = self.tr('配置已保存，但请求超时配置无效: {error}').format(
+                    error=timeout_error
+                )
+                duration = 6000
+
+            self.events.statusMessage.emit(message, duration)
             self._reload_monitors()
             self.ui.show_monitor_page()
 
