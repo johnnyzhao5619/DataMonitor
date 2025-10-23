@@ -1,7 +1,9 @@
 """用户界面模块。"""
 
-from .main_window import MainWindowUI, ConfigWizard, NavigationBar
+from .components.navigation import NavigationBar
+from .main_window import MainWindowUI
 from .theme import ThemeDefinition, ThemeManager, workspace_dark, workspace_light
+from .views.configuration import ConfigWizard
 
 __all__ = [
     "MainWindowUI",
