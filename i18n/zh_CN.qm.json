@@ -54,7 +54,7 @@
       ">>初始化...": ">>初始化...",
       ">>配置模式": ">>配置模式",
       "English": "English",
-      "Monitor Everything v0.2": "Monitor Everything v0.2",
+      "Monitor Everything v1.0": "Monitor Everything v1.0",
       "{index}. {name} --- 类型: {monitor_type} --- 地址: {url} --- 周期: {interval}秒": "{index}. {name} --- 类型: {monitor_type} --- 地址: {url} --- 周期: {interval}秒",
       "保存失败": "保存失败",
       "保存失败: {error}": "保存失败: {error}",

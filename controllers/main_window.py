@@ -67,7 +67,7 @@ class MainWindowController(QtCore.QObject):
             self.status.showMessage(self.tr('>>初始化...'), 4000)
 
         if hasattr(self.window, "setWindowTitle"):
-            self.window.setWindowTitle(self.tr('Monitor Everything v0.2'))
+            self.window.setWindowTitle(self.tr('Monitor Everything v1.0'))
 
         self.events = ControllerEventBus(self)
 
