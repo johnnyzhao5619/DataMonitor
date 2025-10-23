@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime as _dt
+import logging
 import threading
 from typing import Callable, Dict, Hashable, Iterable, Optional, Tuple
 from urllib.parse import urlsplit
@@ -18,6 +19,9 @@ from .state_machine import (
     NotificationMessage,
     NotificationTemplates,
 )
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 class MonitorStrategy:
@@ -158,7 +162,7 @@ class MonitorScheduler:
             success = bool(strategy.run(monitor))
         except Exception as exc:  # pragma: no cover - 防御性兜底
             success = False
-            print(f"执行监控 {monitor.name} 发生异常: {exc}")
+            self._log_strategy_error(monitor, exc)
 
         utc_now, local_now = self._now()
         event = state_machine.transition(success, utc_now, local_now)
@@ -182,7 +186,7 @@ class MonitorScheduler:
                     success = bool(strategy.run(monitor))
                 except Exception as exc:  # pragma: no cover - 防御性兜底
                     success = False
-                    print(f"执行监控 {monitor.name} 发生异常: {exc}")
+                    self._log_strategy_error(monitor, exc)
 
                 utc_now, local_now = self._now()
                 event = state_machine.transition(success, utc_now, local_now)
@@ -217,7 +221,12 @@ class MonitorScheduler:
         try:
             self._event_handler(event)
         except Exception as exc:  # pragma: no cover - 防御性兜底
-            print(f"处理监控事件时发生异常: {exc}")
+            LOGGER.exception(
+                "monitor.scheduler.event_handler_error monitor=%s status=%s error=%s",
+                event.monitor.name,
+                event.status.name,
+                exc,
+            )
 
     def _write_logs(self, event: MonitorEvent) -> None:
         logRecorder.record(event.log_action, event.log_detail)
@@ -229,7 +238,23 @@ class MonitorScheduler:
         try:
             self._dispatcher(event.notification)
         except Exception as exc:  # pragma: no cover - 防御性兜底
-            print(f"发送通知失败: {exc}")
+            LOGGER.exception(
+                "monitor.scheduler.notification_error monitor=%s channel=%s status=%s error=%s",
+                event.monitor.name,
+                event.notification.channel,
+                event.status.name,
+                exc,
+            )
+
+    def _log_strategy_error(
+        self, monitor: configuration.MonitorItem, exc: Exception
+    ) -> None:
+        LOGGER.exception(
+            "monitor.scheduler.strategy_error monitor=%s type=%s error=%s",
+            monitor.name,
+            monitor.monitor_type,
+            exc,
+        )
 
 
 def default_notification_templates() -> NotificationTemplates:

@@ -1,3 +1,5 @@
+import logging
+import smtplib
 import sys
 from pathlib import Path
 
@@ -40,6 +42,19 @@ class DummySMTP:
         self.sent_messages.append((from_addr, to_addrs, message))
 
 
+def _patch_mail_configuration(monkeypatch, module, **overrides):
+    base = {
+        "smtp_server": "smtp.example.com",
+        "smtp_port": "587",
+        "username": "user",
+        "password": "secret",
+        "from_addr": "from@example.com",
+        "to_addrs": "default@example.com",
+    }
+    base.update(overrides)
+    monkeypatch.setattr(module.configuration, "read_mail_configuration", lambda: dict(base))
+
+
 @pytest.fixture(autouse=True)
 def reset_smtp_calls():
     PROJECT_SMTP_CALLS.clear()
@@ -50,14 +65,7 @@ def reset_smtp_calls():
 def test_send_email_prefers_explicit_recipients(monkeypatch):
     import sendEmail
 
-    monkeypatch.setattr(sendEmail.configuration, "read_mail_configuration", lambda: {
-        "smtp_server": "smtp.example.com",
-        "smtp_port": "587",
-        "username": "user",
-        "password": "secret",
-        "from_addr": "from@example.com",
-        "to_addrs": "default@example.com",
-    })
+    _patch_mail_configuration(monkeypatch, sendEmail)
 
     monkeypatch.setattr(sendEmail.smtplib, "SMTP", DummySMTP)
 
@@ -77,6 +85,44 @@ def test_send_email_prefers_explicit_recipients(monkeypatch):
     assert from_addr == "from@example.com"
     assert to_addrs == ["override1@example.com", "override2@example.com"]
     assert "To: override1@example.com, override2@example.com" in message
+
+
+def test_send_email_logs_authentication_error(monkeypatch, caplog):
+    import sendEmail
+
+    _patch_mail_configuration(monkeypatch, sendEmail)
+
+    class AuthFailSMTP(DummySMTP):
+        def login(self, username, password):  # noqa: D401 - 与父类签名保持一致
+            raise smtplib.SMTPAuthenticationError(535, b"Auth failed")
+
+    monkeypatch.setattr(sendEmail.smtplib, "SMTP", AuthFailSMTP)
+
+    with caplog.at_level(logging.ERROR, logger="sendEmail"):
+        with pytest.raises(smtplib.SMTPAuthenticationError):
+            sendEmail.send_email("Subject", "Body")
+
+    assert "SMTP 身份验证失败" in caplog.text
+    assert "mail.smtp.authentication_error" in caplog.text
+
+
+def test_send_email_logs_smtp_exception(monkeypatch, caplog):
+    import sendEmail
+
+    _patch_mail_configuration(monkeypatch, sendEmail)
+
+    class SendFailSMTP(DummySMTP):
+        def sendmail(self, from_addr, to_addrs, message):  # noqa: D401
+            raise smtplib.SMTPException("send failed")
+
+    monkeypatch.setattr(sendEmail.smtplib, "SMTP", SendFailSMTP)
+
+    with caplog.at_level(logging.ERROR, logger="sendEmail"):
+        with pytest.raises(smtplib.SMTPException):
+            sendEmail.send_email("Subject", "Body")
+
+    assert "SMTP 通信异常" in caplog.text
+    assert "mail.smtp.communication_error" in caplog.text
 
 
 def test_read_mail_configuration_bootstraps_placeholder(tmp_path, monkeypatch):

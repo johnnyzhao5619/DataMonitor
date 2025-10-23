@@ -1,4 +1,5 @@
 import datetime
+import logging
 import sys
 import threading
 import types
@@ -487,3 +488,89 @@ def test_scheduler_restart_after_stop(monkeypatch):
     scheduler.stop()
     scheduler.start([monitor])
     scheduler.stop()
+
+
+def test_scheduler_logs_strategy_exception(caplog):
+    monitor = configuration.MonitorItem(
+        name="ServiceWithError",
+        url="http://example.com",
+        monitor_type="GET",
+        interval=60,
+        email="ops@example.com",
+    )
+
+    class FailingStrategy(MonitorStrategy):
+        def run(self, monitor):
+            raise RuntimeError("boom")
+
+    scheduler = MonitorScheduler(
+        timezone_getter=lambda: 0,
+        clock=lambda: datetime.datetime(2023, 1, 1, 0, 0, 0),
+    )
+
+    with caplog.at_level(logging.ERROR, logger="monitoring.service"):
+        event = scheduler.run_single_cycle(monitor, strategy=FailingStrategy())
+
+    assert event.monitor is monitor
+    assert any(
+        "monitor.scheduler.strategy_error" in record.message
+        and monitor.name in record.message
+        for record in caplog.records
+    )
+
+
+def test_scheduler_logs_event_handler_exception(caplog):
+    monitor = configuration.MonitorItem(
+        name="ServiceCallback",
+        url="http://example.com",
+        monitor_type="GET",
+        interval=60,
+        email="ops@example.com",
+    )
+
+    def failing_handler(event):
+        raise RuntimeError("handler failed")
+
+    scheduler = MonitorScheduler(
+        event_handler=failing_handler,
+        timezone_getter=lambda: 0,
+        clock=lambda: datetime.datetime(2023, 1, 1, 0, 0, 0),
+    )
+
+    with caplog.at_level(logging.ERROR, logger="monitoring.service"):
+        scheduler.run_single_cycle(monitor, strategy=SequenceStrategy([True]))
+
+    assert any(
+        "monitor.scheduler.event_handler_error" in record.message
+        and monitor.name in record.message
+        for record in caplog.records
+    )
+
+
+def test_scheduler_logs_notification_exception(caplog):
+    monitor = configuration.MonitorItem(
+        name="ServiceNotifier",
+        url="http://example.com",
+        monitor_type="GET",
+        interval=60,
+        email="ops@example.com",
+    )
+
+    def failing_dispatcher(notification):
+        raise RuntimeError("dispatch failed")
+
+    scheduler = MonitorScheduler(
+        timezone_getter=lambda: 0,
+        clock=lambda: datetime.datetime(2023, 1, 1, 0, 0, 0),
+        dispatcher=failing_dispatcher,
+    )
+
+    with caplog.at_level(logging.ERROR, logger="monitoring.service"):
+        event = scheduler.run_single_cycle(monitor, strategy=SequenceStrategy([False]))
+
+    assert event.notification is not None
+    assert any(
+        "monitor.scheduler.notification_error" in record.message
+        and monitor.name in record.message
+        for record in caplog.records
+    )
