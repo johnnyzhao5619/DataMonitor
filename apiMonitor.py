@@ -16,12 +16,10 @@ import requests
 import configuration
 from myPing import MyPing
 
-
 def _resolve_timeout(explicit_timeout=None):
     if explicit_timeout is not None:
         return explicit_timeout
     return configuration.get_request_timeout()
-
 
 def _subprocess_ping(host, timeout):
     """Fallback ping using system command. Returns True on success."""
@@ -44,7 +42,6 @@ def _subprocess_ping(host, timeout):
     except subprocess.CalledProcessError as exc:
         print(f"{host} is offline (Subprocess Ping): {exc}")
         return False
-
 
 def _perform_http_request(
     method_name,
@@ -78,7 +75,6 @@ def _perform_http_request(
     )
     return False
 
-
 def monitor_get(url, timeout=None):
     try:
         resolved_timeout = _resolve_timeout(timeout)
@@ -92,8 +88,6 @@ def monitor_get(url, timeout=None):
         url,
         timeout=resolved_timeout,
     )
-
-
 
 def monitor_post(url, payload=None, *, headers=None, timeout=None):
     try:
@@ -110,26 +104,6 @@ def monitor_post(url, payload=None, *, headers=None, timeout=None):
         headers=headers,
     )
 
-# def monitor_server(host: str, timeout: float = 2.0) -> bool:
-#     try:
-#         response_time = ping3.ping(host, timeout=timeout)
-#         if response_time is not None:
-#             print("response_time:", response_time)
-#             return True, response_time
-#         else:
-#             return False, "Unknow Error"
-#     except ping3.NetworkError:
-#         print(f"Network error: Could not reach host {host}")
-#         return False, f"Network error: Could not reach host {host}"
-#     except ping3.Timeout:
-#         print(f"Timeout error: Host {host} did not respond within {timeout} seconds")
-#         return False, f"Timeout error: Host {host} did not respond within {timeout} seconds"
-#     except Exception as e:
-#         print(f"An error occurred: {e}")
-#         return False, f"An error occurred: {e}"
-
-
-
 def _compose_service_url(protocol, host, port, suffix, explicit_port):
     base_url = f"{protocol}://{host}"
     if explicit_port:
@@ -137,7 +111,6 @@ def _compose_service_url(protocol, host, port, suffix, explicit_port):
     if suffix:
         base_url = f"{base_url}/{suffix}"
     return base_url
-
 
 def _check_socket_connectivity(host, port, timeout):
     try:
@@ -148,7 +121,6 @@ def _check_socket_connectivity(host, port, timeout):
     except OSError as exc:
         print(f"{host} is offline (Socket): {exc}")
         return False
-
 
 def _perform_ping_probe(host, timeout):
     try:
@@ -198,7 +170,6 @@ def _perform_ping_probe(host, timeout):
         print(f"警告: 原始 Ping 发生未知异常，尝试回退子进程 Ping。详情: {exc}")
         return _subprocess_ping(host, timeout)
 
-
 def _perform_icmp_probe(host, timeout):
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP) as sock:
@@ -214,7 +185,6 @@ def _perform_icmp_probe(host, timeout):
         print(f"{host} is offline (ICMP): {exc}")
     return False
 
-
 def _perform_http_probe(url, timeout):
     try:
         response = requests.get(url, timeout=timeout)
@@ -229,7 +199,6 @@ def _perform_http_probe(url, timeout):
 
     print(f"{url} returned status code {status_code} (Get Requests)")
     return False
-
 
 def monitor_server(address, timeout=None):
     protocol, host, port, suffix = address
@@ -272,56 +241,3 @@ def monitor_server(address, timeout=None):
         print(f"{host} is offline")
 
     return False
-
-
-
-# while True:
-#     host = "c2v.huali-cloud.com"
-#     port = 80
-#
-#     # 使用Ping方法
-#     ping = MyPing()
-#     status = []
-#     sumtime, shorttime, longtime, avgtime = 0, 1000, 0, 0
-#     # 8回射请求 11超时 0回射应答
-#     data_type = 8
-#     data_code = 0
-#     # 检验和
-#     data_checksum = 0
-#     # ID
-#     data_ID = 0
-#     # 序号
-#     data_Sequence = 1
-#     # 可选的内容
-#     payload_body = b'abcdefghijklmnopqrstuvwabcdefghi'
-#     dst_addr = socket.gethostbyname(host)
-#     print("正在 Ping {0} [{1}] 具有 32 字节的数据:".format(host, dst_addr))
-#     # 发送3次
-#     for i in range(0, 3):
-#         # 请求ping数据包的二进制转换
-#         icmp_packet = ping.request_ping(data_type, data_code, data_checksum, data_ID, data_Sequence + i,
-#                                         payload_body)
-#         # 连接套接字,并将数据发送到套接字
-#         send_request_ping_time, rawsocket = ping.raw_socket(dst_addr, icmp_packet)
-#         # 数据包传输时间
-#         times = ping.reply_ping(send_request_ping_time, rawsocket, data_Sequence + i)
-#         if times > 0:
-#             print("来自 {0} 的回复: 字节=32 时间={1}ms".format(dst_addr, int(times * 1000)))
-#             return_time = int(times * 1000)
-#             sumtime += return_time
-#             if return_time > longtime:
-#                 longtime = return_time
-#             if return_time < shorttime:
-#                 shorttime = return_time
-#             time.sleep(0.7)
-#             status.append(True)
-#         else:
-#             status.append(False)
-#             print("请求超时")
-#     print("status:", status)
-#     if any(status):
-#         print(f"{host} is online (Ping)")
-#     else:
-#         print(f"{host} is offline (Ping)")
-#
-#     time.sleep(5)
