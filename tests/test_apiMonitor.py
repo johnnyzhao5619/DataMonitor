@@ -1,3 +1,4 @@
+import logging
 import socket
 import textwrap
 import types
@@ -53,39 +54,44 @@ def stub_request_timeout(monkeypatch):
 
 
 @pytest.mark.parametrize("status_code", [200, 204, 301, 302])
-def test_monitor_get_success_for_valid_status(monkeypatch, status_code):
+def test_monitor_get_success_for_valid_status(monkeypatch, caplog, status_code):
     def fake_get(url, timeout):
         assert timeout == 5.0
         return DummyResponse(status_code)
 
     monkeypatch.setattr(apiMonitor.requests, "get", fake_get)
 
-    assert apiMonitor.monitor_get("http://example.com") is True
+    caplog.clear()
+    with caplog.at_level(logging.INFO):
+        assert apiMonitor.monitor_get("http://example.com") is True
+    assert "monitor.http.success" in caplog.text
 
 
-def test_monitor_get_failure_status(monkeypatch, capsys):
+def test_monitor_get_failure_status(monkeypatch, caplog):
     def fake_get(url, timeout):
         assert timeout == 5.0
         return DummyResponse(404)
 
     monkeypatch.setattr(apiMonitor.requests, "get", fake_get)
 
-    assert apiMonitor.monitor_get("http://example.com") is False
+    caplog.clear()
+    with caplog.at_level(logging.INFO):
+        assert apiMonitor.monitor_get("http://example.com") is False
+    assert "monitor.http.failure" in caplog.text
+    assert "status=404" in caplog.text
 
-    captured = capsys.readouterr()
-    assert "404" in captured.out
 
-
-def test_monitor_get_exception(monkeypatch, capsys):
+def test_monitor_get_exception(monkeypatch, caplog):
     def fake_get(url, timeout):
         raise requests.Timeout("request timed out")
 
     monkeypatch.setattr(apiMonitor.requests, "get", fake_get)
 
-    assert apiMonitor.monitor_get("http://example.com") is False
-
-    captured = capsys.readouterr()
-    assert "request timed out" in captured.out
+    caplog.clear()
+    with caplog.at_level(logging.INFO):
+        assert apiMonitor.monitor_get("http://example.com") is False
+    assert "monitor.http.error" in caplog.text
+    assert "request timed out" in caplog.text
 
 
 def test_monitor_get_reads_configuration_timeout(monkeypatch):
@@ -130,20 +136,21 @@ def test_monitor_get_uses_explicit_timeout(monkeypatch):
     assert apiMonitor.monitor_get("http://example.com", timeout=1.5) is True
 
 
-def test_monitor_get_handles_timeout_configuration_error(monkeypatch, capsys):
+def test_monitor_get_handles_timeout_configuration_error(monkeypatch, caplog):
     def fake_get_timeout():
         raise ValueError("invalid timeout")
 
     monkeypatch.setattr(configuration, "get_request_timeout", fake_get_timeout)
 
-    assert apiMonitor.monitor_get("http://example.com") is False
-
-    captured = capsys.readouterr()
-    assert "invalid timeout" in captured.out
+    caplog.clear()
+    with caplog.at_level(logging.INFO):
+        assert apiMonitor.monitor_get("http://example.com") is False
+    assert "monitor.http.timeout_error" in caplog.text
+    assert "invalid timeout" in caplog.text
 
 
 @pytest.mark.parametrize("status_code", [200, 204, 302])
-def test_monitor_post_success_for_valid_status(monkeypatch, status_code):
+def test_monitor_post_success_for_valid_status(monkeypatch, caplog, status_code):
     def fake_post(url, data=None, headers=None, timeout=None):
         assert data == {}
         assert headers is None
@@ -152,10 +159,13 @@ def test_monitor_post_success_for_valid_status(monkeypatch, status_code):
 
     monkeypatch.setattr(apiMonitor.requests, "post", fake_post)
 
-    assert apiMonitor.monitor_post("http://example.com", payload={}) is True
+    caplog.clear()
+    with caplog.at_level(logging.INFO):
+        assert apiMonitor.monitor_post("http://example.com", payload={}) is True
+    assert "monitor.http.success" in caplog.text
 
 
-def test_monitor_post_failure_status(monkeypatch, capsys):
+def test_monitor_post_failure_status(monkeypatch, caplog):
     def fake_post(url, data=None, headers=None, timeout=None):
         assert data == {}
         assert headers is None
@@ -164,25 +174,27 @@ def test_monitor_post_failure_status(monkeypatch, capsys):
 
     monkeypatch.setattr(apiMonitor.requests, "post", fake_post)
 
-    assert apiMonitor.monitor_post("http://example.com", payload={}) is False
+    caplog.clear()
+    with caplog.at_level(logging.INFO):
+        assert apiMonitor.monitor_post("http://example.com", payload={}) is False
+    assert "monitor.http.failure" in caplog.text
+    assert "status=500" in caplog.text
 
-    captured = capsys.readouterr()
-    assert "500" in captured.out
 
-
-def test_monitor_post_exception(monkeypatch, capsys):
+def test_monitor_post_exception(monkeypatch, caplog):
     def fake_post(url, data=None, headers=None, timeout=None):
         raise requests.ConnectionError("connection aborted")
 
     monkeypatch.setattr(apiMonitor.requests, "post", fake_post)
 
-    assert apiMonitor.monitor_post("http://example.com", payload={}) is False
+    caplog.clear()
+    with caplog.at_level(logging.INFO):
+        assert apiMonitor.monitor_post("http://example.com", payload={}) is False
+    assert "monitor.http.error" in caplog.text
+    assert "connection aborted" in caplog.text
 
-    captured = capsys.readouterr()
-    assert "connection aborted" in captured.out
 
-
-def test_monitor_post_handles_timeout_configuration_error(monkeypatch, capsys):
+def test_monitor_post_handles_timeout_configuration_error(monkeypatch, caplog):
     def fake_get_timeout():
         raise ValueError("invalid timeout")
 
@@ -192,10 +204,11 @@ def test_monitor_post_handles_timeout_configuration_error(monkeypatch, capsys):
     monkeypatch.setattr(configuration, "get_request_timeout", fake_get_timeout)
     monkeypatch.setattr(apiMonitor.requests, "post", fail_post)
 
-    assert apiMonitor.monitor_post("http://example.com", payload={}) is False
-
-    captured = capsys.readouterr()
-    assert "invalid timeout" in captured.out
+    caplog.clear()
+    with caplog.at_level(logging.INFO):
+        assert apiMonitor.monitor_post("http://example.com", payload={}) is False
+    assert "monitor.http.timeout_error" in caplog.text
+    assert "invalid timeout" in caplog.text
 
 
 def test_monitor_post_forwards_payload_and_headers(monkeypatch):
@@ -230,7 +243,7 @@ def test_monitor_post_forwards_payload_and_headers(monkeypatch):
     }
 
 
-def test_monitor_server_handles_socket_gaierror(monkeypatch, capsys):
+def test_monitor_server_handles_socket_gaierror(monkeypatch, caplog):
     def fake_create_connection(*args, **kwargs):
         raise socket.gaierror("name or service not known")
 
@@ -286,18 +299,19 @@ def test_monitor_server_handles_socket_gaierror(monkeypatch, capsys):
 
     monkeypatch.setattr(apiMonitor.requests, "get", fake_get)
 
-    result = apiMonitor.monitor_server(("http", "invalid.host", None, None))
+    caplog.clear()
+    with caplog.at_level(logging.INFO):
+        result = apiMonitor.monitor_server(("http", "invalid.host", None, None))
 
     assert result is False
 
-    captured = capsys.readouterr()
-    assert "offline (Socket)" in captured.out
-    assert "503" in captured.out
-    assert "探测结果: socket=False, ping=False, http=False" in captured.out
+    assert "monitor.socket.offline" in caplog.text
+    assert "status=503" in caplog.text
+    assert "monitor.server.summary" in caplog.text
     assert ping_calls["subprocess"] == 1
 
 
-def test_monitor_server_requires_http_success(monkeypatch, capsys):
+def test_monitor_server_requires_http_success(monkeypatch, caplog):
     monkeypatch.setattr(
         apiMonitor,
         "_check_socket_connectivity",
@@ -320,14 +334,16 @@ def test_monitor_server_requires_http_success(monkeypatch, capsys):
 
     monkeypatch.setattr(apiMonitor.requests, "get", fake_get)
 
-    result = apiMonitor.monitor_server(("http", "reachable.example", 8080, None))
+    caplog.clear()
+    with caplog.at_level(logging.INFO):
+        result = apiMonitor.monitor_server(("http", "reachable.example", 8080, None))
 
     assert result is False
 
-    captured = capsys.readouterr()
-    assert "探测结果: socket=True, ping=True, http=False" in captured.out
-    assert "网络层可达" in captured.out
-    assert "仍判定为失败" in captured.out
+    assert "monitor.server.summary" in caplog.text
+    assert "socket=True" in caplog.text
+    assert "ping=True" in caplog.text
+    assert "monitor.server.network_only" in caplog.text
 
 
 @pytest.fixture

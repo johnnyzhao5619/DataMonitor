@@ -3,6 +3,7 @@
 # @Author: weijiazhao
 # @File : apiMonitor.py
 # @Software: PyCharm
+import logging
 import math
 import os
 import shutil
@@ -15,6 +16,9 @@ import requests
 
 import configuration
 from myPing import MyPing
+
+
+LOGGER = logging.getLogger(__name__)
 
 def _resolve_timeout(explicit_timeout=None):
     if explicit_timeout is not None:
@@ -32,15 +36,17 @@ def _subprocess_ping(host, timeout):
         ping_cmd = ['ping', '-c', '1', '-W', str(wait_seconds), host]
 
     if shutil.which(ping_cmd[0]) is None:
-        print(f"警告: 系统未找到 ping 命令，跳过子进程 Ping 检测。")
+        LOGGER.warning(
+            "monitor.ping.subprocess.command_missing command=%s", ping_cmd[0]
+        )
         return False
 
     try:
         subprocess.check_output(ping_cmd, stderr=subprocess.STDOUT)
-        print(f"{host} is online (Subprocess Ping)")
+        LOGGER.info("monitor.ping.subprocess.success host=%s", host)
         return True
     except subprocess.CalledProcessError as exc:
-        print(f"{host} is offline (Subprocess Ping): {exc}")
+        LOGGER.warning("monitor.ping.subprocess.failure host=%s error=%s", host, exc)
         return False
 
 def _perform_http_request(
@@ -61,17 +67,25 @@ def _perform_http_request(
     try:
         response = request_callable(url, **request_kwargs)
     except requests.RequestException as exc:
-        print(f"{method_name} request to {url} failed with error: {exc}")
+        LOGGER.error(
+            "monitor.http.error method=%s url=%s error=%s", method_name, url, exc
+        )
         return False
 
     if 200 <= response.status_code < 400:
-        print(
-            f"{method_name} request to {url} successful with status code: {response.status_code}"
+        LOGGER.info(
+            "monitor.http.success method=%s url=%s status=%s",
+            method_name,
+            url,
+            response.status_code,
         )
         return True
 
-    print(
-        f"{method_name} request to {url} failed with status code: {response.status_code}"
+    LOGGER.warning(
+        "monitor.http.failure method=%s url=%s status=%s",
+        method_name,
+        url,
+        response.status_code,
     )
     return False
 
@@ -79,7 +93,7 @@ def monitor_get(url, timeout=None):
     try:
         resolved_timeout = _resolve_timeout(timeout)
     except ValueError as exc:
-        print(f"GET request to {url} failed with error: {exc}")
+        LOGGER.error("monitor.http.timeout_error method=GET url=%s error=%s", url, exc)
         return False
 
     return _perform_http_request(
@@ -93,7 +107,9 @@ def monitor_post(url, payload=None, *, headers=None, timeout=None):
     try:
         resolved_timeout = _resolve_timeout(timeout)
     except ValueError as exc:
-        print(f"POST request to {url} failed with error: {exc}")
+        LOGGER.error(
+            "monitor.http.timeout_error method=POST url=%s error=%s", url, exc
+        )
         return False
     return _perform_http_request(
         "POST",
@@ -116,10 +132,12 @@ def _check_socket_connectivity(host, port, timeout):
     try:
         with socket.create_connection((host, port), timeout=timeout):
             pass
-        print(f"{host} is online (Socket)")
+        LOGGER.info("monitor.socket.success host=%s port=%s", host, port)
         return True
     except OSError as exc:
-        print(f"{host} is offline (Socket): {exc}")
+        LOGGER.warning(
+            "monitor.socket.offline host=%s port=%s error=%s", host, port, exc
+        )
         return False
 
 def _perform_ping_probe(host, timeout):
@@ -133,7 +151,12 @@ def _perform_ping_probe(host, timeout):
         data_sequence = 1
         payload_body = b'abcdefghijklmnopqrstuvwabcdefghi'
         dst_addr = socket.gethostbyname(host)
-        print("正在 Ping {0} [{1}] 具有 32 字节的数据:".format(host, dst_addr))
+        LOGGER.info(
+            "monitor.ping.raw.start host=%s destination=%s payload_size=%s",
+            host,
+            dst_addr,
+            len(payload_body),
+        )
         for i in range(3):
             icmp_packet = ping.request_ping(
                 data_type,
@@ -150,24 +173,39 @@ def _perform_ping_probe(host, timeout):
             with rawsocket_resource as rawsocket:
                 times = ping.reply_ping(send_request_ping_time, rawsocket, data_sequence + i)
             if times > 0:
-                print("来自 {0} 的回复: 字节=32 时间={1}ms".format(dst_addr, int(times * 1000)))
+                LOGGER.info(
+                    "monitor.ping.raw.reply host=%s destination=%s sequence=%s rtt_ms=%s",
+                    host,
+                    dst_addr,
+                    data_sequence + i,
+                    int(times * 1000),
+                )
                 status.append(True)
                 time.sleep(0.7)
             else:
                 status.append(False)
-                print("请求超时")
+                LOGGER.warning(
+                    "monitor.ping.raw.timeout host=%s destination=%s sequence=%s",
+                    host,
+                    dst_addr,
+                    data_sequence + i,
+                )
 
         success = any(status)
         if success:
-            print(f"{host} is online (Ping)")
+            LOGGER.info("monitor.ping.raw.success host=%s", host)
         else:
-            print(f"{host} is offline (Ping)")
+            LOGGER.warning("monitor.ping.raw.failure host=%s", host)
         return success
     except (PermissionError, OSError) as exc:
-        print(f"警告: 原始 Ping 需要管理员权限或发生套接字错误，已跳过。详情: {exc}")
+        LOGGER.warning(
+            "monitor.ping.raw.permission_denied host=%s error=%s", host, exc
+        )
         return _subprocess_ping(host, timeout)
     except Exception as exc:
-        print(f"警告: 原始 Ping 发生未知异常，尝试回退子进程 Ping。详情: {exc}")
+        LOGGER.warning(
+            "monitor.ping.raw.error host=%s error=%s", host, exc
+        )
         return _subprocess_ping(host, timeout)
 
 def _perform_icmp_probe(host, timeout):
@@ -177,27 +215,33 @@ def _perform_icmp_probe(host, timeout):
             sock.sendto(dummy_packet, (host, 0))
             sock.settimeout(timeout)
             sock.recv(1024)
-            print(f"{host} is online (ICMP)")
+            LOGGER.info("monitor.icmp.success host=%s", host)
             return True
     except PermissionError as exc:
-        print(f"警告: 原始 ICMP 检测需要管理员权限，已跳过。详情: {exc}")
+        LOGGER.warning(
+            "monitor.icmp.permission_denied host=%s error=%s", host, exc
+        )
     except (socket.timeout, socket.error) as exc:
-        print(f"{host} is offline (ICMP): {exc}")
+        LOGGER.warning("monitor.icmp.failure host=%s error=%s", host, exc)
     return False
 
 def _perform_http_probe(url, timeout):
     try:
         response = requests.get(url, timeout=timeout)
     except requests.RequestException as exc:
-        print(f"{url} request failed (Get Requests): {exc}")
+        LOGGER.error("monitor.http_probe.error url=%s error=%s", url, exc)
         return False
 
     status_code = response.status_code
     if 200 <= status_code < 400:
-        print(f"{url} responded with status code {status_code} (Get Requests)")
+        LOGGER.info(
+            "monitor.http_probe.success url=%s status=%s", url, status_code
+        )
         return True
 
-    print(f"{url} returned status code {status_code} (Get Requests)")
+    LOGGER.warning(
+        "monitor.http_probe.failure url=%s status=%s", url, status_code
+    )
     return False
 
 def monitor_server(address, timeout=None):
@@ -212,14 +256,12 @@ def monitor_server(address, timeout=None):
     try:
         resolved_timeout = _resolve_timeout(timeout)
     except ValueError as exc:
-        print(f"{host} request failed: {exc}")
+        LOGGER.error("monitor.server.timeout_error host=%s error=%s", host, exc)
         return False
 
     url = _compose_service_url(protocol, host, port, suffix, explicit_port)
 
-    print("host:", host)
-    print("port:", port)
-    print("url:", url)
+    LOGGER.info("monitor.server.start host=%s port=%s url=%s", host, port, url)
 
     socket_success = _check_socket_connectivity(host, port, resolved_timeout)
     ping_success = _perform_ping_probe(host, resolved_timeout)
@@ -227,17 +269,21 @@ def monitor_server(address, timeout=None):
 
     http_success = _perform_http_probe(url, resolved_timeout)
 
-    print(
-        f"探测结果: socket={socket_success}, ping={ping_success}, http={http_success}"
+    LOGGER.info(
+        "monitor.server.summary host=%s socket=%s ping=%s http=%s",
+        host,
+        socket_success,
+        ping_success,
+        http_success,
     )
 
     if http_success:
         return True
 
     if socket_success or ping_success:
-        print(f"{host} 网络层可达，但 HTTP 检测失败，仍判定为失败。")
+        LOGGER.warning("monitor.server.network_only host=%s", host)
 
     else:
-        print(f"{host} is offline")
+        LOGGER.error("monitor.server.offline host=%s", host)
 
     return False
