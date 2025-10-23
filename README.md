@@ -127,6 +127,28 @@ chmod 600 /etc/datamonitor/mail.ini
 
 调用 `configuration.writeconfig(config_dir)` 会确保 `config_dir` 存在，并在 `config_dir/Config.ini` 中生成示例模板。模板仅包含占位符，运维需要手工覆盖为真实值或提供独立的外部配置文件。
 
+### 异常日志查看位置
+
+调度层（`monitoring.service`）与邮件发送模块（`sendEmail`）统一通过 Python `logging` 输出错误日志，记录器名称分别为 `monitoring.service` 与 `sendEmail`。默认情况下这些日志会写入标准错误流，运维可在部署脚本中使用 `logging.basicConfig` 或 `dictConfig` 将其重定向到日志根目录下的文件，例如：
+
+```python
+import logging
+from pathlib import Path
+
+import configuration
+
+log_root = Path(configuration.get_logdir()) / "Log"
+log_root.mkdir(parents=True, exist_ok=True)
+
+logging.basicConfig(
+    filename=log_root / "system.log",
+    level=logging.INFO,
+    format="%(asctime)s %(name)s %(levelname)s %(message)s",
+)
+```
+
+完成配置后，所有异常堆栈与错误描述都会写入 `<日志根目录>/Log/system.log`，与现有的文本日志和 CSV 文件放置在同一位置，便于统一检索与归档。
+
 ## 安全建议
 
 - 不要在版本库中提交真实凭证。

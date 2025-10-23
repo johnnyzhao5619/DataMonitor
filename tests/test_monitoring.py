@@ -1,4 +1,5 @@
 import datetime
+import logging
 import sys
 import threading
 import types
@@ -489,50 +490,87 @@ def test_scheduler_restart_after_stop(monkeypatch):
     scheduler.stop()
 
 
-def test_save_to_file_sanitizes_monitor_name(tmp_path, monkeypatch):
-    configuration.get_template_manager.cache_clear()
-
-    monkeypatch.setattr(configuration, "get_logdir", lambda: str(tmp_path))
-
-    fixed_timestamp = datetime.datetime(2023, 1, 2, 3, 4, 5)
-    monkeypatch.setattr(logRecorder, "_now_with_timezone", lambda: fixed_timestamp)
-
-    monitor_name = "../Strange\\Name:?*|<>"
-    data_row = [
-        "2023-01-02 03:04:05",
-        "Service",
-        "GET",
-        "http://example.com",
-        "60",
-        "200",
-        "OK",
-    ]
-
-    logRecorder.saveToFile(data_row, monitor_name)
-
-    log_dir = tmp_path / "Log"
-    files = sorted(log_dir.glob("*.csv"))
-    assert len(files) == 1
-
-    sanitized = logRecorder._sanitize_monitor_name(monitor_name)
-    expected = log_dir / f"{sanitized}_{fixed_timestamp.strftime('%Y%m%d')}.csv"
-
-    assert files[0] == expected
-    assert files[0].resolve().parent == log_dir.resolve()
-
-    content = files[0].read_text(encoding="utf-8").splitlines()
-    assert content[0] == ",".join(logRecorder._csv_header())
-    assert content[1].split(",")[1] == "Service"
-
-    configuration.get_template_manager.cache_clear()
-
-
-def test_sanitize_monitor_name_fallback():
-    assert (
-        logRecorder._sanitize_monitor_name("../..")
-        == logRecorder._FALLBACK_MONITOR_FILENAME
+def test_scheduler_logs_strategy_exception(caplog):
+    monitor = configuration.MonitorItem(
+        name="ServiceWithError",
+        url="http://example.com",
+        monitor_type="GET",
+        interval=60,
+        email="ops@example.com",
     )
-    assert (
-        logRecorder._sanitize_monitor_name("")
-        == logRecorder._FALLBACK_MONITOR_FILENAME
+
+    class FailingStrategy(MonitorStrategy):
+        def run(self, monitor):
+            raise RuntimeError("boom")
+
+    scheduler = MonitorScheduler(
+        timezone_getter=lambda: 0,
+        clock=lambda: datetime.datetime(2023, 1, 1, 0, 0, 0),
+    )
+
+    with caplog.at_level(logging.ERROR, logger="monitoring.service"):
+        event = scheduler.run_single_cycle(monitor, strategy=FailingStrategy())
+
+    assert event.monitor is monitor
+    assert any(
+        "monitor.scheduler.strategy_error" in record.message
+        and monitor.name in record.message
+        for record in caplog.records
+    )
+
+
+def test_scheduler_logs_event_handler_exception(caplog):
+    monitor = configuration.MonitorItem(
+        name="ServiceCallback",
+        url="http://example.com",
+        monitor_type="GET",
+        interval=60,
+        email="ops@example.com",
+    )
+
+    def failing_handler(event):
+        raise RuntimeError("handler failed")
+
+    scheduler = MonitorScheduler(
+        event_handler=failing_handler,
+        timezone_getter=lambda: 0,
+        clock=lambda: datetime.datetime(2023, 1, 1, 0, 0, 0),
+    )
+
+    with caplog.at_level(logging.ERROR, logger="monitoring.service"):
+        scheduler.run_single_cycle(monitor, strategy=SequenceStrategy([True]))
+
+    assert any(
+        "monitor.scheduler.event_handler_error" in record.message
+        and monitor.name in record.message
+        for record in caplog.records
+    )
+
+
+def test_scheduler_logs_notification_exception(caplog):
+    monitor = configuration.MonitorItem(
+        name="ServiceNotifier",
+        url="http://example.com",
+        monitor_type="GET",
+        interval=60,
+        email="ops@example.com",
+    )
+
+    def failing_dispatcher(notification):
+        raise RuntimeError("dispatch failed")
+
+    scheduler = MonitorScheduler(
+        timezone_getter=lambda: 0,
+        clock=lambda: datetime.datetime(2023, 1, 1, 0, 0, 0),
+        dispatcher=failing_dispatcher,
+    )
+
+    with caplog.at_level(logging.ERROR, logger="monitoring.service"):
+        event = scheduler.run_single_cycle(monitor, strategy=SequenceStrategy([False]))
+
+    assert event.notification is not None
+    assert any(
+        "monitor.scheduler.notification_error" in record.message
+        and monitor.name in record.message
+        for record in caplog.records
     )

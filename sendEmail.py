@@ -5,6 +5,7 @@
 # @Software: PyCharm
 
 import datetime as _dt
+import logging
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -24,6 +25,9 @@ except ModuleNotFoundError:  # pragma: no cover - 提供兼容性
     QtCore = _FallbackQtCore()  # type: ignore[assignment]
 
 import configuration
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 def _translate(text: str) -> str:
@@ -151,12 +155,36 @@ def send_email(subject: str, body: str, recipients=None):
             server.starttls()
             server.login(username, password)
             server.sendmail(from_addr, list(send_to_list), message.as_string())
-    except smtplib.SMTPAuthenticationError as e:
-        print(_translate("SMTP 身份验证失败："), e)
-    except smtplib.SMTPException as e:
-        print(_translate("SMTP 通信异常："), e)
-    except Exception as e:
-        print(_translate("发生未知错误："), e)
+    except smtplib.SMTPAuthenticationError:
+        message = _translate("SMTP 身份验证失败：")
+        LOGGER.exception(
+            "mail.smtp.authentication_error message=%s server=%s username=%s recipients=%s",
+            message,
+            smtp_server,
+            username,
+            header_to,
+        )
+        raise
+    except smtplib.SMTPException:
+        message = _translate("SMTP 通信异常：")
+        LOGGER.exception(
+            "mail.smtp.communication_error message=%s server=%s port=%s recipients=%s",
+            message,
+            smtp_server,
+            smtp_port,
+            header_to,
+        )
+        raise
+    except Exception:
+        message = _translate("发生未知错误：")
+        LOGGER.exception(
+            "mail.smtp.unknown_error message=%s server=%s port=%s recipients=%s",
+            message,
+            smtp_server,
+            smtp_port,
+            header_to,
+        )
+        raise
 
 
 def _event_context_presets(event: str) -> Mapping[str, str]:
