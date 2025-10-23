@@ -452,3 +452,26 @@ def test_scheduler_handles_monitors_with_same_name(monkeypatch):
         "Duplicate-recovery",
     ]
     assert notifications_by_monitor[monitor_secondary] == ["Duplicate-outage"]
+
+
+def test_scheduler_restart_after_stop(monkeypatch):
+    monkeypatch.setattr(logRecorder, "record", lambda action, detail: None)
+    monkeypatch.setattr(logRecorder, "saveToFile", lambda row, name: None)
+
+    monitor = configuration.MonitorItem(
+        name="Restartable",
+        url="http://example.com/api",
+        monitor_type="GET",
+        interval=0,
+        email=None,
+    )
+
+    scheduler = MonitorScheduler(event_handler=lambda event: None, timezone_getter=lambda: 0)
+    scheduler.register_strategy("GET", SequenceStrategy([True]))
+
+    scheduler.start([monitor])
+    with pytest.raises(RuntimeError):
+        scheduler.start([monitor])
+    scheduler.stop()
+    scheduler.start([monitor])
+    scheduler.stop()

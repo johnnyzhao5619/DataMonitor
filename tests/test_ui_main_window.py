@@ -200,12 +200,18 @@ def test_run_periodically_single_iteration(qtbot, tmp_path, monkeypatch, monitor
         "email": "ops@example.com",
     }
 
-    window.run_periodically(monitor_info)
+    window.controller.run_periodically(monitor_info)
 
     qtbot.waitUntil(lambda: len(recorded_logs) == 1, timeout=2000)
     qtbot.waitUntil(lambda: len(saved_rows) == 1, timeout=2000)
-    qtbot.waitUntil(lambda: not window.printf_queue.empty(), timeout=2000)
-    qtbot.waitUntil(lambda: monitor_info["name"] not in window._running_periodic, timeout=2000)
+    qtbot.waitUntil(
+        lambda: "ui.status_line|测试服务|正常" in window.ui.monitorBrowser.toPlainText(),
+        timeout=2000,
+    )
+    qtbot.waitUntil(
+        lambda: not window.controller.dashboard._running_periodic,
+        timeout=2000,
+    )
 
     assert send_calls == []
     assert call_count["perform"] == 1
@@ -221,12 +227,12 @@ def test_run_periodically_single_iteration(qtbot, tmp_path, monkeypatch, monitor
     assert row[2] == monitor_type
     assert row[5] == 1
     assert row[6] == "正常"
-    assert window.printf_queue.get_nowait() == "ui.status_line|测试服务|正常"
+    assert "ui.status_line|测试服务|正常" in window.ui.monitorBrowser.toPlainText()
 
     assert thread_names
     assert any(name and name.startswith("Monitor:") for name in thread_names)
 
-    window._stop_periodic_monitors()
+    window.controller.dashboard.on_close()
 
 
 @pytest.mark.qt
@@ -245,7 +251,7 @@ def test_run_periodically_with_duplicate_names(qtbot, tmp_path, monkeypatch):
         run_calls.append((monitor.name, monitor.url, monitor.monitor_type))
 
     monkeypatch.setattr(
-        window._periodic_scheduler,
+        window.controller.dashboard._periodic_scheduler,
         "run_single_cycle",
         fake_run_single_cycle,
     )
@@ -290,10 +296,10 @@ def test_run_periodically_with_duplicate_names(qtbot, tmp_path, monkeypatch):
     ]
 
     for info in monitors:
-        window.run_periodically(info)
+        window.controller.run_periodically(info)
 
-    assert len(window._periodic_monitors) == 2
-    assert len(window._periodic_timers) == 2
+    assert len(window.controller.dashboard._periodic_monitors) == 2
+    assert len(window.controller.dashboard._periodic_timers) == 2
     assert created_threads == ["Monitor:重复服务", "Monitor:重复服务"]
     assert run_calls == [
         ("重复服务", "http://example.com/a", "GET"),
@@ -304,13 +310,13 @@ def test_run_periodically_with_duplicate_names(qtbot, tmp_path, monkeypatch):
         ("重复服务", "http://example.com/a", "GET"),
         ("重复服务", "http://example.com/b", "GET"),
     }
-    assert set(window._periodic_monitors.keys()) == expected_keys
-    assert set(window._periodic_timers.keys()) == expected_keys
-    urls = {monitor.url for monitor in window._periodic_monitors.values()}
+    assert set(window.controller.dashboard._periodic_monitors.keys()) == expected_keys
+    assert set(window.controller.dashboard._periodic_timers.keys()) == expected_keys
+    urls = {monitor.url for monitor in window.controller.dashboard._periodic_monitors.values()}
     assert urls == {"http://example.com/a", "http://example.com/b"}
-    assert window._running_periodic == set()
+    assert window.controller.dashboard._running_periodic == set()
 
-    window._stop_periodic_monitors()
+    window.controller.dashboard.on_close()
 
 
 @pytest.mark.qt
