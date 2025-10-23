@@ -11,6 +11,7 @@ from urllib.parse import urlsplit
 import configuration
 
 from . import api_monitor
+from . import http_probe
 from . import log_recorder
 from . import send_email
 
@@ -34,12 +35,12 @@ class MonitorStrategy:
 
 class GetMonitorStrategy(MonitorStrategy):
     def run(self, monitor: configuration.MonitorItem) -> bool:
-        return api_monitor.monitor_get(monitor.url)
+        return http_probe.monitor_get(monitor.url)
 
 
 class PostMonitorStrategy(MonitorStrategy):
     def run(self, monitor: configuration.MonitorItem) -> bool:
-        return api_monitor.monitor_post(
+        return http_probe.monitor_post(
             monitor.url,
             monitor.payload,
             headers=monitor.headers,

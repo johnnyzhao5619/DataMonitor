@@ -1,6 +1,6 @@
 """监控调度相关组件。"""
 
-from . import api_monitor, log_recorder, my_ping, send_email
+from . import api_monitor, http_probe, icmp_probe, log_recorder, network_probe, send_email
 from .service import MonitorScheduler, default_notification_dispatcher, default_notification_templates
 from .state_machine import (
     MonitorEvent,
@@ -19,7 +19,9 @@ __all__ = [
     "NotificationTemplates",
     "api_monitor",
     "log_recorder",
-    "my_ping",
+    "http_probe",
+    "icmp_probe",
+    "network_probe",
     "send_email",
     "default_notification_dispatcher",
     "default_notification_templates",

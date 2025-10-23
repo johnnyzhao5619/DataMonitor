@@ -37,6 +37,8 @@ if str(PROJECT_ROOT) not in sys.path:
 import requests  # noqa: E402  pylint: disable=wrong-import-position
 
 from monitoring import api_monitor  # noqa: E402  pylint: disable=wrong-import-position
+from monitoring import http_probe  # noqa: E402  pylint: disable=wrong-import-position
+from monitoring import network_probe  # noqa: E402  pylint: disable=wrong-import-position
 import configuration  # noqa: E402  pylint: disable=wrong-import-position
 
 
@@ -59,7 +61,7 @@ def test_monitor_get_success_for_valid_status(monkeypatch, caplog, status_code):
         assert timeout == 5.0
         return DummyResponse(status_code)
 
-    monkeypatch.setattr(api_monitor.requests, "get", fake_get)
+    monkeypatch.setattr(http_probe.requests, "get", fake_get)
 
     caplog.clear()
     with caplog.at_level(logging.INFO):
@@ -72,7 +74,7 @@ def test_monitor_get_failure_status(monkeypatch, caplog):
         assert timeout == 5.0
         return DummyResponse(404)
 
-    monkeypatch.setattr(api_monitor.requests, "get", fake_get)
+    monkeypatch.setattr(http_probe.requests, "get", fake_get)
 
     caplog.clear()
     with caplog.at_level(logging.INFO):
@@ -85,7 +87,7 @@ def test_monitor_get_exception(monkeypatch, caplog):
     def fake_get(url, timeout):
         raise requests.Timeout("request timed out")
 
-    monkeypatch.setattr(api_monitor.requests, "get", fake_get)
+    monkeypatch.setattr(http_probe.requests, "get", fake_get)
 
     caplog.clear()
     with caplog.at_level(logging.INFO):
@@ -115,8 +117,8 @@ def test_monitor_get_reads_configuration_timeout(monkeypatch):
         return cached_timeout["value"]
 
     monkeypatch.setattr(configuration, "get_request_timeout", fake_get_timeout)
-    monkeypatch.setattr(api_monitor, "_resolve_timeout", fake_resolve_timeout)
-    monkeypatch.setattr(api_monitor.requests, "get", fake_get)
+    monkeypatch.setattr(http_probe, "resolve_timeout", fake_resolve_timeout)
+    monkeypatch.setattr(http_probe.requests, "get", fake_get)
 
     assert api_monitor.monitor_get("http://example.com") is False
     assert calls["count"] == 1
@@ -131,7 +133,7 @@ def test_monitor_get_uses_explicit_timeout(monkeypatch):
         return DummyResponse(200)
 
     monkeypatch.setattr(configuration, "get_request_timeout", fail_if_called)
-    monkeypatch.setattr(api_monitor.requests, "get", fake_get)
+    monkeypatch.setattr(http_probe.requests, "get", fake_get)
 
     assert api_monitor.monitor_get("http://example.com", timeout=1.5) is True
 
@@ -157,7 +159,7 @@ def test_monitor_post_success_for_valid_status(monkeypatch, caplog, status_code)
         assert timeout == 5.0
         return DummyResponse(status_code)
 
-    monkeypatch.setattr(api_monitor.requests, "post", fake_post)
+    monkeypatch.setattr(http_probe.requests, "post", fake_post)
 
     caplog.clear()
     with caplog.at_level(logging.INFO):
@@ -172,7 +174,7 @@ def test_monitor_post_failure_status(monkeypatch, caplog):
         assert timeout == 5.0
         return DummyResponse(500)
 
-    monkeypatch.setattr(api_monitor.requests, "post", fake_post)
+    monkeypatch.setattr(http_probe.requests, "post", fake_post)
 
     caplog.clear()
     with caplog.at_level(logging.INFO):
@@ -185,7 +187,7 @@ def test_monitor_post_exception(monkeypatch, caplog):
     def fake_post(url, data=None, headers=None, timeout=None):
         raise requests.ConnectionError("connection aborted")
 
-    monkeypatch.setattr(api_monitor.requests, "post", fake_post)
+    monkeypatch.setattr(http_probe.requests, "post", fake_post)
 
     caplog.clear()
     with caplog.at_level(logging.INFO):
@@ -202,7 +204,7 @@ def test_monitor_post_handles_timeout_configuration_error(monkeypatch, caplog):
         raise AssertionError("requests.post should not be invoked")
 
     monkeypatch.setattr(configuration, "get_request_timeout", fake_get_timeout)
-    monkeypatch.setattr(api_monitor.requests, "post", fail_post)
+    monkeypatch.setattr(http_probe.requests, "post", fail_post)
 
     caplog.clear()
     with caplog.at_level(logging.INFO):
@@ -221,7 +223,7 @@ def test_monitor_post_forwards_payload_and_headers(monkeypatch):
         observed["timeout"] = timeout
         return DummyResponse(200)
 
-    monkeypatch.setattr(api_monitor.requests, "post", fake_post)
+    monkeypatch.setattr(http_probe.requests, "post", fake_post)
 
     payload = {"key": "value"}
     headers = {"X-Test": "1"}
@@ -271,8 +273,8 @@ def test_monitor_requests_refresh_timeout_after_configuration_reload(
         observed_post.append(timeout)
         return DummyResponse(200)
 
-    monkeypatch.setattr(api_monitor.requests, "get", fake_get)
-    monkeypatch.setattr(api_monitor.requests, "post", fake_post)
+    monkeypatch.setattr(http_probe.requests, "get", fake_get)
+    monkeypatch.setattr(http_probe.requests, "post", fake_post)
 
     assert api_monitor.monitor_get("http://example.com/status") is True
     assert observed_get == [2.5]
@@ -293,7 +295,7 @@ def test_monitor_server_handles_socket_gaierror(monkeypatch, caplog):
     def fake_create_connection(*args, **kwargs):
         raise socket.gaierror("name or service not known")
 
-    monkeypatch.setattr(api_monitor.socket, "create_connection", fake_create_connection)
+    monkeypatch.setattr(network_probe.socket, "create_connection", fake_create_connection)
 
     ping_calls = {"subprocess": 0}
 
@@ -302,7 +304,7 @@ def test_monitor_server_handles_socket_gaierror(monkeypatch, caplog):
         assert timeout == 5.0
         return False
 
-    monkeypatch.setattr(api_monitor, "_subprocess_ping", fake_subprocess_ping)
+    monkeypatch.setattr(network_probe, "_subprocess_ping", fake_subprocess_ping)
 
     class DummyPing:
         def request_ping(self, *args, **kwargs):
@@ -314,7 +316,7 @@ def test_monitor_server_handles_socket_gaierror(monkeypatch, caplog):
         def reply_ping(self, *args, **kwargs):
             return 0
 
-    monkeypatch.setattr(api_monitor, "MyPing", DummyPing)
+    monkeypatch.setattr(network_probe, "IcmpProbe", DummyPing)
 
     def fake_socket_factory(*args, **kwargs):
         class DummySocket:
@@ -336,14 +338,14 @@ def test_monitor_server_handles_socket_gaierror(monkeypatch, caplog):
 
         return DummySocket()
 
-    monkeypatch.setattr(api_monitor.socket, "socket", fake_socket_factory)
+    monkeypatch.setattr(network_probe.socket, "socket", fake_socket_factory)
 
     def fake_get(url, timeout):
         assert url == "http://invalid.host"
         assert timeout == 5.0
         return DummyResponse(503)
 
-    monkeypatch.setattr(api_monitor.requests, "get", fake_get)
+    monkeypatch.setattr(http_probe.requests, "get", fake_get)
 
     caplog.clear()
     with caplog.at_level(logging.INFO):
@@ -359,18 +361,18 @@ def test_monitor_server_handles_socket_gaierror(monkeypatch, caplog):
 
 def test_monitor_server_requires_http_success(monkeypatch, caplog):
     monkeypatch.setattr(
-        api_monitor,
-        "_check_socket_connectivity",
+        network_probe,
+        "check_socket_connectivity",
         lambda host, port, timeout: True,
     )
     monkeypatch.setattr(
-        api_monitor,
-        "_perform_ping_probe",
+        network_probe,
+        "perform_ping_probe",
         lambda host, timeout: True,
     )
     monkeypatch.setattr(
-        api_monitor,
-        "_perform_icmp_probe",
+        network_probe,
+        "perform_icmp_probe",
         lambda host, timeout: None,
     )
 
@@ -378,7 +380,7 @@ def test_monitor_server_requires_http_success(monkeypatch, caplog):
         assert timeout == 5.0
         return DummyResponse(502)
 
-    monkeypatch.setattr(api_monitor.requests, "get", fake_get)
+    monkeypatch.setattr(http_probe.requests, "get", fake_get)
 
     caplog.clear()
     with caplog.at_level(logging.INFO):
@@ -423,15 +425,15 @@ def test_perform_ping_probe_distributes_timeout(monkeypatch):
 
     dummy_ping = DummyPing()
 
-    monkeypatch.setattr(api_monitor, "MyPing", lambda: dummy_ping)
-    monkeypatch.setattr(api_monitor.socket, "gethostbyname", lambda host: "127.0.0.1")
+    monkeypatch.setattr(network_probe, "IcmpProbe", lambda: dummy_ping)
+    monkeypatch.setattr(network_probe.socket, "gethostbyname", lambda host: "127.0.0.1")
 
     def fake_sleep(duration):
         sleep_calls.append(duration)
 
-    monkeypatch.setattr(api_monitor.time, "sleep", fake_sleep)
+    monkeypatch.setattr(network_probe.time, "sleep", fake_sleep)
 
-    result = api_monitor._perform_ping_probe("example.com", configured_timeout)
+    result = network_probe.perform_ping_probe("example.com", configured_timeout)
 
     assert result is True
     per_attempt_timeout = configured_timeout / 3
@@ -453,7 +455,7 @@ def stub_monitor_server_dependencies(monkeypatch):
             return False
 
     monkeypatch.setattr(
-        api_monitor.socket,
+        network_probe.socket,
         "create_connection",
         lambda *args, **kwargs: DummyConnection(),
     )
@@ -468,8 +470,8 @@ def stub_monitor_server_dependencies(monkeypatch):
         def reply_ping(self, *args, **kwargs):
             return 0
 
-    monkeypatch.setattr(api_monitor, "MyPing", DummyPing)
-    monkeypatch.setattr(api_monitor, "_subprocess_ping", lambda host, timeout: False)
+    monkeypatch.setattr(network_probe, "IcmpProbe", DummyPing)
+    monkeypatch.setattr(network_probe, "_subprocess_ping", lambda host, timeout: False)
 
     class DummySocket:
         def __enter__(self):
@@ -488,7 +490,7 @@ def stub_monitor_server_dependencies(monkeypatch):
             raise socket.timeout("no icmp reply")
 
     monkeypatch.setattr(
-        api_monitor.socket,
+        network_probe.socket,
         "socket",
         lambda *args, **kwargs: DummySocket(),
     )
@@ -508,7 +510,7 @@ def test_monitor_server_uses_timeout_from_environment(
         observed["timeout"] = timeout
         return DummyResponse(200)
 
-    monkeypatch.setattr(api_monitor.requests, "get", fake_get)
+    monkeypatch.setattr(http_probe.requests, "get", fake_get)
 
     assert (
         api_monitor.monitor_server(("https", "example.com", None, "status"))
@@ -543,7 +545,7 @@ def test_monitor_server_uses_timeout_from_config_file(
         observed["timeout"] = timeout
         return DummyResponse(200)
 
-    monkeypatch.setattr(api_monitor.requests, "get", fake_get)
+    monkeypatch.setattr(http_probe.requests, "get", fake_get)
 
     assert (
         api_monitor.monitor_server(("http", "example.org", None, None))
@@ -568,7 +570,7 @@ def test_monitor_server_closes_raw_ping_socket(monkeypatch):
             return False
 
     monkeypatch.setattr(
-        api_monitor.socket,
+        network_probe.socket,
         "create_connection",
         lambda *args, **kwargs: DummyConnection(),
     )
@@ -592,9 +594,9 @@ def test_monitor_server_closes_raw_ping_socket(monkeypatch):
         def reply_ping(self, *args, **kwargs):
             return 0.01
 
-    monkeypatch.setattr(api_monitor, "MyPing", CountingPing)
-    monkeypatch.setattr(api_monitor, "_subprocess_ping", lambda host: False)
-    monkeypatch.setattr(api_monitor.socket, "gethostbyname", lambda host: "127.0.0.1")
+    monkeypatch.setattr(network_probe, "IcmpProbe", CountingPing)
+    monkeypatch.setattr(network_probe, "_subprocess_ping", lambda host, timeout: False)
+    monkeypatch.setattr(network_probe.socket, "gethostbyname", lambda host: "127.0.0.1")
 
     class DummyIcmpSocket:
         def __enter__(self):
@@ -612,14 +614,14 @@ def test_monitor_server_closes_raw_ping_socket(monkeypatch):
         def recv(self, *args, **kwargs):
             raise socket.timeout("no icmp reply")
 
-    monkeypatch.setattr(api_monitor.socket, "socket", lambda *args, **kwargs: DummyIcmpSocket())
-    monkeypatch.setattr(api_monitor.time, "sleep", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(network_probe.socket, "socket", lambda *args, **kwargs: DummyIcmpSocket())
+    monkeypatch.setattr(network_probe.time, "sleep", lambda *_args, **_kwargs: None)
 
     def fake_get(url, timeout):
         assert timeout == 5.0
         return DummyResponse(200)
 
-    monkeypatch.setattr(api_monitor.requests, "get", fake_get)
+    monkeypatch.setattr(http_probe.requests, "get", fake_get)
 
     result = api_monitor.monitor_server(("http", "example.org", None, None))
 
