@@ -819,6 +819,15 @@ def get_request_timeout():
 
     return DEFAULT_REQUEST_TIMEOUT
 
+
+def reset_request_timeout_cache() -> float:
+    """清空请求超时的缓存，并返回刷新后的最新值。"""
+
+    cache_clear = getattr(get_request_timeout, "cache_clear", None)
+    if callable(cache_clear):
+        cache_clear()
+    return get_request_timeout()
+
 def read_mail_configuration():
     """读取邮件配置，优先使用环境变量，其次使用外部配置文件，最后回退到项目配置。"""
 

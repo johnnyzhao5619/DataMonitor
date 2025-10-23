@@ -243,6 +243,52 @@ def test_monitor_post_forwards_payload_and_headers(monkeypatch):
     }
 
 
+def test_monitor_requests_refresh_timeout_after_configuration_reload(
+    monkeypatch, tmp_path
+):
+    monkeypatch.delenv(configuration.REQUEST_TIMEOUT_ENV, raising=False)
+
+    config_root = tmp_path / "APIMonitor"
+    config_dir = config_root / "Config"
+    config_dir.mkdir(parents=True)
+    config_file = config_dir / "Config.ini"
+    config_file.write_text("[Request]\ntimeout = 2.5\n", encoding="utf-8")
+
+    monkeypatch.setattr(configuration, "get_logdir", lambda: str(config_root) + "/")
+    monkeypatch.setattr(configuration, "get_request_timeout", ORIGINAL_GET_REQUEST_TIMEOUT)
+    ORIGINAL_GET_REQUEST_TIMEOUT.cache_clear()
+
+    configuration.reset_request_timeout_cache()
+
+    observed_get = []
+    observed_post = []
+
+    def fake_get(url, timeout):
+        observed_get.append(timeout)
+        return DummyResponse(200)
+
+    def fake_post(url, data=None, headers=None, timeout=None):
+        observed_post.append(timeout)
+        return DummyResponse(200)
+
+    monkeypatch.setattr(apiMonitor.requests, "get", fake_get)
+    monkeypatch.setattr(apiMonitor.requests, "post", fake_post)
+
+    assert apiMonitor.monitor_get("http://example.com/status") is True
+    assert observed_get == [2.5]
+
+    config_file.write_text("[Request]\ntimeout = 9.0\n", encoding="utf-8")
+    configuration.reset_request_timeout_cache()
+
+    assert apiMonitor.monitor_get("http://example.com/status") is True
+    assert observed_get == [2.5, 9.0]
+
+    assert apiMonitor.monitor_post("http://example.com/api", payload={}) is True
+    assert observed_post == [9.0]
+
+    ORIGINAL_GET_REQUEST_TIMEOUT.cache_clear()
+
+
 def test_monitor_server_handles_socket_gaierror(monkeypatch, caplog):
     def fake_create_connection(*args, **kwargs):
         raise socket.gaierror("name or service not known")
