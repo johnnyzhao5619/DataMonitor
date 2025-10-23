@@ -1,7 +1,7 @@
 # -*- codeing = utf-8 -*-
 # @Time : 2023-03-29 3:23 p.m.
 # @Author: weijiazhao
-# @File : apiMonitor.py
+# @File : api_monitor.py
 # @Software: PyCharm
 import logging
 import math
@@ -15,7 +15,8 @@ from contextlib import closing
 import requests
 
 import configuration
-from myPing import MyPing
+
+from .my_ping import MyPing
 
 
 LOGGER = logging.getLogger(__name__)

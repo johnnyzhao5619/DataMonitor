@@ -8,10 +8,6 @@ from PyQt5 import QtWidgets
 from controllers import MainWindowController
 from ui.main_window import MainWindowUI
 
-import apiMonitor  # 用于兼容现有测试
-import configuration
-import logRecorder
-
 if TYPE_CHECKING:
     from ui.theme import ThemeDefinition, ThemeManager
 

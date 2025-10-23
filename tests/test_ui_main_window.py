@@ -10,14 +10,13 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 import configuration
-import logRecorder
-import sendEmail
+from monitoring import api_monitor, log_recorder, send_email
 import threading
 
 pytest.importorskip("PyQt5")
 from PyQt5 import QtCore, QtWidgets
 
-from mainFrame import MainWindowController, toolsetWindow
+from main_frame import MainWindowController, toolsetWindow
 from monitoring.service import parse_network_address as service_parse_network_address
 from ui.components.navigation import NavigationBar
 from ui.views.configuration import ConfigWizard
@@ -196,7 +195,7 @@ def test_run_periodically_single_iteration(qtbot, tmp_path, monkeypatch, monitor
     def fake_send_email(*args, **kwargs):
         send_calls.append((args, kwargs))
 
-    monkeypatch.setattr(sendEmail, "send_email", fake_send_email)
+    monkeypatch.setattr(send_email, "send_email", fake_send_email)
 
     def fake_render_template(category, key, context, *, language=None):
         return f"{category}.{key}|{context['service_name']}|{context['status_text']}"
@@ -208,14 +207,14 @@ def test_run_periodically_single_iteration(qtbot, tmp_path, monkeypatch, monitor
     def fake_record(action, detail):
         recorded_logs.append((action, detail))
 
-    monkeypatch.setattr(logRecorder, "record", fake_record)
+    monkeypatch.setattr(log_recorder, "record", fake_record)
 
     saved_rows = []
 
     def fake_save(data, name):
         saved_rows.append((data, name))
 
-    monkeypatch.setattr(logRecorder, "saveToFile", fake_save)
+    monkeypatch.setattr(log_recorder, "saveToFile", fake_save)
 
     call_count = {"perform": 0}
 
@@ -237,9 +236,9 @@ def test_run_periodically_single_iteration(qtbot, tmp_path, monkeypatch, monitor
         assert parsed_address == expected_parsed
         return True
 
-    monkeypatch.setattr(apiMonitor, "monitor_get", fake_monitor_get)
-    monkeypatch.setattr(apiMonitor, "monitor_post", fake_monitor_post)
-    monkeypatch.setattr(apiMonitor, "monitor_server", fake_monitor_server)
+    monkeypatch.setattr(api_monitor, "monitor_get", fake_monitor_get)
+    monkeypatch.setattr(api_monitor, "monitor_post", fake_monitor_post)
+    monkeypatch.setattr(api_monitor, "monitor_server", fake_monitor_server)
 
     expected_parsed = None
     if monitor_type == "SERVER":

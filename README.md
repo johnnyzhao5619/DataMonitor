@@ -4,7 +4,7 @@
 
 ![Workspace 风格主界面](docs/ui_overview.svg)
 
-1. 启动应用：在已准备好 `Config.ini` 的环境中执行 `python mainFrame.py`，默认进入监控视图，顶部导航采用 Workspace 风格配色。
+1. 启动应用：在已准备好 `Config.ini` 的环境中执行 `python main_frame.py`，默认进入监控视图，顶部导航采用 Workspace 风格配色。
 2. 监控视图：左侧显示本地时间，右侧显示 UTC 时间；下方实时日志滚动展示最新事件。
 3. 启停控制：命令条中的“启动/关闭”按钮仅负责启动或停止监控调度器，停止后界面会保持开启，方便重新启动或查看日志；若需退出程序，请使用旁侧新增的“退出 Exit”按钮或窗口默认的关闭操作。
 4. 配置向导：点击“配置 Configuration”按钮切换到配置视图，可在列表中增删监控项，右侧表单提供实时校验与通知邮件预览，保存后立即写入配置文件。
@@ -92,7 +92,7 @@ chmod 600 /etc/datamonitor/mail.ini
 - **UI 提示 (`[ui]`)**：
   - `status_line`：写入 GUI 队列与终端输出的统一提示文案。
 - **日志模版 (`[log]`)**：
-  - `action_line`：`logRecorder.record` 的 Action 行。
+  - `action_line`：`monitoring.log_recorder.record` 的 Action 行。
   - `detail_line`：记录状态明细的内容。
   - `record_entry`：文本日志整体格式。
   - `csv_header`：CSV 文件首行标题（以逗号分隔）。
@@ -133,7 +133,7 @@ chmod 600 /etc/datamonitor/mail.ini
 
 ### 异常日志查看位置
 
-调度层（`monitoring.service`）与邮件发送模块（`sendEmail`）统一通过 Python `logging` 输出错误日志，记录器名称分别为 `monitoring.service` 与 `sendEmail`。默认情况下这些日志会写入标准错误流，运维可在部署脚本中使用 `logging.basicConfig` 或 `dictConfig` 将其重定向到日志根目录下的文件，例如：
+调度层（`monitoring.service`）与邮件发送模块（`monitoring.send_email`）统一通过 Python `logging` 输出错误日志，记录器名称分别为 `monitoring.service` 与 `monitoring.send_email`。默认情况下这些日志会写入标准错误流，运维可在部署脚本中使用 `logging.basicConfig` 或 `dictConfig` 将其重定向到日志根目录下的文件，例如：
 
 ```python
 import logging
@@ -170,12 +170,12 @@ logging.basicConfig(
 ### 界面与控制器
 
 - `ui/main_window.py` 提供导航栏、监控仪表盘与配置向导等界面组件，负责纯粹的布局与交互控件定义。
-- `controllers/main_window.py` 封装 `MainWindowController`，集中处理主题切换、调度协调与配置保存逻辑，减少 `mainFrame.py` 的耦合度。
+- `controllers/main_window.py` 封装 `MainWindowController`，集中处理主题切换、调度协调与配置保存逻辑，减少 `main_frame.py` 的耦合度。
 - `ui/theme.py` 统一声明 `ThemeDefinition` 与 `Workspace` 风格主题常量，便于后续扩展或替换主题资源。
 
 ### 调度与状态管理
 
-- `monitoring/service.py` 实现调度层，负责读取 `configuration.read_monitor_list()` 返回的结构化监控项，按类型查找已注册的策略并以独立线程循环执行。调度层同时协调状态机、日志写入以及通知分发，使得 UI (`mainFrame.ToolsetWindow`) 仅承担展示职责。
+- `monitoring/service.py` 实现调度层，负责读取 `configuration.read_monitor_list()` 返回的结构化监控项，按类型查找已注册的策略并以独立线程循环执行。调度层同时协调状态机、日志写入以及通知分发，使得 UI (`main_frame.ToolsetWindow`) 仅承担展示职责。
 - `monitoring/state_machine.py` 提供 `MonitorStateMachine`，根据监控结果驱动状态切换并生成统一的 `MonitorEvent`。事件中包含状态描述、日志内容、CSV 行以及通知模版信息，便于在不同渠道重用。
 
 ### 策略注册

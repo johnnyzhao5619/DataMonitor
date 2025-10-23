@@ -12,11 +12,11 @@ pytest.importorskip("PyQt5")
 from PyQt5 import QtWidgets
 
 import configuration
-import logRecorder
+from monitoring import log_recorder
 from controllers import ControllerEventBus
 from controllers.dashboard import DashboardController
 from controllers.preferences import PreferencesController
-from mainFrame import _load_theme_resources
+from main_frame import _load_theme_resources
 from ui.main_window import MainWindowUI
 
 
@@ -122,7 +122,7 @@ def test_dashboard_logs_unsupported_type(monkeypatch, qtbot):
     bus.statusMessage.connect(lambda text, timeout: statuses.append(text))
 
     records = []
-    monkeypatch.setattr(logRecorder, "record", lambda action, detail: records.append((action, detail)))
+    monkeypatch.setattr(log_recorder, "record", lambda action, detail: records.append((action, detail)))
 
     controller = DashboardController(event_bus=bus, timezone=0)
     qtbot.addCleanup(controller.on_close)

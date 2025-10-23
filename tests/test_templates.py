@@ -9,7 +9,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 import configuration  # noqa: E402  pylint: disable=wrong-import-position
-import sendEmail  # noqa: E402  pylint: disable=wrong-import-position
+from monitoring import send_email  # noqa: E402  pylint: disable=wrong-import-position
 
 
 @pytest.fixture(autouse=True)
@@ -89,7 +89,7 @@ def test_render_email_requires_fields(tmp_path, monkeypatch):
     context.pop("time_label")
 
     with pytest.raises(ValueError) as exc_info:
-        sendEmail.render_email("alert", context)
+        send_email.render_email("alert", context)
 
     assert "缺少必要字段" in str(exc_info.value)
 
@@ -99,7 +99,7 @@ def test_render_email_respects_template_override(tmp_path, monkeypatch):
     _prepare_config_dir(tmp_path, monkeypatch, templates_content)
     context = _sample_context()
 
-    subject, body = sendEmail.render_email("alert", context)
+    subject, body = send_email.render_email("alert", context)
 
     assert subject == "ALERT DemoService"
     assert body == "BODY 告警"

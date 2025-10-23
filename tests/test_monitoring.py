@@ -19,7 +19,7 @@ if "requests" not in sys.modules:
 import pytest
 
 import configuration  # noqa: E402  pylint: disable=wrong-import-position
-import logRecorder  # noqa: E402  pylint: disable=wrong-import-position
+from monitoring import log_recorder  # noqa: E402  pylint: disable=wrong-import-position
 from monitoring.service import (  # noqa: E402
     MonitorScheduler,
     MonitorStrategy,
@@ -155,8 +155,8 @@ def test_scheduler_runs_strategies_and_emits_events(monkeypatch):
     events = []
     finished = threading.Event()
 
-    monkeypatch.setattr(logRecorder, "record", lambda action, detail: logs.append((action, detail)))
-    monkeypatch.setattr(logRecorder, "saveToFile", lambda row, name: csv_rows.append((tuple(row), name)))
+    monkeypatch.setattr(log_recorder, "record", lambda action, detail: logs.append((action, detail)))
+    monkeypatch.setattr(log_recorder, "saveToFile", lambda row, name: csv_rows.append((tuple(row), name)))
 
     base_time = datetime.datetime(2023, 1, 1, 0, 0, 0)
 
@@ -251,7 +251,7 @@ def test_server_strategy_uses_shared_parser(monkeypatch):
 
     monkeypatch.setattr("monitoring.service.parse_network_address", fake_parse)
     monkeypatch.setattr(
-        "monitoring.service.apiMonitor.monitor_server",
+        "monitoring.service.api_monitor.monitor_server",
         lambda parsed: monitor_calls.append(parsed) or True,
     )
 
@@ -269,9 +269,9 @@ def test_scheduler_handles_payload_and_headers_monitor(monkeypatch):
     events = []
     finished = threading.Event()
 
-    monkeypatch.setattr(logRecorder, "record", lambda action, detail: logs.append((action, detail)))
+    monkeypatch.setattr(log_recorder, "record", lambda action, detail: logs.append((action, detail)))
     monkeypatch.setattr(
-        logRecorder,
+        log_recorder,
         "saveToFile",
         lambda row, name: csv_rows.append((tuple(row), name)),
     )
@@ -347,8 +347,8 @@ def test_scheduler_uses_default_templates(monkeypatch):
     events = []
     finished = threading.Event()
 
-    monkeypatch.setattr(logRecorder, "record", lambda action, detail: None)
-    monkeypatch.setattr(logRecorder, "saveToFile", lambda row, name: None)
+    monkeypatch.setattr(log_recorder, "record", lambda action, detail: None)
+    monkeypatch.setattr(log_recorder, "saveToFile", lambda row, name: None)
 
     base_time = datetime.datetime(2023, 1, 1, 0, 0, 0)
 
@@ -386,8 +386,8 @@ def test_scheduler_uses_default_templates(monkeypatch):
 
 
 def test_scheduler_handles_monitors_with_same_name(monkeypatch):
-    monkeypatch.setattr(logRecorder, "record", lambda action, detail: None)
-    monkeypatch.setattr(logRecorder, "saveToFile", lambda row, name: None)
+    monkeypatch.setattr(log_recorder, "record", lambda action, detail: None)
+    monkeypatch.setattr(log_recorder, "saveToFile", lambda row, name: None)
 
     base_time = datetime.datetime(2023, 1, 1, 0, 0, 0)
 
@@ -468,8 +468,8 @@ def test_scheduler_handles_monitors_with_same_name(monkeypatch):
 
 
 def test_scheduler_restart_after_stop(monkeypatch):
-    monkeypatch.setattr(logRecorder, "record", lambda action, detail: None)
-    monkeypatch.setattr(logRecorder, "saveToFile", lambda row, name: None)
+    monkeypatch.setattr(log_recorder, "record", lambda action, detail: None)
+    monkeypatch.setattr(log_recorder, "saveToFile", lambda row, name: None)
 
     monitor = configuration.MonitorItem(
         name="Restartable",
@@ -577,8 +577,8 @@ def test_scheduler_logs_notification_exception(caplog):
 
 
 def test_scheduler_reuses_state_machine_for_repeated_cycles(monkeypatch):
-    monkeypatch.setattr(logRecorder, "record", lambda action, detail: None)
-    monkeypatch.setattr(logRecorder, "saveToFile", lambda row, name: None)
+    monkeypatch.setattr(log_recorder, "record", lambda action, detail: None)
+    monkeypatch.setattr(log_recorder, "saveToFile", lambda row, name: None)
 
     scheduler = MonitorScheduler(
         event_handler=lambda event: None,

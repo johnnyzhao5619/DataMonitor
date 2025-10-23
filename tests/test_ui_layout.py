@@ -10,7 +10,7 @@ if str(PROJECT_ROOT) not in sys.path:
 pytest.importorskip("PyQt5")
 from PyQt5 import QtCore
 
-from mainFrame import toolsetWindow
+from main_frame import toolsetWindow
 from ui.views.configuration import ConfigWizard
 from ui.views.dashboard import MonitorDashboard
 

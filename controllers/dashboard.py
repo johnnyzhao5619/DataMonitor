@@ -8,8 +8,8 @@ from typing import Dict, Optional, Tuple
 from PyQt5 import QtCore
 
 import configuration
-import logRecorder
 from configuration import SUPPORTED_MONITOR_TYPES
+from monitoring import log_recorder
 from monitoring.service import (
     MonitorScheduler,
     parse_network_address as service_parse_network_address,
@@ -242,7 +242,7 @@ class DashboardController(QtCore.QObject):
             monitor_type=readable_type,
             url=url,
         )
-        logRecorder.record("Unsupported Monitor Type", message)
+        log_recorder.record("Unsupported Monitor Type", message)
         self._event_bus.logMessage.emit(message)
         self._event_bus.statusMessage.emit(message, 5000)
         return message

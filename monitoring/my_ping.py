@@ -1,7 +1,7 @@
 # -*- codeing = utf-8 -*-
 # @Time : 2023/4/10 0:56
 # @Author: weijia
-# @File : myPing.py
+# @File : my_ping.py
 # @Software: PyCharm
 
 import time, struct
