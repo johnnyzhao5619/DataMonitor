@@ -256,20 +256,15 @@ def test_read_mail_configuration_bootstraps_placeholder(tmp_path, monkeypatch):
 
     assert not config_file.exists()
 
-    values = configuration.read_mail_configuration()
+    with pytest.raises(ValueError) as excinfo:
+        configuration.read_mail_configuration()
+
+    message = str(excinfo.value)
+    assert "缺少真实 SMTP 配置" in message
+    assert "README" in message
 
     assert config_dir.is_dir()
     assert config_file.is_file()
-    assert values == {
-        "smtp_server": "<SMTP_SERVER>",
-        "smtp_port": "<SMTP_PORT>",
-        "username": "<USERNAME>",
-        "password": "<PASSWORD>",
-        "from_addr": "<FROM_ADDRESS>",
-        "to_addrs": "<TO_ADDRESSES>",
-        "use_starttls": False,
-        "use_ssl": False,
-    }
 
 
 def test_read_mail_configuration_rejects_invalid_boolean_env(monkeypatch):

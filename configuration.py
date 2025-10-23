@@ -867,6 +867,12 @@ def _normalise_mail_values(values: Mapping[str, Any], *, source: str) -> Dict[st
         if key not in values:
             raise ValueError(f"{source} 缺少邮件配置字段：{key}")
         value = values[key]
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped.startswith("<") and stripped.endswith(">"):
+                raise ValueError(
+                    f"{source} 包含占位符字段：{key}={value!r}，缺少真实 SMTP 配置，请按照 README 覆盖配置后重试"
+                )
         if key in MAIL_BOOL_OPTIONS:
             normalised[key] = _coerce_mail_bool(value, key=key, source=source)
         else:
