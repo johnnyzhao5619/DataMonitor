@@ -10,6 +10,7 @@ from controllers import MainWindowController
 from ui.main_window import MainWindowUI
 
 import apiMonitor  # 用于兼容现有测试
+import configuration
 import logRecorder
 
 if TYPE_CHECKING:
@@ -61,15 +62,24 @@ class ToolsetWindow(QtWidgets.QMainWindow):
         return controller.perform_task(*args, **kwargs)
 
     def _resolve_controller(self) -> MainWindowController:
-        controller = getattr(self, "controller", None)
+        try:
+            controller = object.__getattribute__(self, "controller")
+        except AttributeError:
+            controller = None
         if controller is not None:
             return controller
 
-        proxy = getattr(self, "_headless_controller", None)
+        try:
+            proxy = object.__getattribute__(self, "_headless_controller")
+        except AttributeError:
+            proxy = None
         if proxy is None:
             proxy = MainWindowController.__new__(MainWindowController)
             proxy.printf_queue = queue.Queue()
             proxy.status = _HeadlessStatusBar()
+            proxy._preferences = configuration.get_preferences()
+            proxy.time_zone = proxy._read_config_timezone()
+            proxy.tr = lambda text, *_args, **_kwargs: text
             self._headless_controller = proxy
         return proxy
 

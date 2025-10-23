@@ -65,6 +65,11 @@ TEMPLATE_CONFIG_NAME = "Templates.ini"
 
 DEFAULT_LANGUAGE = "zh_CN"
 
+PREFERENCES_SECTION = "Preferences"
+THEME_OPTION = "theme"
+TIMEZONE_SECTION = "TimeZone"
+TIMEZONE_OPTION = "timezone"
+
 TEMPLATE_DEFAULTS: Dict[str, Dict[str, Dict[str, str]]] = {
     "zh_CN": {
         "mail": {
@@ -249,34 +254,19 @@ def get_language() -> str:
 
 
 def set_language(language: str) -> None:
-    language_code = str(language).strip()
-    if not language_code:
-        raise ValueError("语言代码不能为空")
-    if language_code not in SUPPORTED_LANGUAGES:
-        raise ValueError(f"不支持的语言：{language_code}")
+    language_code = _validate_language_code(language)
+    previous_language = get_language()
 
-    config_dir = Path(get_logdir()) / "Config"
-    config_dir.mkdir(parents=True, exist_ok=True)
-    config_path = config_dir / "Config.ini"
+    parser, config_path = _load_config_parser(ensure_dir=True)
+    changed = _set_config_value(parser, LANGUAGE_SECTION, LANGUAGE_OPTION, language_code)
+    if changed or not config_path.exists():
+        _write_config_parser(parser, config_path)
 
-    config = configparser.RawConfigParser()
-    if config_path.exists():
-        config.read(os.fspath(config_path))
-
-    if not config.has_section(LANGUAGE_SECTION):
-        config.add_section(LANGUAGE_SECTION)
-    config.set(LANGUAGE_SECTION, LANGUAGE_OPTION, language_code)
-
-    with config_path.open("w") as configfile:
-        config.write(configfile)
-
-    global _LANGUAGE_CACHE
-    _LANGUAGE_CACHE = language_code
-    get_template_manager().reload()
+    _update_language_cache(language_code, previous_language)
 
 
 def _load_language_setting() -> str:
-    config_path = Path(get_logdir()) / "Config" / "Config.ini"
+    config_path = _config_file_path()
     parser = configparser.RawConfigParser()
     read_files = parser.read(os.fspath(config_path))
     if not read_files:
@@ -295,6 +285,79 @@ def _load_language_setting() -> str:
     if value not in SUPPORTED_LANGUAGES:
         return DEFAULT_LANGUAGE
     return value
+
+
+def _config_file_path() -> Path:
+    return Path(get_logdir()) / "Config" / "Config.ini"
+
+
+def _load_config_parser(*, ensure_dir: bool = False) -> Tuple[configparser.RawConfigParser, Path]:
+    config_path = _config_file_path()
+    if ensure_dir:
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+
+    parser = configparser.RawConfigParser()
+    if config_path.exists():
+        parser.read(os.fspath(config_path))
+    return parser, config_path
+
+
+def _write_config_parser(parser: configparser.RawConfigParser, path: Path) -> None:
+    with path.open("w") as configfile:
+        parser.write(configfile)
+
+
+def _set_config_value(
+    parser: configparser.RawConfigParser,
+    section: str,
+    option: str,
+    value: Optional[str],
+) -> bool:
+    if value is None:
+        if not parser.has_section(section):
+            return False
+        removed = parser.remove_option(section, option)
+        if removed and not parser.items(section):
+            parser.remove_section(section)
+        return removed
+
+    text = str(value)
+    if not parser.has_section(section):
+        parser.add_section(section)
+    current = parser.get(section, option, fallback=None)
+    if current == text:
+        return False
+    parser.set(section, option, text)
+    return True
+
+
+def _validate_language_code(language: object) -> str:
+    language_code = str(language).strip()
+    if not language_code:
+        raise ValueError("语言代码不能为空")
+    if language_code not in SUPPORTED_LANGUAGES:
+        raise ValueError(f"不支持的语言：{language_code}")
+    return language_code
+
+
+def _update_language_cache(new_code: str, previous: Optional[str]) -> None:
+    global _LANGUAGE_CACHE
+    if previous != new_code:
+        _LANGUAGE_CACHE = new_code
+        get_template_manager().reload()
+    else:
+        _LANGUAGE_CACHE = new_code
+
+
+def _normalise_timezone_value(value: object) -> str:
+    timezone_text = str(value).strip()
+    if not timezone_text:
+        raise ValueError("时区值不能为空")
+    try:
+        int(timezone_text)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"无效的时区值：{value}") from exc
+    return timezone_text
 
 
 def _normalise_directory(
@@ -631,12 +694,14 @@ def _load_mail_config_from_external_file():
 
 
 def _load_mail_config_from_project_file():
-    logdir = get_logdir()
+    config_path = _config_file_path()
     config = configparser.RawConfigParser()
-    config.read(logdir + "Config/Config.ini")
+    config.read(os.fspath(config_path))
 
     if not config.has_section(MAIL_SECTION):
-        raise ValueError(f"项目配置缺少 [{MAIL_SECTION}] 配置节：{logdir}Config/Config.ini")
+        raise ValueError(
+            f"项目配置缺少 [{MAIL_SECTION}] 配置节：{os.fspath(config_path)}"
+        )
 
     values = {key: config.get(MAIL_SECTION, key, fallback=None) for key in MAIL_ENV_MAP}
     missing_keys = [key for key, value in values.items() if not value]
@@ -649,33 +714,40 @@ def _load_mail_config_from_project_file():
 
     return values
 
-def get_timezone():
-    logdir = get_logdir()
-    config = configparser.RawConfigParser()
-    config_path = Path(logdir) / "Config" / "Config.ini"
 
-    read_files = config.read(os.fspath(config_path))
-    if not read_files:
+def get_timezone():
+    parser, config_path = _load_config_parser()
+
+    if not config_path.exists():
         LOGGER.warning("未找到时区配置文件 %s，使用默认值 %s", config_path, DEFAULT_TIMEZONE)
         return DEFAULT_TIMEZONE
 
-    if not config.has_section("TimeZone"):
-        LOGGER.warning("配置文件 %s 缺少 [TimeZone] 节，使用默认值 %s", config_path, DEFAULT_TIMEZONE)
-        return DEFAULT_TIMEZONE
-
-    if not config.has_option("TimeZone", "timezone"):
+    if not parser.has_section(TIMEZONE_SECTION):
         LOGGER.warning(
-            "配置文件 %s 缺少 [TimeZone].timezone，使用默认值 %s",
+            "配置文件 %s 缺少 [%s] 节，使用默认值 %s",
             config_path,
+            TIMEZONE_SECTION,
             DEFAULT_TIMEZONE,
         )
         return DEFAULT_TIMEZONE
 
-    timezone_value = config.get("TimeZone", "timezone", fallback=None)
+    if not parser.has_option(TIMEZONE_SECTION, TIMEZONE_OPTION):
+        LOGGER.warning(
+            "配置文件 %s 缺少 [%s].%s，使用默认值 %s",
+            config_path,
+            TIMEZONE_SECTION,
+            TIMEZONE_OPTION,
+            DEFAULT_TIMEZONE,
+        )
+        return DEFAULT_TIMEZONE
+
+    timezone_value = parser.get(TIMEZONE_SECTION, TIMEZONE_OPTION, fallback=None)
     if timezone_value is None:
         LOGGER.warning(
-            "配置文件 %s 的 [TimeZone].timezone 为空，使用默认值 %s",
+            "配置文件 %s 的 [%s].%s 为空，使用默认值 %s",
             config_path,
+            TIMEZONE_SECTION,
+            TIMEZONE_OPTION,
             DEFAULT_TIMEZONE,
         )
         return DEFAULT_TIMEZONE
@@ -683,36 +755,89 @@ def get_timezone():
     timezone_value = timezone_value.strip()
     if not timezone_value:
         LOGGER.warning(
-            "配置文件 %s 的 [TimeZone].timezone 为空字符串，使用默认值 %s",
+            "配置文件 %s 的 [%s].%s 为空字符串，使用默认值 %s",
             config_path,
+            TIMEZONE_SECTION,
+            TIMEZONE_OPTION,
             DEFAULT_TIMEZONE,
         )
         return DEFAULT_TIMEZONE
 
     return timezone_value
 
+
 def set_timezone(timezone):
-    logdir = get_logdir()
-    config = configparser.RawConfigParser()
-    config.read(logdir+"Config/Config.ini")
-    if not config.has_section('TimeZone'):
-        config.add_section('TimeZone')
-    config.set('TimeZone', 'timezone', str(timezone))
-    with open(logdir + "Config/Config.ini", "w") as configfile:
-        config.write(configfile)
+    timezone_value = _normalise_timezone_value(timezone)
+    parser, config_path = _load_config_parser(ensure_dir=True)
+    changed = _set_config_value(parser, TIMEZONE_SECTION, TIMEZONE_OPTION, timezone_value)
+    if changed or not config_path.exists():
+        _write_config_parser(parser, config_path)
+
+
+def get_preferences() -> Dict[str, Optional[str]]:
+    parser, _ = _load_config_parser()
+
+    theme_value: Optional[str] = None
+    if parser.has_section(PREFERENCES_SECTION):
+        raw_theme = parser.get(PREFERENCES_SECTION, THEME_OPTION, fallback=None)
+        if raw_theme is not None:
+            stripped = raw_theme.strip()
+            theme_value = stripped or None
+
+    return {
+        "theme": theme_value,
+        "language": get_language(),
+        "timezone": get_timezone(),
+    }
+
+
+def set_preferences(preferences: Mapping[str, object]) -> None:
+    if not isinstance(preferences, Mapping):
+        raise TypeError("偏好设置必须为映射类型")
+
+    parser, config_path = _load_config_parser(ensure_dir=True)
+    changed = False
+
+    language_code: Optional[str] = None
+    previous_language: Optional[str] = None
+    if "language" in preferences:
+        previous_language = get_language()
+        language_code = _validate_language_code(preferences["language"])
+        if _set_config_value(parser, LANGUAGE_SECTION, LANGUAGE_OPTION, language_code):
+            changed = True
+
+    if "timezone" in preferences:
+        timezone_value = _normalise_timezone_value(preferences["timezone"])
+        if _set_config_value(parser, TIMEZONE_SECTION, TIMEZONE_OPTION, timezone_value):
+            changed = True
+
+    if "theme" in preferences:
+        theme_value = preferences["theme"]
+        theme_text = None
+        if theme_value is not None:
+            theme_text = str(theme_value).strip()
+        if theme_text:
+            if _set_config_value(parser, PREFERENCES_SECTION, THEME_OPTION, theme_text):
+                changed = True
+        else:
+            if parser.has_section(PREFERENCES_SECTION):
+                removed = parser.remove_option(PREFERENCES_SECTION, THEME_OPTION)
+                if removed and not parser.items(PREFERENCES_SECTION):
+                    parser.remove_section(PREFERENCES_SECTION)
+                if removed:
+                    changed = True
+
+    if changed or not config_path.exists():
+        _write_config_parser(parser, config_path)
+
+    if language_code is not None:
+        _update_language_cache(language_code, previous_language)
 
 
 def write_monitor_list(monitors: List[Dict[str, object]]) -> None:
     """将监控项列表写入配置文件。"""
 
-    logdir = get_logdir()
-    config_dir = Path(logdir) / "Config"
-    config_dir.mkdir(parents=True, exist_ok=True)
-    config_path = config_dir / "Config.ini"
-
-    config = configparser.RawConfigParser()
-    if config_path.exists():
-        config.read(os.fspath(config_path))
+    config, config_path = _load_config_parser(ensure_dir=True)
 
     if not config.has_section("MonitorNum"):
         config.add_section("MonitorNum")
@@ -757,8 +882,7 @@ def write_monitor_list(monitors: List[Dict[str, object]]) -> None:
         if headers_text:
             config.set(section, "headers", headers_text)
 
-    with config_path.open("w") as configfile:
-        config.write(configfile)
+    _write_config_parser(config, config_path)
 
 
 
@@ -778,8 +902,8 @@ def writeconfig(configDir: str):
     log_root = config_path.parent
     info.set("Logging", "log_file", _normalise_directory(log_root))
 
-    info.add_section("TimeZone")
-    info.set("TimeZone", "timezone", "8")
+    info.add_section(TIMEZONE_SECTION)
+    info.set(TIMEZONE_SECTION, TIMEZONE_OPTION, DEFAULT_TIMEZONE)
 
     info.add_section(LANGUAGE_SECTION)
     info.set(LANGUAGE_SECTION, LANGUAGE_OPTION, DEFAULT_LANGUAGE)
@@ -787,49 +911,14 @@ def writeconfig(configDir: str):
     info.add_section("Mail")
     info.set("Mail", "smtp_server", "smtp.example.com")
     info.set("Mail", "smtp_port", "587")
-    info.set("Mail", "username", "ops-team@example.com")
+    info.set("Mail", "username", "ops@example.com")
     info.set("Mail", "password", "PLEASE_SET_PASSWORD")
-    info.set("Mail", "from_addr", "ops-team@example.com")
-    info.set("Mail", "to_addrs", "recipient@example.com")
+    info.set("Mail", "from_addr", "ops@example.com")
+    info.set("Mail", "to_addrs", "alerts@example.com")
     info.set("Mail", "subject", "Outage Alert")
 
     info.add_section("MonitorNum")
-    info.set("MonitorNum", "total", "5")
-
-    info.add_section("Monitor1")
-    info.set("Monitor1", "name", "Baidu-For Test")
-    info.set("Monitor1", "url", "http://www.baidu.com")
-    info.set("Monitor1", "type", "SERVER")
-    info.set("Monitor1", "interval", "60")
-    info.set("Monitor1", "email", "johnnyzhao56192@gmail.com")
-
-    info.add_section("Monitor2")
-    info.set("Monitor2", "name", "Wuxi Data Provider")
-    info.set("Monitor2", "url", "36.155.95.59:28080/JKS_Server/SysInfo")
-    info.set("Monitor2", "type", "SERVER")
-    info.set("Monitor2", "interval", "1800")
-    info.set("Monitor2", "email", "johnnyzhao56192@gmail.com")
-
-    info.add_section("Monitor3")
-    info.set("Monitor3", "name", "Nanjing Data Provider")
-    info.set("Monitor3", "url", "101.132.145.141:42887")
-    info.set("Monitor3", "type", "SERVER")
-    info.set("Monitor3", "interval", "1800")
-    info.set("Monitor3", "email", "johnnyzhao56192@gmail.com")
-
-    info.add_section("Monitor4")
-    info.set("Monitor4", "name", "Wuhan Data Provider")
-    info.set("Monitor4", "url", "c2v.huali-cloud.com/auth/servicesList")
-    info.set("Monitor4", "type", "SERVER")
-    info.set("Monitor4", "interval", "1800")
-    info.set("Monitor4", "email", "johnnyzhao56192@gmail.com")
-
-    info.add_section("Monitor5")
-    info.set("Monitor5", "name", "CN01-CN02")
-    info.set("Monitor5", "url", "219.239.83.74")
-    info.set("Monitor5", "type", "SERVER")
-    info.set("Monitor5", "interval", "1800")
-    info.set("Monitor5", "email", "johnnyzhao56192@gmail.com")
+    info.set("MonitorNum", "total", "0")
 
     with config_file_path.open('w') as config_file:
         info.write(config_file)

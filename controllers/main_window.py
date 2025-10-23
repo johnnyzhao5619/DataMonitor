@@ -31,13 +31,20 @@ PeriodicMonitorKey = Tuple[str, str, str]
 
 _QObjectBase = getattr(QtCore, "QObject", object)
 _StatusBarClass = getattr(QtWidgets, "QStatusBar", None)
+_TranslatorBase = getattr(QtCore, "QTranslator", object)
 
 
-class JsonTranslator(QtCore.QTranslator):
+class JsonTranslator(_TranslatorBase):
     """基于 JSON 存储的轻量级翻译器，实现 QTranslator 接口。"""
 
     def __init__(self, parent=None):
-        super().__init__(parent)
+        if _TranslatorBase is object:
+            super().__init__()
+        else:
+            try:
+                super().__init__(parent)
+            except TypeError:
+                super().__init__()
         self._catalog: dict[str, dict[str, str]] = {}
         self._language: Optional[str] = None
 
@@ -153,6 +160,7 @@ class MainWindowController(_QObjectBase):
 
         self.switch_status = True
         self.printf_queue: queue.Queue = queue.Queue()
+        self._preferences = configuration.get_preferences()
         self.time_zone = self._read_config_timezone()
         self.scheduler: Optional[MonitorScheduler] = None
         self._periodic_scheduler = MonitorScheduler(
@@ -191,7 +199,20 @@ class MainWindowController(_QObjectBase):
         selector.clear()
         selector.addItems(names)
 
+        preferred_theme = None
+        if hasattr(self, "_preferences"):
+            preferred_theme = self._preferences.get("theme")
+
         current = self.theme_manager.current_theme_name()
+        if preferred_theme and preferred_theme in names and preferred_theme != current:
+            try:
+                self.theme_manager.apply_theme(preferred_theme)
+                current = preferred_theme
+            except KeyError:
+                configuration.LOGGER.warning(
+                    "主题偏好 %s 未注册，使用当前主题", preferred_theme
+                )
+
         if current is None and names:
             current = names[0]
             self.theme_manager.apply_theme(current)
@@ -204,6 +225,9 @@ class MainWindowController(_QObjectBase):
         selector.blockSignals(False)
         selector.currentTextChanged.connect(self._on_theme_changed)
         self._refresh_theme_widgets()
+
+        if hasattr(self, "_preferences"):
+            self._preferences["theme"] = current
 
     def _initialise_language_selector(self) -> None:
         selector = self.ui.languageSelector
@@ -235,6 +259,9 @@ class MainWindowController(_QObjectBase):
             self.theme_manager.apply_theme(name)
 
         self._refresh_theme_widgets()
+        configuration.set_preferences({"theme": name})
+        if hasattr(self, "_preferences"):
+            self._preferences["theme"] = name
         self.status.showMessage(
             self.tr('已切换至主题: {name}').format(name=name), 3000
         )
@@ -294,9 +321,13 @@ class MainWindowController(_QObjectBase):
             return
 
         previous_language = configuration.get_language()
-        if persist or code != previous_language:
+        if persist:
+            configuration.set_preferences({"language": code})
+        elif code != previous_language:
             configuration.set_language(code)
         self._current_language = configuration.get_language()
+        if hasattr(self, "_preferences"):
+            self._preferences["language"] = self._current_language
 
         self.ui.retranslate_ui()
         self._refresh_language_items()
@@ -430,7 +461,9 @@ class MainWindowController(_QObjectBase):
         )
         if ok:
             self.time_zone = time_zone
-            configuration.set_timezone(str(time_zone))
+            configuration.set_preferences({"timezone": time_zone})
+            if hasattr(self, "_preferences"):
+                self._preferences["timezone"] = str(time_zone)
             self._update_timezone_display()
             self.update_clock()
 
@@ -514,7 +547,11 @@ class MainWindowController(_QObjectBase):
         return message
 
     def _read_config_timezone(self):
-        raw_value = configuration.get_timezone()
+        raw_value = None
+        if hasattr(self, "_preferences"):
+            raw_value = self._preferences.get("timezone")
+        if raw_value is None:
+            raw_value = configuration.get_timezone()
         try:
             return int(str(raw_value).strip())
         except (TypeError, ValueError):

@@ -1,3 +1,4 @@
+import configparser
 import logging
 import sys
 from pathlib import Path
@@ -10,6 +11,14 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 import configuration  # noqa: E402  pylint: disable=wrong-import-position
+
+
+@pytest.fixture(autouse=True)
+def _reset_language_cache():
+    original = configuration._LANGUAGE_CACHE
+    configuration._LANGUAGE_CACHE = None
+    yield
+    configuration._LANGUAGE_CACHE = original
 
 
 def _write_config(base_dir: Path, content: str) -> Path:
@@ -87,3 +96,58 @@ def test_read_monitor_list_returns_empty_when_total_missing(tmp_path, monkeypatc
 
     assert items == []
     assert "MonitorNum.total" in caplog.text
+
+
+def test_get_preferences_returns_defaults(tmp_path, monkeypatch):
+    monkeypatch.setenv(configuration.LOG_DIR_ENV, str(tmp_path))
+
+    prefs = configuration.get_preferences()
+
+    assert prefs["theme"] is None
+    assert prefs["language"] == configuration.DEFAULT_LANGUAGE
+    assert prefs["timezone"] == configuration.DEFAULT_TIMEZONE
+
+
+def test_set_preferences_updates_values(tmp_path, monkeypatch):
+    monkeypatch.setenv(configuration.LOG_DIR_ENV, str(tmp_path))
+
+    configuration.set_preferences(
+        {"theme": "workspace_dark", "language": "en_US", "timezone": -5}
+    )
+
+    config_path = tmp_path / "Config" / "Config.ini"
+    parser = configparser.RawConfigParser()
+    parser.read(config_path)
+
+    assert parser.get("Preferences", "theme") == "workspace_dark"
+    assert parser.get(configuration.LANGUAGE_SECTION, configuration.LANGUAGE_OPTION) == "en_US"
+    assert parser.get(configuration.TIMEZONE_SECTION, configuration.TIMEZONE_OPTION) == "-5"
+
+    prefs = configuration.get_preferences()
+    assert prefs == {
+        "theme": "workspace_dark",
+        "language": "en_US",
+        "timezone": "-5",
+    }
+
+
+def test_set_preferences_rejects_invalid_language(tmp_path, monkeypatch):
+    monkeypatch.setenv(configuration.LOG_DIR_ENV, str(tmp_path))
+
+    with pytest.raises(ValueError):
+        configuration.set_preferences({"language": "fr_FR"})
+
+
+def test_set_preferences_clears_theme(tmp_path, monkeypatch):
+    monkeypatch.setenv(configuration.LOG_DIR_ENV, str(tmp_path))
+
+    configuration.set_preferences({"theme": "workspace_light"})
+    configuration.set_preferences({"theme": ""})
+
+    config_path = tmp_path / "Config" / "Config.ini"
+    parser = configparser.RawConfigParser()
+    parser.read(config_path)
+
+    assert not parser.has_option(configuration.PREFERENCES_SECTION, configuration.THEME_OPTION)
+    prefs = configuration.get_preferences()
+    assert prefs["theme"] is None
