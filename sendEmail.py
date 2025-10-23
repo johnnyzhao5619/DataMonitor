@@ -7,8 +7,10 @@
 import datetime as _dt
 import logging
 import smtplib
+from email.header import Header
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from email.utils import formataddr, parseaddr
 from typing import Iterable, Mapping, Tuple
 
 try:
@@ -120,6 +122,26 @@ def _normalize_recipients(
     return ", ".join(addresses), addresses
 
 
+def _format_address(address: str) -> str:
+    """将地址字符串转换为符合 RFC 的显示格式，并保证 UTF-8 编码。"""
+
+    name, email_addr = parseaddr(address)
+    if not email_addr:
+        if name:
+            return str(Header(name, "utf-8"))
+        return str(Header(address, "utf-8"))
+
+    if name:
+        return formataddr((str(Header(name, "utf-8")), email_addr))
+    return email_addr
+
+
+def _extract_email(address: str) -> str:
+    """从地址字符串中提取用于 SMTP 传输的邮箱地址。"""
+
+    return parseaddr(address)[1] or address
+
+
 def send_email(subject: str, body: str, recipients=None):
     # Get Mail info
     mailconfig = configuration.read_mail_configuration()
@@ -133,14 +155,18 @@ def send_email(subject: str, body: str, recipients=None):
     from_addr = mailconfig['from_addr']
     to_addrs = mailconfig['to_addrs']
 
-    header_to, send_to_list = _normalize_recipients(recipients, to_addrs)
+    _, send_to_list = _normalize_recipients(recipients, to_addrs)
+    display_from = _format_address(from_addr)
+    display_to = ", ".join(_format_address(addr) for addr in send_to_list)
+    transmit_from = _extract_email(from_addr)
+    transmit_to = [_extract_email(addr) for addr in send_to_list]
 
     # Create the message
     message = MIMEMultipart()
-    message['From'] = from_addr
-    message['To'] = header_to
-    message['Subject'] = subject
-    message.attach(MIMEText(body, 'plain'))
+    message['From'] = display_from
+    message['To'] = display_to
+    message['Subject'] = Header(subject, 'utf-8')
+    message.attach(MIMEText(body, 'plain', 'utf-8'))
 
     # Attach file if specified
     # if attachment_file:
@@ -154,7 +180,7 @@ def send_email(subject: str, body: str, recipients=None):
         with smtplib.SMTP(smtp_server, smtp_port) as server:
             server.starttls()
             server.login(username, password)
-            server.sendmail(from_addr, list(send_to_list), message.as_string())
+            server.sendmail(transmit_from, transmit_to, message.as_string())
     except smtplib.SMTPAuthenticationError:
         message = _translate("SMTP 身份验证失败：")
         LOGGER.exception(
@@ -162,7 +188,7 @@ def send_email(subject: str, body: str, recipients=None):
             message,
             smtp_server,
             username,
-            header_to,
+            display_to,
         )
         raise
     except smtplib.SMTPException:
@@ -172,7 +198,7 @@ def send_email(subject: str, body: str, recipients=None):
             message,
             smtp_server,
             smtp_port,
-            header_to,
+            display_to,
         )
         raise
     except Exception:
@@ -182,7 +208,7 @@ def send_email(subject: str, body: str, recipients=None):
             message,
             smtp_server,
             smtp_port,
-            header_to,
+            display_to,
         )
         raise
 
