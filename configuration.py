@@ -1042,7 +1042,7 @@ def writeconfig(configDir: str) -> None:
     info = configparser.ConfigParser()
     info.add_section("General")
     info.set("General", "app_name", "Monitor Everything")
-    info.set("General", "version", "0.2")
+    info.set("General", "version", "1.0")
 
     info.add_section("Logging")
     info.set("Logging", "log_level", "info")
