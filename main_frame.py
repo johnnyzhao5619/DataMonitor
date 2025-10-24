@@ -3,6 +3,7 @@
 from importlib import import_module
 from typing import TYPE_CHECKING
 
+import configuration
 from PyQt5 import QtWidgets
 
 from controllers import MainWindowController
@@ -35,6 +36,7 @@ class ToolsetWindow(QtWidgets.QMainWindow):
 
     def __init__(self):
         super().__init__()
+        configuration.configure_logging()
         self.ui = MainWindowUI()
         self.ui.setup_ui(self)
 

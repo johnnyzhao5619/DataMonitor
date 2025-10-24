@@ -4,34 +4,45 @@
     "ConfigWizard": {
       " 秒": " 秒",
       "(未命名)": "(未命名)",
-      "Headers": "Headers",
-      "Payload": "Payload",
-      "Subject": "Subject",
+      "Headers": "请求头",
+      "Payload": "请求体",
+      "Subject": "主题",
       "{label} 无法解析: {error}": "{label} 无法解析: {error}",
       "{name} [{mtype}]": "{name} [{mtype}]",
       "保存": "保存",
       "删除": "删除",
       "可选，JSON 或 key=value 格式": "可选，JSON 或 key=value 格式",
       "可选，支持逗号分隔多个邮箱": "可选，支持逗号分隔多个邮箱",
-      "名称 Name": "名称 Name",
-      "告警 Alert": "告警 Alert",
-      "周期 Interval": "周期 Interval",
+      "名称 Name": "名称",
+      "告警 Alert": "告警",
+      "周期 Interval": "周期",
       "在左侧选择监控项，可新增、删除或修改配置，保存后立即写入配置文件。": "在左侧选择监控项，可新增、删除或修改配置，保存后立即写入配置文件。",
-      "地址 URL": "地址 URL",
-      "恢复 Recovery": "恢复 Recovery",
+      "地址 URL": "地址",
+      "恢复 Recovery": "恢复",
       "恢复配置": "恢复配置",
       "新增": "新增",
       "新监控项": "新监控项",
       "未命名服务": "未命名服务",
-      "监控项 {index} URL 不能为空": "监控项 {index} URL 不能为空",
+      "监控项 {index} URL 不能为空": "监控项 {index} 地址不能为空",
+      "监控项 {index} URL 缺少有效的主机名": "监控项 {index} URL 缺少有效的主机名",
       "监控项 {index} 名称不能为空": "监控项 {index} 名称不能为空",
       "监控项 {index} 的通知邮箱格式不正确": "监控项 {index} 的通知邮箱格式不正确",
       "监控项 {index} 类型必须为 {types} 之一": "监控项 {index} 类型必须为 {types} 之一",
       "监控项 {index} 轮询周期必须大于 0": "监控项 {index} 轮询周期必须大于 0",
-      "类型 Type": "类型 Type",
+      "类型 Type": "类型",
+      "请输入完整的服务地址，例如 https://example.com": "请输入完整的服务地址，例如 https://example.com",
       "通知邮箱": "通知邮箱",
-      "通知预览 Notification Preview": "通知预览 Notification Preview",
-      "配置向导 Configuration Wizard": "配置向导 Configuration Wizard"
+      "通知预览 Notification Preview": "通知预览",
+      "配置向导 Configuration Wizard": "配置向导"
+    },
+    "DashboardController": {
+      "未读取到有效的监控配置": "未读取到有效的监控配置",
+      "监控已停止": "监控已停止",
+      "监控已启动": "监控已启动",
+      "监控已经在运行": "监控已经在运行",
+      "监控项[{name}]的周期配置无效: {value}": "监控项[{name}]的周期配置无效: {value}",
+      "监控项配置缺少名称或地址": "监控项配置缺少名称或地址",
+      "目前读取到{count}个监控项，分别是：": "目前读取到{count}个监控项，分别是："
     },
     "Email": {
       "SMTP 端口配置必须为整数": "SMTP 端口配置必须为整数",
@@ -52,33 +63,49 @@
     },
     "MainWindowController": {
       ">>初始化...": ">>初始化...",
+      ">>报表/告警视图预览": ">>报表/告警视图预览",
       ">>配置模式": ">>配置模式",
-      "English": "English",
-      "Monitor Everything v1.0": "Monitor Everything v1.0",
+      ">>设置中心": ">>设置中心",
+      "English": "英语",
+      "Monitor Everything v1.0": "全局监控 v1.0",
       "{index}. {name} --- 类型: {monitor_type} --- 地址: {url} --- 周期: {interval}秒": "{index}. {name} --- 类型: {monitor_type} --- 地址: {url} --- 周期: {interval}秒",
       "保存失败": "保存失败",
       "保存失败: {error}": "保存失败: {error}",
-      "关闭 Close": "关闭 Close",
+      "关闭 Close": "关闭",
       "已切换至主题: {name}": "已切换至主题: {name}",
       "已切换至语言: {name}": "已切换至语言: {name}",
+      "已生成示例配置，请在 Config 目录中填写后重新加载": "已生成示例配置，请在 Config 目录中填写后重新加载",
       "未读取到有效的监控配置": "未读取到有效的监控配置",
-      "本地时间 Local Time(时区 Time Zone: {zone})": "本地时间 Local Time(时区 Time Zone: {zone})",
+      "本地时间 Local Time(时区 Time Zone: {zone})": "本地时间（时区: {zone}）",
+      "模板配置文件格式无效，已恢复默认文案": "模板配置文件格式无效，已恢复默认文案",
       "监控项[{name}]的周期配置无效: {value}": "监控项[{name}]的周期配置无效: {value}",
-      "监控项{monitor_name}类型 '{monitor_type}' 未被支持，URL: {url}": "监控项{monitor_name}类型 '{monitor_type}' 未被支持，URL: {url}",
+      "监控项{monitor_name}类型 '{monitor_type}' 未被支持，URL: {url}": "监控项{monitor_name} 类型 {monitor_type} 未被支持，地址: {url}",
       "监控项配置缺少名称或地址": "监控项配置缺少名称或地址",
       "目前读取到{count}个监控项，分别是：": "目前读取到{count}个监控项，分别是：",
       "简体中文": "简体中文",
       "请输入所在时区(整数):": "请输入所在时区(整数):",
       "输入时区": "输入时区",
-      "配置已保存": "配置已保存"
+      "配置已保存": "配置已保存",
+      "配置已保存，但请求超时配置无效: {error}": "配置已保存，但请求超时配置无效: {error}",
+      "配置已刷新": "配置已刷新",
+      "配置已刷新，但请求超时配置无效: {error}": "配置已刷新，但请求超时配置无效: {error}"
     },
     "MainWindowUI": {
-      "Reports and alerts view under construction. Stay tuned!": "报表与告警视图建设中，敬请期待"
+      "Reports and alerts view under construction. Stay tuned!": "报表与告警视图建设中，敬请期待",
+      "Theme": "主题",
+      "Global Actions": "全局操作",
+      "Stop": "关闭",
+      "Start": "启动",
+      "Current Timezone: UTC{offset:+d}": "当前时区: UTC{offset:+d}",
+      "Standby": "待命",
+      "Running": "运行中",
+      "Reload": "重载配置",
+      "Exit": "退出"
     },
     "MonitorDashboard": {
-      "UTC时间 UTC Time": "UTC时间 UTC Time",
-      "实时日志 Live Feed": "实时日志 Live Feed",
-      "本地时间 Local Time": "本地时间 Local Time"
+      "UTC Time": "UTC 时间",
+      "Live Feed": "实时日志",
+      "Local Time": "本地时间"
     },
     "MonitorState": {
       ">>>运行中...": ">>>运行中...",
@@ -92,18 +119,36 @@
       "正常": "正常"
     },
     "NavigationBar": {
-      "Monitor Center": "Monitor Center",
-      "主题 Theme": "主题 Theme",
-      "时区 Time Zone": "时区 Time Zone",
-      "监控 Monitor": "监控 Monitor",
-      "语言 Language": "语言 Language",
-      "配置 Configuration": "配置 Configuration"
+      "Monitor Center": "监控中心",
+      "Monitor": "监控",
+      "Configuration": "配置",
+      "Preferences": "设置",
+      "Reports": "报表"
+    },
+    "PreferencesPage": {
+      "Runtime Information": "运行信息",
+      "Set Timezone": "设置时区",
+      "Theme": "主题",
+      "Select Theme": "选择主题",
+      "Language": "语言",
+      "Select Language": "选择语言"
+    },
+    "PreferencesController": {
+      "English": "英语",
+      "{name}（高对比）": "{name}（高对比）",
+      "已切换至主题: {name}": "已切换至主题: {name}",
+      "已切换至语言: {name}": "已切换至语言: {name}",
+      "已更新时区至 UTC{offset:+d}": "已更新时区至 UTC{offset:+d}",
+      "本地时间 Local Time(时区 Time Zone: {zone})": "本地时间（时区: {zone}）",
+      "简体中文": "简体中文",
+      "请输入所在时区(整数):": "请输入所在时区(整数):",
+      "输入时区": "输入时区"
     },
     "Template.log": {
       ">>>{event_timestamp}: {service_name}{status_label}": ">>>{event_timestamp}: {service_name}{status_label}",
-      ">>{log_timestamp}(Local Time)----------------------------------------------\n>>Action:{action}\n{details}": ">>{log_timestamp}(China Time)----------------------------------------------\n>>Action:{action}\n{details}",
-      "Time,API,Type,url,Interval,Code,Status": "Time,API,Type,url,Interval,Code,Status",
-      "{service_name} --- Type: {monitor_type} --- URL: {url} --- Interval: {interval}s": "{service_name} --- 类型 Type: {monitor_type} --- 地址 url: {url} --- 周期 Interval: {interval}秒"
+      ">>{log_timestamp}(Local Time)----------------------------------------------\n>>Action:{action}\n{details}": ">>{log_timestamp}(本地时间)----------------------------------------------\n>>操作:{action}\n{details}",
+      "Time,API,Type,url,Interval,Code,Status": "时间,接口,类型,地址,间隔,状态码,状态",
+      "{service_name} --- Type: {monitor_type} --- URL: {url} --- Interval: {interval}s": "{service_name} --- 类型: {monitor_type} --- 地址: {url} --- 周期: {interval}秒"
     },
     "Template.mail": {
       "Outage Alert | {service_name}": "故障告警 | {service_name}",
@@ -114,7 +159,6 @@
       "Time: {event_timestamp} --> Status: {service_name}{status_label}": "时间：{event_timestamp} --> 状态：{service_name}{status_label}"
     },
     "Theme": {
-      "High Contrast": "高对比",
       "Workspace Dark": "工作区（深色）",
       "Workspace Light": "工作区（浅色）"
     }

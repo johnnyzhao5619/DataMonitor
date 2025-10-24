@@ -38,6 +38,9 @@ class NavigationBar(QtWidgets.QFrame):
         self.configButton = self._create_nav_button("configuration")
         layout.addWidget(self.configButton)
 
+        self.preferencesButton = self._create_nav_button("preferences")
+        layout.addWidget(self.preferencesButton)
+
         self.reportButton = self._create_nav_button("reports")
         layout.addWidget(self.reportButton)
 
@@ -82,6 +85,7 @@ class NavigationBar(QtWidgets.QFrame):
 
     def retranslate_ui(self) -> None:
         self.titleLabel.setText(self.tr("Monitor Center"))
-        self.monitorButton.setText(self.tr("监控 Monitor"))
-        self.configButton.setText(self.tr("配置 Configuration"))
-        self.reportButton.setText(self.tr("报表 Reports"))
+        self.monitorButton.setText(self.tr("Monitor"))
+        self.configButton.setText(self.tr("Configuration"))
+        self.preferencesButton.setText(self.tr("Preferences"))
+        self.reportButton.setText(self.tr("Reports"))

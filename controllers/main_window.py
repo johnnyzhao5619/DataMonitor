@@ -63,6 +63,17 @@ class MainWindowController(QtCore.QObject):
             status_bar = _SilentStatusBar()
 
         self.status = status_bar
+        self._monitor_status_label: Optional[QtWidgets.QLabel] = None
+        add_permanent = getattr(self.status, "addPermanentWidget", None)
+        if callable(add_permanent):
+            try:
+                label = QtWidgets.QLabel(self.ui.current_status_text())
+                label.setObjectName("monitorStateLabel")
+                label.setProperty("role", "hint")
+                add_permanent(label)
+                self._monitor_status_label = label
+            except Exception:
+                self._monitor_status_label = None
         if hasattr(self.status, "showMessage"):
             self.status.showMessage(self.tr('>>初始化...'), 4000)
 
@@ -114,6 +125,7 @@ class MainWindowController(QtCore.QObject):
 
         self._reload_monitors()
         self.update_clock()
+        self._update_monitor_status_label()
 
     # --- 事件处理 -----------------------------------------------------
     def _append_log_message(self, message: str) -> None:
@@ -131,6 +143,7 @@ class MainWindowController(QtCore.QObject):
     def _handle_monitoring_toggled(self, running: bool) -> None:
         self._monitoring_active = running
         self.ui.update_monitoring_controls(running)
+        self._update_monitor_status_label()
         if running:
             self.ui.show_monitor_page()
 
@@ -143,6 +156,14 @@ class MainWindowController(QtCore.QObject):
         self.ui.update_monitoring_controls(self.dashboard.is_running)
         self.preferences.refresh_language_items()
         self.preferences.update_theme_metadata()
+        self._update_monitor_status_label()
+
+    def _update_monitor_status_label(self) -> None:
+        if self._monitor_status_label is not None:
+            try:
+                self._monitor_status_label.setText(self.ui.current_status_text())
+            except Exception:
+                pass
 
     # --- 导航 ---------------------------------------------------------
     def _create_navigation_shortcuts(self) -> list[QtWidgets.QShortcut]:
@@ -150,7 +171,8 @@ class MainWindowController(QtCore.QObject):
         mapping = {
             "Ctrl+1": "monitor",
             "Ctrl+2": "configuration",
-            "Ctrl+3": "reports",
+            "Ctrl+3": "preferences",
+            "Ctrl+4": "reports",
         }
         try:
             from PyQt5 import QtGui as _QtGui  # type: ignore
@@ -172,6 +194,8 @@ class MainWindowController(QtCore.QObject):
             self.ui.show_monitor_page()
         elif nav_id == "configuration":
             self.show_configuration()
+        elif nav_id == "preferences":
+            self.show_preferences()
         elif nav_id == "reports":
             self.show_reports()
 
@@ -191,9 +215,6 @@ class MainWindowController(QtCore.QObject):
         if app is not None:
             app.quit()
 
-    def start_monitor(self) -> None:
-        self.dashboard.start_monitoring()
-
     def run_periodically(self, monitor_info) -> None:
         self.dashboard.run_periodically(monitor_info)
 
@@ -202,6 +223,10 @@ class MainWindowController(QtCore.QObject):
         self._reload_monitors()
         self.ui.show_configuration_page()
         self.events.statusMessage.emit(self.tr('>>配置模式'), 3000)
+
+    def show_preferences(self) -> None:
+        self.ui.show_preferences_page()
+        self.events.statusMessage.emit(self.tr('>>设置中心'), 3000)
 
     def show_reports(self) -> None:
         self.ui.show_reports_page()

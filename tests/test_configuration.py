@@ -1,5 +1,6 @@
 import configparser
 import logging
+from logging.handlers import RotatingFileHandler
 import sys
 from pathlib import Path
 
@@ -59,6 +60,7 @@ def test_writeconfig_uses_placeholder_values(tmp_path):
 
     assert parser.get(configuration.TIMEZONE_SECTION, configuration.TIMEZONE_OPTION) == configuration.DEFAULT_TIMEZONE
     assert parser.get(configuration.LANGUAGE_SECTION, configuration.LANGUAGE_OPTION) == configuration.DEFAULT_LANGUAGE
+    assert parser.getfloat(configuration.REQUEST_SECTION, configuration.REQUEST_TIMEOUT_KEY) == configuration.DEFAULT_REQUEST_TIMEOUT
     assert parser.getint("MonitorNum", "total") == 0
 
     mail_values = dict(parser.items(configuration.MAIL_SECTION))
@@ -388,6 +390,38 @@ def test_set_preferences_requires_mapping(tmp_path, monkeypatch):
         configuration.set_preferences(["theme", "workspace"])
 
 
+def test_read_mail_configuration_falls_back_to_root_config(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv(configuration.EXTERNAL_MAIL_CONFIG_ENV, raising=False)
+    for env_name in configuration.MAIL_ENV_MAP.values():
+        monkeypatch.delenv(env_name, raising=False)
+
+    root_config = tmp_path / "config.ini"
+    root_config.write_text(
+        """
+[Mail]
+smtp_server = smtp.test.local
+smtp_port = 587
+username = notifier@test.local
+password = secret
+from_addr = notifier@test.local
+to_addrs = ops@test.local
+use_starttls = true
+use_ssl = false
+subject = Incident Alert
+""".strip(),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv(configuration.LOG_DIR_ENV, str(tmp_path / "app_home"))
+
+    mail_config = configuration.read_mail_configuration()
+
+    assert mail_config["smtp_server"] == "smtp.test.local"
+    assert mail_config["use_starttls"] is True
+    assert mail_config["use_ssl"] is False
+
+
 def test_write_monitor_list_supports_chinese_content(tmp_path, monkeypatch):
     monkeypatch.setenv(configuration.LOG_DIR_ENV, str(tmp_path))
 
@@ -412,3 +446,71 @@ def test_write_monitor_list_supports_chinese_content(tmp_path, monkeypatch):
     assert "接口服务" in text
     assert "报警@example.com" in text
     assert "描述" in text
+
+
+def test_get_logging_settings_defaults(tmp_path, monkeypatch):
+    monkeypatch.setenv(configuration.LOG_DIR_ENV, str(tmp_path))
+    config_dir = tmp_path / "Config"
+    configuration.writeconfig(str(config_dir))
+
+    settings = configuration.get_logging_settings()
+
+    assert settings.level == logging.INFO
+    assert settings.level_name == "INFO"
+    assert settings.file_path == (tmp_path / "Log" / "system.log").resolve()
+    assert settings.max_bytes == 10 * 1024 * 1024
+    assert settings.backup_count == 5
+    assert settings.console is True
+    assert settings.fmt == "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+    assert settings.datefmt == "%Y-%m-%d %H:%M:%S"
+
+
+def test_configure_logging_installs_handlers(tmp_path, monkeypatch):
+    monkeypatch.setenv(configuration.LOG_DIR_ENV, str(tmp_path))
+    config_dir = tmp_path / "Config"
+    configuration.writeconfig(str(config_dir))
+    config_path = config_dir / "Config.ini"
+
+    parser = configparser.RawConfigParser()
+    parser.read(config_path, encoding="utf-8")
+    parser.set("Logging", "log_level", "DEBUG")
+    parser.set("Logging", "log_filename", "custom.log")
+    parser.set("Logging", "log_max_size", "1MB")
+    parser.set("Logging", "log_backup_count", "2")
+    parser.set("Logging", "log_console", "false")
+    parser.set("Logging", "log_format", "%(levelname)s::%(message)s")
+    parser.set("Logging", "log_datefmt", "%H:%M:%S")
+    with config_path.open("w", encoding="utf-8") as handle:
+        parser.write(handle)
+
+    configuration.reset_logging_configuration()
+    settings = configuration.configure_logging(replace_existing=True)
+    assert settings.level == logging.DEBUG
+    assert settings.console is False
+    assert settings.file_path == (tmp_path / "Log" / "custom.log").resolve()
+    assert settings.max_bytes == 1 * 1024 * 1024
+    assert settings.backup_count == 2
+    assert settings.fmt == "%(levelname)s::%(message)s"
+    assert settings.datefmt == "%H:%M:%S"
+
+    root_logger = logging.getLogger()
+    file_handlers = [
+        handler for handler in root_logger.handlers if isinstance(handler, RotatingFileHandler)
+    ]
+    assert len(file_handlers) == 1
+    handler = file_handlers[0]
+    assert handler.baseFilename == str(settings.file_path)
+    assert handler.maxBytes == settings.max_bytes
+    assert handler.backupCount == settings.backup_count
+    assert handler.formatter._fmt == settings.fmt  # type: ignore[attr-defined]
+    assert handler.formatter.datefmt == settings.datefmt  # type: ignore[attr-defined]
+
+    matching_handlers = [
+        handler
+        for handler in root_logger.handlers
+        if getattr(getattr(handler, "formatter", None), "_fmt", None) == settings.fmt
+        and not isinstance(handler, RotatingFileHandler)
+    ]
+    assert matching_handlers == []
+
+    configuration.reset_logging_configuration()

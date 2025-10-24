@@ -7,7 +7,6 @@ from .theme import (
     ThemeDefinition,
     ThemeManager,
     workspace_dark,
-    workspace_high_contrast,
     workspace_light,
 )
 from .views.configuration import ConfigWizard
@@ -20,6 +19,5 @@ __all__ = [
     "ThemeManager",
     "workspace_light",
     "workspace_dark",
-    "workspace_high_contrast",
     "BUILTIN_THEMES",
 ]

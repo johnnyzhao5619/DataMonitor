@@ -527,73 +527,73 @@ def _create_palette(tokens: ThemeTokens) -> QtGui.QPalette:
 
 _BASE_STYLESHEET_TEMPLATE = dedent(
     """
-    QMainWindow {
+    QMainWindow {{
         background-color: {window_bg};
-    }
-    QWidget {
+    }}
+    QWidget {{
         font-family: {font_family};
         color: {window_text};
-    }
-    QPushButton {
+    }}
+    QPushButton {{
         background-color: {accent};
         color: {accent_text};
         border: none;
         border-radius: {radius_button};
         padding: {spacing_button_vertical} {spacing_button_horizontal};
-    }
-    QPushButton:hover {
+    }}
+    QPushButton:hover {{
         background-color: {accent_hover};
-    }
-    QPushButton:pressed {
+    }}
+    QPushButton:pressed {{
         background-color: {accent_pressed};
-    }
-    QPushButton:disabled {
+    }}
+    QPushButton:disabled {{
         background-color: {accent_disabled_bg};
         color: {accent_disabled_text};
-    }
-    QPushButton[category="navigation"] {
+    }}
+    QPushButton[category="navigation"] {{
         background-color: {navigation_button_bg};
         color: {navigation_text};
         border-radius: {radius_navigation};
         font-weight: 600;
         text-align: left;
         padding: {spacing_navigation_vertical} {spacing_navigation_horizontal};
-    }
-    QPushButton[category="navigation"]:hover {
+    }}
+    QPushButton[category="navigation"]:hover {{
         background-color: {navigation_hover_bg};
         color: {navigation_hover_text};
-    }
-    QPushButton[category="navigation"]:checked {
+    }}
+    QPushButton[category="navigation"]:checked {{
         background-color: {navigation_checked_bg};
         color: {navigation_checked_text};
-    }
-    QFrame#navigationBar {
+    }}
+    QFrame#navigationBar {{
         background-color: {navigation_panel_bg};
         border-right: 1px solid {navigation_border};
-    }
-    QFrame[role="card"], QWidget[role="card"] {
+    }}
+    QFrame[role="card"], QWidget[role="card"] {{
         background: {card_bg};
         border: 1px solid {card_border};
         border-radius: {radius_card};
-    }
-    QFrame[role="card"] QLabel[role="cardTitle"], QWidget[role="card"] QLabel[role="cardTitle"] {
+    }}
+    QFrame[role="card"] QLabel[role="cardTitle"], QWidget[role="card"] QLabel[role="cardTitle"] {{
         font-size: 14px;
         font-weight: 600;
         margin-bottom: {spacing_card_title_spacing};
         color: {card_title};
-    }
-    QLabel[role="heading"] {
+    }}
+    QLabel[role="heading"] {{
         font-size: 18px;
         font-weight: 600;
         color: {heading_text};
-    }
-    QLabel[role="hint"] {
+    }}
+    QLabel[role="hint"] {{
         color: {hint_text};
-    }
-    QLabel[role="error"] {
+    }}
+    QLabel[role="error"] {{
         color: {error_text};
-    }
-    QLineEdit, QComboBox, QSpinBox, QPlainTextEdit, QTextBrowser, QListWidget {
+    }}
+    QLineEdit, QComboBox, QSpinBox, QPlainTextEdit, QTextBrowser, QListWidget {{
         background: {input_bg};
         border: 1px solid {input_border};
         border-radius: {radius_input};
@@ -601,30 +601,30 @@ _BASE_STYLESHEET_TEMPLATE = dedent(
         color: {input_text};
         selection-background-color: {selection_bg};
         selection-color: {selection_text};
-    }
-    QPlainTextEdit, QTextBrowser {
+    }}
+    QPlainTextEdit, QTextBrowser {{
         padding: {spacing_text_padding};
-    }
-    QComboBox::drop-down {
+    }}
+    QComboBox::drop-down {{
         border: none;
-    }
-    QComboBox QAbstractItemView {
+    }}
+    QComboBox QAbstractItemView {{
         background: {popup_bg};
         border: 1px solid {popup_border};
         selection-background-color: {selection_bg};
         selection-color: {selection_text};
         color: {input_text};
-    }
-    QStatusBar {
+    }}
+    QStatusBar {{
         background: {status_bg};
         border-top: 1px solid {status_border};
         color: {status_text};
-    }
-    QTabWidget::pane {
+    }}
+    QTabWidget::pane {{
         border: 1px solid {tab_border};
         border-radius: {radius_tab};
-    }
-    QTabBar::tab {
+    }}
+    QTabBar::tab {{
         background: {tab_bg};
         border: 1px solid {tab_border};
         border-bottom: none;
@@ -633,33 +633,33 @@ _BASE_STYLESHEET_TEMPLATE = dedent(
         border-top-left-radius: {radius_tab};
         border-top-right-radius: {radius_tab};
         color: {tab_text};
-    }
-    QTabBar::tab:selected {
+    }}
+    QTabBar::tab:selected {{
         background: {tab_selected_bg};
         color: {tab_selected_text};
-    }
-    QScrollArea {
+    }}
+    QScrollArea {{
         background: {scrollarea_bg};
         border: none;
-    }
-    QGroupBox::title {
+    }}
+    QGroupBox::title {{
         subcontrol-origin: margin;
         left: {spacing_groupbox_title_offset};
         padding: 0 {spacing_groupbox_title_padding};
         color: {groupbox_title};
-    }
-    QSplitter::handle {
+    }}
+    QSplitter::handle {{
         background-color: {splitter};
-    }
-    QToolTip {
+    }}
+    QToolTip {{
         color: {tooltip_text};
         background-color: {tooltip_bg};
         border: 1px solid {tooltip_border};
-    }
-    QListWidget::item:selected {
+    }}
+    QListWidget::item:selected {{
         background-color: {list_selection_bg};
         color: {list_selection_text};
-    }
+    }}
     """
 )
 
@@ -833,96 +833,9 @@ workspace_dark = ThemeDefinition(
     ),
 )
 
-_high_contrast_tokens = ThemeTokens(
-    palette=ThemePaletteColors(
-        window="#000000",
-        window_text="#FFFFFF",
-        base="#000000",
-        alternate_base="#0F0F0F",
-        tooltip_base="#000000",
-        tooltip_text="#FFFFFF",
-        text="#FFFFFF",
-        button="#000000",
-        button_text="#FFD500",
-        bright_text="#FF5F5F",
-        highlight="#FFD500",
-        highlighted_text="#000000",
-        link="#FFD500",
-        link_visited="#FFB900",
-        placeholder_text="#B0B0B0",
-    ),
-    colors=ThemeSurfaceColors(
-        window_bg="#000000",
-        window_text="#FFFFFF",
-        heading_text="#FFD500",
-        accent="#FFD500",
-        accent_text="#000000",
-        accent_hover="#FFE66D",
-        accent_pressed="#FFB900",
-        accent_disabled_bg="#1A1A1A",
-        accent_disabled_text="#9A9A9A",
-        navigation_panel_bg="#000000",
-        navigation_border="#FFD500",
-        navigation_button_bg="transparent",
-        navigation_text="#FFD500",
-        navigation_hover_bg="#333333",
-        navigation_hover_text="#FFD500",
-        navigation_checked_bg="#FFD500",
-        navigation_checked_text="#000000",
-        card_bg="#000000",
-        card_border="#FFD500",
-        card_title="#FFD500",
-        hint_text="#B0B0B0",
-        error_text="#FF5050",
-        input_bg="#000000",
-        input_border="#FFD500",
-        input_text="#FFFFFF",
-        input_placeholder="#B0B0B0",
-        popup_bg="#000000",
-        popup_border="#FFD500",
-        status_bg="#111111",
-        status_border="#FFD500",
-        status_text="#FFD500",
-        tab_bg="#111111",
-        tab_border="#FFD500",
-        tab_text="#FFD500",
-        tab_selected_bg="#FFD500",
-        tab_selected_text="#000000",
-        tooltip_bg="#000000",
-        tooltip_text="#FFD500",
-        tooltip_border="#FFD500",
-        splitter="#FFD500",
-        scrollarea_bg="transparent",
-        selection_bg="#FFD500",
-        selection_text="#000000",
-        list_selection_bg="#FFD500",
-        list_selection_text="#000000",
-        groupbox_title="#FFD500",
-    ),
-    spacing=ThemeSpacing(button_vertical=10, button_horizontal=20, navigation_vertical=12, navigation_horizontal=16, control_padding=7, text_padding=10, groupbox_title_offset=14, groupbox_title_padding=6, tab_padding_vertical=8, tab_padding_horizontal=14, tab_gap=6, card_title_spacing=10),
-    radii=ThemeRadii(button=4, navigation=6, card=8, input=4, tab=4),
-)
-
-workspace_high_contrast = ThemeDefinition(
-    name="workspace_high_contrast",
-    palette_factory=_create_palette,
-    tokens=_high_contrast_tokens,
-    stylesheet_builder=_build_stylesheet,
-    metadata=ThemeMetadata(
-        display_name="High Contrast",
-        descriptions={
-            "zh_CN": "高对比主题，强调内容可读性",
-            "en_US": "High contrast theme for maximum readability",
-        },
-        is_high_contrast=True,
-    ),
-)
-
-
 BUILTIN_THEMES: tuple[ThemeDefinition, ...] = (
     workspace_light,
     workspace_dark,
-    workspace_high_contrast,
 )
 
 
@@ -933,6 +846,5 @@ __all__ = [
     "ThemeMetadata",
     "workspace_light",
     "workspace_dark",
-    "workspace_high_contrast",
     "BUILTIN_THEMES",
 ]

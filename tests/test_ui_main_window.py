@@ -123,8 +123,8 @@ def test_toggle_stop_only_halts_monitoring(qtbot, monkeypatch):
 
     assert dummy_scheduler.stopped is True
     assert window.dashboard._scheduler is None
-    qtbot.waitUntil(lambda: "启动" in window.ui.toggleMonitoringButton.text(), timeout=1000)
-    assert "待命" in window.ui.runStatusIndicator.text()
+    qtbot.waitUntil(lambda: "Start" in window.ui.toggleMonitoringButton.text(), timeout=1000)
+    assert "Standby" in window.ui.current_status_text()
     assert quit_calls["count"] == 0
 
 
@@ -395,6 +395,7 @@ def test_main_window_uses_navigation_bar(qtbot):
     assert isinstance(window.ui.reloadConfigButton, QtWidgets.QPushButton)
     assert window.ui.navigationBar.monitorButton.isCheckable()
     assert window.ui.navigationBar.configButton.isCheckable()
+    assert window.ui.navigationBar.preferencesButton.isCheckable()
     assert window.ui.navigationBar.reportButton.isCheckable()
     assert window.ui.navigationBar.monitorButton.isChecked()
 
@@ -409,9 +410,15 @@ def test_main_window_uses_navigation_bar(qtbot):
     window.controller.show_configuration()
     assert window.ui.navigationBar.configButton.isChecked()
     assert not window.ui.navigationBar.monitorButton.isChecked()
+    assert not window.ui.navigationBar.preferencesButton.isChecked()
+
+    window.controller.show_preferences()
+    assert window.ui.navigationBar.preferencesButton.isChecked()
+    assert not window.ui.navigationBar.configButton.isChecked()
 
     window.controller.show_reports()
     assert window.ui.navigationBar.reportButton.isChecked()
+    assert not window.ui.navigationBar.preferencesButton.isChecked()
 
 
 @pytest.mark.qt
@@ -436,6 +443,7 @@ def test_language_switch_updates_ui_and_templates(qtbot, tmp_path, monkeypatch):
     assert wizard.addButton.text() == "Add"
     assert window.ui.languageLabel.text().startswith("Language")
     assert window.ui.navigationBar.monitorButton.text() == "Monitor"
+    assert window.ui.navigationBar.preferencesButton.text() == "Preferences"
 
     context = {
         "service_name": "Example",
@@ -451,4 +459,3 @@ def test_language_switch_updates_ui_and_templates(qtbot, tmp_path, monkeypatch):
     if zh_index >= 0:
         language_selector.setCurrentIndex(zh_index)
         qtbot.waitUntil(lambda: window.controller._current_language == "zh_CN", timeout=2000)
-

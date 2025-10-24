@@ -10,7 +10,7 @@ DataMonitor 是一款面向运维场景的桌面监控与通知管理工具，�
 2. 监控视图：左侧显示本地时间，右侧显示 UTC 时间；下方实时日志滚动展示最新事件。
 3. 启停控制：命令条中的“启动/关闭”按钮仅负责启动或停止监控调度器，停止后界面会保持开启，方便重新启动或查看日志；若需退出程序，请使用旁侧新增的“退出 Exit”按钮或窗口默认的关闭操作。
 4. 配置向导：点击“配置 Configuration”按钮切换到配置视图，可在列表中增删监控项，右侧表单提供实时校验与通知邮件预览，保存后立即写入配置文件。
-5. 时区调整：通过“时区 Time Zone”入口输入整数时区值，保存后时钟与日志状态会实时刷新。
+5. 偏好设置：点击“设置 Preferences”导航进入偏好中心，可调整时区、主题与语言，所有变更即刻生效并写入配置。
 
 ## 邮件配置与凭证管理
 
@@ -24,7 +24,7 @@ DataMonitor 是一款面向运维场景的桌面监控与通知管理工具，�
    - `MAIL_FROM`
    - `MAIL_TO`
 2. **外部配置文件**：设置环境变量 `MAIL_CONFIG_PATH` 指向一份不纳入版本控制的 `ini` 文件。该文件需包含 `[Mail]` 节点，并提供上表中的全部字段。
-3. **项目内默认模板**：仅当未提供上述配置时才会回退到仓库内的 `data_monitor/Config/Config.ini`。仓库中提供的是占位示例值，部署前务必覆盖。
+3. **项目内默认模板**：仅当未提供上述配置时才会回退到仓库根目录的 `config.ini`。仓库中提供的是占位示例值，部署前务必覆盖。
 
 ### 监控项覆盖默认收件人
 
@@ -124,10 +124,19 @@ chmod 600 /etc/datamonitor/mail.ini
 日志文件及运行时生成的监控 CSV 会存放在“日志根目录”下。程序根据以下优先级确定该目录：
 
 1. 环境变量 `APIMONITOR_HOME`（推荐）。
-2. `config.ini` 或 `data_monitor/Config/Config.ini` 中的 `[Logging].log_file` 配置项。
+2. 根目录 `config.ini` 中的 `[Logging].log_file` 配置项。
 3. 仓库内默认路径 `data_monitor/`。
 
 无论采用何种方式，目录路径最终都会被归一化为绝对路径，并保证以分隔符结尾。例如：`/var/log/datamonitor/`。若配置为相对路径，则会基于对应配置文件所在目录解析。
+
+> **提示**：仓库根目录的 `config.ini` 既可作为示例模板，也可直接填写真实参数。应用会优先加载 `<APIMONITOR_HOME>/Config/Config.ini`（若未设置 `APIMONITOR_HOME`，默认指向 `data_monitor/Config/Config.ini`），若该文件缺失或仍保留占位符，再回退到根目录的 `config.ini`。首次启动时系统会自动生成带有完整占位项的配置，其中包含日志、请求超时、时区、语言以及邮件发送所需的全部字段，运维可在任一位置覆盖为真实值。
+
+`[Logging]` 节还支持下列可选项，用于控制日志输出行为：
+- `log_level`：记录级别，支持标准名称（`DEBUG`、`INFO` 等）或数值。
+- `log_filename`：主日志文件名，默认 `system.log`，存放于 `<日志根目录>/Log/`。
+- `log_max_size` 与 `log_backup_count`：滚动日志的单个文件大小与备份数量，支持 `10MB`、`1GB` 等写法。
+- `log_format` / `log_datefmt`：日志格式与日期格式，遵循 `logging.Formatter` 语法。
+- `log_console`：布尔值，控制是否同步输出到标准错误流。
 
 ### 生成配置模板
 
@@ -135,25 +144,7 @@ chmod 600 /etc/datamonitor/mail.ini
 
 ### 异常日志查看位置
 
-调度层（`monitoring.service`）与邮件发送模块（`monitoring.send_email`）统一通过 Python `logging` 输出错误日志，记录器名称分别为 `monitoring.service` 与 `monitoring.send_email`。默认情况下这些日志会写入标准错误流，运维可在部署脚本中使用 `logging.basicConfig` 或 `dictConfig` 将其重定向到日志根目录下的文件，例如：
-
-```python
-import logging
-from pathlib import Path
-
-import configuration
-
-log_root = Path(configuration.get_logdir()) / "Log"
-log_root.mkdir(parents=True, exist_ok=True)
-
-logging.basicConfig(
-    filename=log_root / "system.log",
-    level=logging.INFO,
-    format="%(asctime)s %(name)s %(levelname)s %(message)s",
-)
-```
-
-完成配置后，所有异常堆栈与错误描述都会写入 `<日志根目录>/Log/system.log`，与现有的文本日志和 CSV 文件放置在同一位置，便于统一检索与归档。
+调度层（`monitoring.service`）与邮件发送模块（`monitoring.send_email`）统一通过 Python `logging` 输出错误日志，记录器名称分别为 `monitoring.service` 与 `monitoring.send_email`。程序启动时会自动调用 `configuration.configure_logging()`，基于上述 `[Logging]` 配置创建一个按大小轮转的文件处理器（路径为 `<日志根目录>/Log/<log_filename>`），并在需要时同步输出到终端。修改配置后重启应用即可生效，无需额外编写脚本。所有异常堆栈与错误描述都会被归档在同一日志目录中，方便集中检索与审计。
 
 ## 安全建议
 

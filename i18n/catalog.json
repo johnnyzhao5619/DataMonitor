@@ -25,21 +25,21 @@
           "source": "Headers",
           "translations": {
             "en_US": "Headers",
-            "zh_CN": "Headers"
+            "zh_CN": "请求头"
           }
         },
         {
           "source": "Payload",
           "translations": {
             "en_US": "Payload",
-            "zh_CN": "Payload"
+            "zh_CN": "请求体"
           }
         },
         {
           "source": "Subject",
           "translations": {
             "en_US": "Subject",
-            "zh_CN": "Subject"
+            "zh_CN": "主题"
           }
         },
         {
@@ -88,21 +88,21 @@
           "source": "名称 Name",
           "translations": {
             "en_US": "Name",
-            "zh_CN": "名称 Name"
+            "zh_CN": "名称"
           }
         },
         {
           "source": "告警 Alert",
           "translations": {
             "en_US": "Alert",
-            "zh_CN": "告警 Alert"
+            "zh_CN": "告警"
           }
         },
         {
           "source": "周期 Interval",
           "translations": {
             "en_US": "Interval",
-            "zh_CN": "周期 Interval"
+            "zh_CN": "周期"
           }
         },
         {
@@ -116,14 +116,14 @@
           "source": "地址 URL",
           "translations": {
             "en_US": "URL",
-            "zh_CN": "地址 URL"
+            "zh_CN": "地址"
           }
         },
         {
           "source": "恢复 Recovery",
           "translations": {
             "en_US": "Recovery",
-            "zh_CN": "恢复 Recovery"
+            "zh_CN": "恢复"
           }
         },
         {
@@ -158,7 +158,14 @@
           "source": "监控项 {index} URL 不能为空",
           "translations": {
             "en_US": "Monitor {index} requires a URL",
-            "zh_CN": "监控项 {index} URL 不能为空"
+            "zh_CN": "监控项 {index} 地址不能为空"
+          }
+        },
+        {
+          "source": "监控项 {index} URL 缺少有效的主机名",
+          "translations": {
+            "en_US": "Monitor {index} URL must include a valid hostname",
+            "zh_CN": "监控项 {index} URL 缺少有效的主机名"
           }
         },
         {
@@ -193,7 +200,14 @@
           "source": "类型 Type",
           "translations": {
             "en_US": "Type",
-            "zh_CN": "类型 Type"
+            "zh_CN": "类型"
+          }
+        },
+        {
+          "source": "请输入完整的服务地址，例如 https://example.com",
+          "translations": {
+            "en_US": "Enter the full service address, for example https://example.com",
+            "zh_CN": "请输入完整的服务地址，例如 https://example.com"
           }
         },
         {
@@ -207,14 +221,68 @@
           "source": "通知预览 Notification Preview",
           "translations": {
             "en_US": "Notification Preview",
-            "zh_CN": "通知预览 Notification Preview"
+            "zh_CN": "通知预览"
           }
         },
         {
           "source": "配置向导 Configuration Wizard",
           "translations": {
             "en_US": "Configuration Wizard",
-            "zh_CN": "配置向导 Configuration Wizard"
+            "zh_CN": "配置向导"
+          }
+        }
+      ]
+    },
+    {
+      "name": "DashboardController",
+      "messages": [
+        {
+          "source": "未读取到有效的监控配置",
+          "translations": {
+            "en_US": "No monitor configuration found",
+            "zh_CN": "未读取到有效的监控配置"
+          }
+        },
+        {
+          "source": "监控已停止",
+          "translations": {
+            "en_US": "Monitoring stopped",
+            "zh_CN": "监控已停止"
+          }
+        },
+        {
+          "source": "监控已启动",
+          "translations": {
+            "en_US": "Monitoring started",
+            "zh_CN": "监控已启动"
+          }
+        },
+        {
+          "source": "监控已经在运行",
+          "translations": {
+            "en_US": "Monitoring is already running",
+            "zh_CN": "监控已经在运行"
+          }
+        },
+        {
+          "source": "监控项[{name}]的周期配置无效: {value}",
+          "translations": {
+            "en_US": "Monitor '{name}' has invalid interval: {value}",
+            "zh_CN": "监控项[{name}]的周期配置无效: {value}"
+          }
+        },
+        {
+          "source": "监控项配置缺少名称或地址",
+          "translations": {
+            "en_US": "Monitor configuration requires both name and URL",
+            "zh_CN": "监控项配置缺少名称或地址"
+          }
+        },
+        {
+          "source": "目前读取到{count}个监控项，分别是：",
+          "translations": {
+            "en_US": "Loaded {count} monitors:",
+            "zh_CN": "目前读取到{count}个监控项，分别是："
           }
         }
       ]
@@ -340,6 +408,13 @@
           }
         },
         {
+          "source": ">>报表/告警视图预览",
+          "translations": {
+            "en_US": ">> Reports/alerts preview",
+            "zh_CN": ">>报表/告警视图预览"
+          }
+        },
+        {
           "source": ">>配置模式",
           "translations": {
             "en_US": ">> Configuration",
@@ -347,17 +422,24 @@
           }
         },
         {
+          "source": ">>设置中心",
+          "translations": {
+            "en_US": ">> Preferences",
+            "zh_CN": ">>设置中心"
+          }
+        },
+        {
           "source": "English",
           "translations": {
             "en_US": "English",
-            "zh_CN": "English"
+            "zh_CN": "英语"
           }
         },
         {
           "source": "Monitor Everything v1.0",
           "translations": {
             "en_US": "Monitor Everything v1.0",
-            "zh_CN": "Monitor Everything v1.0"
+            "zh_CN": "全局监控 v1.0"
           }
         },
         {
@@ -385,7 +467,7 @@
           "source": "关闭 Close",
           "translations": {
             "en_US": "Stop",
-            "zh_CN": "关闭 Close"
+            "zh_CN": "关闭"
           }
         },
         {
@@ -403,6 +485,13 @@
           }
         },
         {
+          "source": "已生成示例配置，请在 Config 目录中填写后重新加载",
+          "translations": {
+            "en_US": "Sample configuration created. Populate the Config directory then reload.",
+            "zh_CN": "已生成示例配置，请在 Config 目录中填写后重新加载"
+          }
+        },
+        {
           "source": "未读取到有效的监控配置",
           "translations": {
             "en_US": "No monitor configuration found",
@@ -413,7 +502,14 @@
           "source": "本地时间 Local Time(时区 Time Zone: {zone})",
           "translations": {
             "en_US": "Local Time (Time Zone: {zone})",
-            "zh_CN": "本地时间 Local Time(时区 Time Zone: {zone})"
+            "zh_CN": "本地时间（时区: {zone}）"
+          }
+        },
+        {
+          "source": "模板配置文件格式无效，已恢复默认文案",
+          "translations": {
+            "en_US": "Template configuration invalid; fallback content restored.",
+            "zh_CN": "模板配置文件格式无效，已恢复默认文案"
           }
         },
         {
@@ -427,7 +523,7 @@
           "source": "监控项{monitor_name}类型 '{monitor_type}' 未被支持，URL: {url}",
           "translations": {
             "en_US": "Monitor {monitor_name} type '{monitor_type}' is not supported, URL: {url}",
-            "zh_CN": "监控项{monitor_name}类型 '{monitor_type}' 未被支持，URL: {url}"
+            "zh_CN": "监控项{monitor_name} 类型 {monitor_type} 未被支持，地址: {url}"
           }
         },
         {
@@ -471,6 +567,27 @@
             "en_US": "Configuration saved",
             "zh_CN": "配置已保存"
           }
+        },
+        {
+          "source": "配置已保存，但请求超时配置无效: {error}",
+          "translations": {
+            "en_US": "Configuration saved, but timeout settings are invalid: {error}",
+            "zh_CN": "配置已保存，但请求超时配置无效: {error}"
+          }
+        },
+        {
+          "source": "配置已刷新",
+          "translations": {
+            "en_US": "Configuration reloaded",
+            "zh_CN": "配置已刷新"
+          }
+        },
+        {
+          "source": "配置已刷新，但请求超时配置无效: {error}",
+          "translations": {
+            "en_US": "Configuration reloaded, but timeout settings are invalid: {error}",
+            "zh_CN": "配置已刷新，但请求超时配置无效: {error}"
+          }
         }
       ]
     },
@@ -483,6 +600,69 @@
             "en_US": "Reports and alerts view under construction. Stay tuned!",
             "zh_CN": "报表与告警视图建设中，敬请期待"
           }
+        },
+        {
+          "source": "Theme",
+          "translations": {
+            "en_US": "Theme",
+            "zh_CN": "主题"
+          }
+        },
+        {
+          "source": "Global Actions",
+          "translations": {
+            "en_US": "Global Actions",
+            "zh_CN": "全局操作"
+          }
+        },
+        {
+          "source": "Stop",
+          "translations": {
+            "en_US": "Stop",
+            "zh_CN": "关闭"
+          }
+        },
+        {
+          "source": "Start",
+          "translations": {
+            "en_US": "Start",
+            "zh_CN": "启动"
+          }
+        },
+        {
+          "source": "Current Timezone: UTC{offset:+d}",
+          "translations": {
+            "en_US": "Current Timezone: UTC{offset:+d}",
+            "zh_CN": "当前时区: UTC{offset:+d}"
+          }
+        },
+        {
+          "source": "Standby",
+          "translations": {
+            "en_US": "Standby",
+            "zh_CN": "待命"
+          }
+        },
+        {
+          "source": "Running",
+          "translations": {
+            "en_US": "Running",
+            "zh_CN": "运行中"
+          }
+        },
+        {
+          "source": "Reload",
+          "translations": {
+            "en_US": "Reload",
+            "zh_CN": "重载配置"
+          }
+        },
+        {
+          "source": "Exit",
+          "translations": {
+            "en_US": "Exit",
+            "zh_CN": "退出"
+          }
         }
       ]
     },
@@ -490,24 +670,24 @@
       "name": "MonitorDashboard",
       "messages": [
         {
-          "source": "UTC时间 UTC Time",
+          "source": "UTC Time",
           "translations": {
             "en_US": "UTC Time",
-            "zh_CN": "UTC时间 UTC Time"
+            "zh_CN": "UTC 时间"
           }
         },
         {
-          "source": "实时日志 Live Feed",
+          "source": "Live Feed",
           "translations": {
             "en_US": "Live Feed",
-            "zh_CN": "实时日志 Live Feed"
+            "zh_CN": "实时日志"
           }
         },
         {
-          "source": "本地时间 Local Time",
+          "source": "Local Time",
           "translations": {
             "en_US": "Local Time",
-            "zh_CN": "本地时间 Local Time"
+            "zh_CN": "本地时间"
           }
         }
       ]
@@ -587,42 +767,150 @@
           "source": "Monitor Center",
           "translations": {
             "en_US": "Monitor Center",
-            "zh_CN": "Monitor Center"
+            "zh_CN": "监控中心"
           }
         },
         {
-          "source": "主题 Theme",
-          "translations": {
-            "en_US": "Theme",
-            "zh_CN": "主题 Theme"
-          }
-        },
-        {
-          "source": "时区 Time Zone",
-          "translations": {
-            "en_US": "Time Zone",
-            "zh_CN": "时区 Time Zone"
-          }
-        },
-        {
-          "source": "监控 Monitor",
+          "source": "Monitor",
           "translations": {
             "en_US": "Monitor",
-            "zh_CN": "监控 Monitor"
+            "zh_CN": "监控"
           }
         },
         {
-          "source": "语言 Language",
-          "translations": {
-            "en_US": "Language",
-            "zh_CN": "语言 Language"
-          }
-        },
-        {
-          "source": "配置 Configuration",
+          "source": "Configuration",
           "translations": {
             "en_US": "Configuration",
-            "zh_CN": "配置 Configuration"
+            "zh_CN": "配置"
+          }
+        },
+        {
+          "source": "Preferences",
+          "translations": {
+            "en_US": "Preferences",
+            "zh_CN": "设置"
+          }
+        },
+        {
+          "source": "Reports",
+          "translations": {
+            "en_US": "Reports",
+            "zh_CN": "报表"
+          }
+        }
+      ]
+    },
+    {
+      "name": "PreferencesPage",
+      "messages": [
+        {
+          "source": "Runtime Information",
+          "translations": {
+            "en_US": "Runtime Information",
+            "zh_CN": "运行信息"
+          }
+        },
+        {
+          "source": "Set Timezone",
+          "translations": {
+            "en_US": "Set Timezone",
+            "zh_CN": "设置时区"
+          }
+        },
+        {
+          "source": "Theme",
+          "translations": {
+            "en_US": "Theme",
+            "zh_CN": "主题"
+          }
+        },
+        {
+          "source": "Select Theme",
+          "translations": {
+            "en_US": "Select Theme",
+            "zh_CN": "选择主题"
+          }
+        },
+        {
+          "source": "Language",
+          "translations": {
+            "en_US": "Language",
+            "zh_CN": "语言"
+          }
+        },
+        {
+          "source": "Select Language",
+          "translations": {
+            "en_US": "Select Language",
+            "zh_CN": "选择语言"
+          }
+        }
+      ]
+    },
+    {
+      "name": "PreferencesController",
+      "messages": [
+        {
+          "source": "English",
+          "translations": {
+            "en_US": "English",
+            "zh_CN": "英语"
+          }
+        },
+        {
+          "source": "{name}（高对比）",
+          "translations": {
+            "en_US": "{name} (High Contrast)",
+            "zh_CN": "{name}（高对比）"
+          }
+        },
+        {
+          "source": "已切换至主题: {name}",
+          "translations": {
+            "en_US": "Switched to theme: {name}",
+            "zh_CN": "已切换至主题: {name}"
+          }
+        },
+        {
+          "source": "已切换至语言: {name}",
+          "translations": {
+            "en_US": "Switched to language: {name}",
+            "zh_CN": "已切换至语言: {name}"
+          }
+        },
+        {
+          "source": "已更新时区至 UTC{offset:+d}",
+          "translations": {
+            "en_US": "Time zone updated to UTC{offset:+d}",
+            "zh_CN": "已更新时区至 UTC{offset:+d}"
+          }
+        },
+        {
+          "source": "本地时间 Local Time(时区 Time Zone: {zone})",
+          "translations": {
+            "en_US": "Local Time (Time Zone: {zone})",
+            "zh_CN": "本地时间（时区: {zone}）"
+          }
+        },
+        {
+          "source": "简体中文",
+          "translations": {
+            "en_US": "Simplified Chinese",
+            "zh_CN": "简体中文"
+          }
+        },
+        {
+          "source": "请输入所在时区(整数):",
+          "translations": {
+            "en_US": "Enter your time zone (integer):",
+            "zh_CN": "请输入所在时区(整数):"
+          }
+        },
+        {
+          "source": "输入时区",
+          "translations": {
+            "en_US": "Set Time Zone",
+            "zh_CN": "输入时区"
           }
         }
       ]
@@ -641,21 +929,21 @@
           "source": ">>{log_timestamp}(Local Time)----------------------------------------------\n>>Action:{action}\n{details}",
           "translations": {
             "en_US": ">>{log_timestamp}(Local Time)----------------------------------------------\n>>Action:{action}\n{details}",
-            "zh_CN": ">>{log_timestamp}(China Time)----------------------------------------------\n>>Action:{action}\n{details}"
+            "zh_CN": ">>{log_timestamp}(本地时间)----------------------------------------------\n>>操作:{action}\n{details}"
           }
         },
         {
           "source": "Time,API,Type,url,Interval,Code,Status",
           "translations": {
             "en_US": "Time,API,Type,url,Interval,Code,Status",
-            "zh_CN": "Time,API,Type,url,Interval,Code,Status"
+            "zh_CN": "时间,接口,类型,地址,间隔,状态码,状态"
           }
         },
         {
           "source": "{service_name} --- Type: {monitor_type} --- URL: {url} --- Interval: {interval}s",
           "translations": {
             "en_US": "{service_name} --- Type: {monitor_type} --- URL: {url} --- Interval: {interval}s",
-            "zh_CN": "{service_name} --- 类型 Type: {monitor_type} --- 地址 url: {url} --- 周期 Interval: {interval}秒"
+            "zh_CN": "{service_name} --- 类型: {monitor_type} --- 地址: {url} --- 周期: {interval}秒"
           }
         }
       ]
@@ -701,13 +989,6 @@
     {
       "name": "Theme",
       "messages": [
-        {
-          "source": "High Contrast",
-          "translations": {
-            "en_US": "High Contrast",
-            "zh_CN": "高对比"
-          }
-        },
         {
           "source": "Workspace Dark",
           "translations": {

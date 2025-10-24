@@ -64,6 +64,6 @@ class MonitorDashboard(QtWidgets.QWidget):
         self.retranslate_ui()
 
     def retranslate_ui(self) -> None:
-        self.localTimeGroupBox.setTitle(self.tr("本地时间 Local Time"))
-        self.utcTimeGroupBox.setTitle(self.tr("UTC时间 UTC Time"))
-        self.logTitleLabel.setText(self.tr("实时日志 Live Feed"))
+        self.localTimeGroupBox.setTitle(self.tr("Local Time"))
+        self.utcTimeGroupBox.setTitle(self.tr("UTC Time"))
+        self.logTitleLabel.setText(self.tr("Live Feed"))

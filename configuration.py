@@ -10,6 +10,7 @@ import os
 import re
 from dataclasses import dataclass
 from functools import lru_cache
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Tuple, Union
 
@@ -77,15 +78,38 @@ class MonitorItem:
         return None
 
 
+@dataclass(frozen=True)
+class LoggingSettings:
+    """表示解析后的日志配置。"""
+
+    level_name: str
+    level: int
+    file_path: Path
+    max_bytes: int
+    backup_count: int
+    fmt: str
+    datefmt: Optional[str]
+    console: bool
+
+
 DEFAULT_TIMEZONE = "0"
 
 
 LOG_DIR_ENV = "APIMONITOR_HOME"
+_LOG_HANDLER_FLAG = "_datamonitor_managed"
+_LOG_HANDLER_KIND = "_datamonitor_kind"
+_LOG_HANDLER_FILE = "file"
+_LOG_HANDLER_CONSOLE = "console"
+_DEFAULT_LOG_FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+_DEFAULT_LOG_DATEFMT = "%Y-%m-%d %H:%M:%S"
+_DEFAULT_LOG_FILENAME = "system.log"
+_DEFAULT_LOG_MAX_BYTES = 10 * 1024 * 1024
+_DEFAULT_LOG_BACKUP_COUNT = 5
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 APPLICATION_HOME_NAME = "data_monitor"
 DEFAULT_APPLICATION_HOME = PROJECT_ROOT / APPLICATION_HOME_NAME
-DEFAULT_CONFIG_FILE = DEFAULT_APPLICATION_HOME / "Config" / "Config.ini"
+DEFAULT_CONFIG_FILE = PROJECT_ROOT / "config.ini"
 
 TEMPLATE_CONFIG_NAME = "Templates.ini"
 
@@ -434,6 +458,8 @@ def _load_config_parser(*, ensure_dir: bool = False) -> Tuple[configparser.RawCo
     config_path = _config_file_path()
     if ensure_dir:
         config_path.parent.mkdir(parents=True, exist_ok=True)
+        if not config_path.exists():
+            writeconfig(str(config_path.parent))
 
     parser = configparser.RawConfigParser()
     if config_path.exists():
@@ -525,12 +551,98 @@ def _normalise_directory(
     return normalised
 
 
+def _parse_log_level(value: object, *, default: str = "INFO") -> tuple[str, int]:
+    text = str(value).strip() if value is not None else ""
+    if not text:
+        text = default
+    normalised = text.upper()
+    aliases = {
+        "WARN": "WARNING",
+        "ERROR": "ERROR",
+        "CRITICAL": "CRITICAL",
+        "FATAL": "CRITICAL",
+        "DEBUG": "DEBUG",
+        "INFO": "INFO",
+        "TRACE": "NOTSET",
+    }
+    mapped = aliases.get(normalised, normalised)
+    level_value = getattr(logging, mapped, None)
+    if isinstance(level_value, int):
+        return mapped, level_value
+    try:
+        numeric_level = int(text)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"无法解析日志级别值: {value!r}") from exc
+    if numeric_level < 0:
+        raise ValueError(f"日志级别必须为非负整数: {numeric_level}")
+    level_name = logging.getLevelName(numeric_level)
+    if not isinstance(level_name, str):
+        level_name = str(numeric_level)
+    return level_name.upper(), numeric_level
+
+
+_SIZE_UNITS = {
+    "B": 1,
+    "KB": 1024,
+    "MB": 1024 ** 2,
+    "GB": 1024 ** 3,
+}
+
+
+def _parse_size_value(value: object, *, default: int = _DEFAULT_LOG_MAX_BYTES) -> int:
+    text = str(value).strip() if value is not None else ""
+    if not text:
+        return max(int(default), 0)
+    match = re.fullmatch(r"\s*(\d+(?:\.\d+)?)\s*([kmgt]?b)?\s*", text, flags=re.IGNORECASE)
+    if not match:
+        raise ValueError(f"无法解析日志大小: {value!r}")
+    number = float(match.group(1))
+    unit = match.group(2) or "B"
+    factor = _SIZE_UNITS.get(unit.upper())
+    if factor is None:
+        raise ValueError(f"未知的日志大小单位: {unit}")
+    size = int(number * factor)
+    return max(size, 0)
+
+
+def _parse_bool_option(value: object, *, default: bool = True) -> bool:
+    if value is None:
+        return default
+    text = str(value).strip().lower()
+    if not text:
+        return default
+    if text in _BOOL_TRUE_VALUES:
+        return True
+    if text in _BOOL_FALSE_VALUES:
+        return False
+    raise ValueError(f"无法解析布尔值: {value!r}")
+
+
+def _parse_int_option(
+    value: object,
+    *,
+    default: int,
+    minimum: Optional[int] = None,
+) -> int:
+    text = str(value).strip() if value is not None else ""
+    if not text:
+        result = int(default)
+    else:
+        try:
+            result = int(text)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"无法解析整数值: {value!r}") from exc
+    if minimum is not None and result < minimum:
+        raise ValueError(f"值 {result} 小于允许的最小值 {minimum}")
+    return result
+
+
 def get_logdir():
     f"""返回日志根目录。
 
     优先级：
     1. 环境变量 ``APIMONITOR_HOME``；
-    2. ``config.ini`` 与 ``{APPLICATION_HOME_NAME}/Config/Config.ini`` 中 ``[Logging].log_file`` 配置；
+    2. 仓库根目录 ``config.ini`` 中 ``[Logging].log_file`` 配置；
     3. 项目默认目录 ``{APPLICATION_HOME_NAME}``。
     """
 
@@ -577,6 +689,180 @@ def get_config_directory() -> Path:
     """返回配置目录路径。"""
 
     return Path(get_logdir()).resolve() / "Config"
+
+
+def get_logging_settings() -> LoggingSettings:
+    """读取并解析日志配置。"""
+
+    parser, _ = _load_config_parser()
+    section = "Logging"
+    has_section = parser.has_section(section)
+
+    def _option(name: str, fallback: str = "") -> str:
+        if not has_section:
+            return fallback
+        return parser.get(section, name, fallback=fallback)
+
+    raw_level = _option("log_level", "INFO")
+    try:
+        level_name, level_value = _parse_log_level(raw_level, default="INFO")
+    except ValueError as exc:
+        raise ValueError(f"[Logging].log_level 配置无效: {raw_level!r}") from exc
+
+    raw_max_size = _option("log_max_size", "")
+    try:
+        max_bytes = _parse_size_value(raw_max_size, default=_DEFAULT_LOG_MAX_BYTES)
+    except ValueError as exc:
+        raise ValueError(f"[Logging].log_max_size 配置无效: {raw_max_size!r}") from exc
+
+    raw_backup_count = _option("log_backup_count", str(_DEFAULT_LOG_BACKUP_COUNT))
+    try:
+        backup_count = _parse_int_option(
+            raw_backup_count,
+            default=_DEFAULT_LOG_BACKUP_COUNT,
+            minimum=0,
+        )
+    except ValueError as exc:
+        raise ValueError(f"[Logging].log_backup_count 配置无效: {raw_backup_count!r}") from exc
+
+    raw_console = _option("log_console", "true")
+    try:
+        console_enabled = _parse_bool_option(raw_console, default=True)
+    except ValueError as exc:
+        raise ValueError(f"[Logging].log_console 配置无效: {raw_console!r}") from exc
+
+    log_format = _option("log_format", _DEFAULT_LOG_FORMAT).strip() or _DEFAULT_LOG_FORMAT
+    log_datefmt = _option("log_datefmt", _DEFAULT_LOG_DATEFMT).strip() or _DEFAULT_LOG_DATEFMT
+
+    raw_filename = _option("log_filename", _DEFAULT_LOG_FILENAME).strip() or _DEFAULT_LOG_FILENAME
+    file_path = Path(raw_filename)
+    if not file_path.is_absolute():
+        log_root = Path(get_logdir()).resolve()
+        file_path = (log_root / "Log" / file_path).resolve()
+    else:
+        file_path = file_path.resolve()
+
+    return LoggingSettings(
+        level_name=level_name,
+        level=level_value,
+        file_path=file_path,
+        max_bytes=max_bytes,
+        backup_count=backup_count,
+        fmt=log_format,
+        datefmt=log_datefmt,
+        console=console_enabled,
+    )
+
+
+def configure_logging(
+    *,
+    replace_existing: bool = False,
+    install_console: Optional[bool] = None,
+) -> LoggingSettings:
+    """根据配置初始化日志处理器。
+
+    :param replace_existing: 是否移除已存在的 DataMonitor 处理器。
+    :param install_console: 强制启用或禁用控制台输出，默认遵循配置文件。
+    :return: 应用后的日志配置。
+    """
+
+    settings = get_logging_settings()
+    console_enabled = settings.console if install_console is None else bool(install_console)
+
+    settings.file_path.parent.mkdir(parents=True, exist_ok=True)
+
+    root_logger = logging.getLogger()
+    root_logger.setLevel(settings.level)
+
+    managed_handlers = [
+        handler for handler in root_logger.handlers if getattr(handler, _LOG_HANDLER_FLAG, False)
+    ]
+
+    if replace_existing and managed_handlers:
+        for handler in managed_handlers:
+            root_logger.removeHandler(handler)
+            try:
+                handler.close()
+            except Exception:  # pragma: no cover - best effort cleanup
+                pass
+        managed_handlers = []
+
+    desired_path = os.fspath(settings.file_path)
+    formatter = logging.Formatter(settings.fmt, settings.datefmt or None)
+
+    file_handler: Optional[RotatingFileHandler] = None
+    retained_handlers = []
+    for handler in managed_handlers:
+        kind = getattr(handler, _LOG_HANDLER_KIND, None)
+        if kind == _LOG_HANDLER_FILE:
+            base_filename = getattr(handler, "baseFilename", "")
+            if os.path.abspath(base_filename) != os.path.abspath(desired_path):
+                root_logger.removeHandler(handler)
+                try:
+                    handler.close()
+                except Exception:  # pragma: no cover - best effort cleanup
+                    pass
+                continue
+            file_handler = handler  # reuse existing
+        retained_handlers.append(handler)
+    managed_handlers = retained_handlers
+
+    if file_handler is None:
+        file_handler = RotatingFileHandler(
+            desired_path,
+            maxBytes=settings.max_bytes,
+            backupCount=settings.backup_count,
+            encoding="utf-8",
+        )
+        file_handler.setLevel(settings.level)
+        file_handler.setFormatter(formatter)
+        setattr(file_handler, _LOG_HANDLER_FLAG, True)
+        setattr(file_handler, _LOG_HANDLER_KIND, _LOG_HANDLER_FILE)
+        root_logger.addHandler(file_handler)
+    else:
+        file_handler.maxBytes = settings.max_bytes
+        file_handler.backupCount = settings.backup_count
+        file_handler.setLevel(settings.level)
+        file_handler.setFormatter(formatter)
+
+    console_handler: Optional[logging.Handler] = None
+    for handler in managed_handlers:
+        if getattr(handler, _LOG_HANDLER_KIND, None) == _LOG_HANDLER_CONSOLE:
+            console_handler = handler
+            break
+
+    if console_enabled:
+        if console_handler is None:
+            console_handler = logging.StreamHandler()
+            console_handler.setLevel(settings.level)
+            console_handler.setFormatter(formatter)
+            setattr(console_handler, _LOG_HANDLER_FLAG, True)
+            setattr(console_handler, _LOG_HANDLER_KIND, _LOG_HANDLER_CONSOLE)
+            root_logger.addHandler(console_handler)
+        else:
+            console_handler.setLevel(settings.level)
+            console_handler.setFormatter(formatter)
+    elif console_handler is not None:
+        root_logger.removeHandler(console_handler)
+        try:
+            console_handler.close()
+        except Exception:  # pragma: no cover - best effort cleanup
+            pass
+
+    return settings
+
+
+def reset_logging_configuration() -> None:
+    """移除由 ``configure_logging`` 添加的日志处理器。"""
+
+    root_logger = logging.getLogger()
+    for handler in list(root_logger.handlers):
+        if getattr(handler, _LOG_HANDLER_FLAG, False):
+            root_logger.removeHandler(handler)
+            try:
+                handler.close()
+            except Exception:  # pragma: no cover - best effort cleanup
+                pass
 
 
 def _ensure_templates_file(config_dir: Path) -> bool:
@@ -989,33 +1275,59 @@ def _load_mail_config_from_external_file():
 
 
 def _load_mail_config_from_project_file():
-    config_path = _config_file_path()
-    if not config_path.exists():
-        writeconfig(str(config_path.parent))
+    primary_path = _config_file_path()
+    candidate_paths: list[Path] = [primary_path]
 
-    config = configparser.RawConfigParser()
-    config.read(os.fspath(config_path))
+    for extra in (Path("config.ini").resolve(), DEFAULT_CONFIG_FILE.resolve()):
+        if extra not in candidate_paths:
+            candidate_paths.append(extra)
 
-    if not config.has_section(MAIL_SECTION):
-        raise ValueError(
-            f"项目配置缺少 [{MAIL_SECTION}] 配置节：{os.fspath(config_path)}"
-        )
+    errors: list[Exception] = []
 
-    values: Dict[str, Any] = {}
-    for key in MAIL_ENV_MAP:
-        raw_value = config.get(MAIL_SECTION, key, fallback=None)
-        if raw_value is not None:
-            values[key] = raw_value
+    for index, path in enumerate(candidate_paths):
+        if path == primary_path and not path.exists():
+            writeconfig(str(path.parent))
 
-    missing_keys = [key for key in REQUIRED_MAIL_ENV_KEYS if not values.get(key)]
-    if missing_keys:
-        raise ValueError(
-            "项目配置文件缺少以下邮件配置字段：{}".format(
-                ", ".join(missing_keys)
+        if not path.is_file():
+            continue
+
+        config = configparser.RawConfigParser()
+        config.read(os.fspath(path))
+
+        if not config.has_section(MAIL_SECTION):
+            continue
+
+        values: Dict[str, Any] = {}
+        for key in MAIL_ENV_MAP:
+            raw_value = config.get(MAIL_SECTION, key, fallback=None)
+            if raw_value is not None:
+                values[key] = raw_value
+
+        missing_keys = [key for key in REQUIRED_MAIL_ENV_KEYS if not values.get(key)]
+        if missing_keys:
+            errors.append(
+                ValueError(
+                    "配置文件 {} 缺少以下邮件配置字段：{}".format(
+                        os.fspath(path), ", ".join(missing_keys)
+                    )
+                )
             )
-        )
+            continue
 
-    return _normalise_mail_values(values, source=f"项目配置文件 {os.fspath(config_path)}")
+        try:
+            return _normalise_mail_values(values, source=f"配置文件 {os.fspath(path)}")
+        except ValueError as exc:
+            errors.append(exc)
+            continue
+
+    if errors:
+        raise errors[0]
+
+    raise ValueError(
+        "未找到包含完整邮件配置的 Config.ini，请在 {} 中任一文件补全 [Mail] 设置".format(
+            ", ".join(os.fspath(path) for path in candidate_paths)
+        )
+    )
 
 
 def get_timezone():
@@ -1273,7 +1585,7 @@ def writeconfig(configDir: str) -> None:
     config_dir.mkdir(parents=True, exist_ok=True)
     config_file_path = config_dir / "Config.ini"
 
-    info = configparser.ConfigParser()
+    info = configparser.RawConfigParser()
     info.add_section("General")
     info.set("General", "app_name", "Monitor Everything")
     info.set("General", "version", "1.0")
@@ -1282,6 +1594,12 @@ def writeconfig(configDir: str) -> None:
     info.set("Logging", "log_level", "info")
     log_root = config_dir.parent
     info.set("Logging", "log_file", _normalise_directory(log_root))
+    info.set("Logging", "log_filename", _DEFAULT_LOG_FILENAME)
+    info.set("Logging", "log_max_size", "10MB")
+    info.set("Logging", "log_backup_count", str(_DEFAULT_LOG_BACKUP_COUNT))
+    info.set("Logging", "log_format", _DEFAULT_LOG_FORMAT)
+    info.set("Logging", "log_datefmt", _DEFAULT_LOG_DATEFMT)
+    info.set("Logging", "log_console", "true")
 
     info.add_section(TIMEZONE_SECTION)
     info.set(TIMEZONE_SECTION, TIMEZONE_OPTION, DEFAULT_TIMEZONE)
@@ -1303,6 +1621,9 @@ def writeconfig(configDir: str) -> None:
     info.add_section(MAIL_SECTION)
     for option, value in mail_placeholders.items():
         info.set(MAIL_SECTION, option, value)
+
+    info.add_section(REQUEST_SECTION)
+    info.set(REQUEST_SECTION, REQUEST_TIMEOUT_KEY, str(DEFAULT_REQUEST_TIMEOUT))
 
     info.add_section("MonitorNum")
     info.set("MonitorNum", "total", "0")

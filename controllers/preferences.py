@@ -237,6 +237,7 @@ class PreferencesController(QtCore.QObject):
             self.ui.contentStack,
             self.ui.monitorBrowser,
             self.ui.configWizard,
+            getattr(self.ui, "preferencesPage", None),
             getattr(self.ui, "timezoneDisplay", None),
         ):
             if widget is None:

@@ -24,14 +24,25 @@
       "新监控项": "New Monitor",
       "未命名服务": "Unnamed Service",
       "监控项 {index} URL 不能为空": "Monitor {index} requires a URL",
+      "监控项 {index} URL 缺少有效的主机名": "Monitor {index} URL must include a valid hostname",
       "监控项 {index} 名称不能为空": "Monitor {index} requires a name",
       "监控项 {index} 的通知邮箱格式不正确": "Monitor {index} email format is invalid",
       "监控项 {index} 类型必须为 {types} 之一": "Monitor {index} must use one of {types}",
       "监控项 {index} 轮询周期必须大于 0": "Monitor {index} interval must be greater than 0",
       "类型 Type": "Type",
+      "请输入完整的服务地址，例如 https://example.com": "Enter the full service address, for example https://example.com",
       "通知邮箱": "Notification Email",
       "通知预览 Notification Preview": "Notification Preview",
       "配置向导 Configuration Wizard": "Configuration Wizard"
+    },
+    "DashboardController": {
+      "未读取到有效的监控配置": "No monitor configuration found",
+      "监控已停止": "Monitoring stopped",
+      "监控已启动": "Monitoring started",
+      "监控已经在运行": "Monitoring is already running",
+      "监控项[{name}]的周期配置无效: {value}": "Monitor '{name}' has invalid interval: {value}",
+      "监控项配置缺少名称或地址": "Monitor configuration requires both name and URL",
+      "目前读取到{count}个监控项，分别是：": "Loaded {count} monitors:"
     },
     "Email": {
       "SMTP 端口配置必须为整数": "SMTP port must be an integer",
@@ -52,7 +63,9 @@
     },
     "MainWindowController": {
       ">>初始化...": ">> Initialising...",
+      ">>报表/告警视图预览": ">> Reports/alerts preview",
       ">>配置模式": ">> Configuration",
+      ">>设置中心": ">> Preferences",
       "English": "English",
       "Monitor Everything v1.0": "Monitor Everything v1.0",
       "{index}. {name} --- 类型: {monitor_type} --- 地址: {url} --- 周期: {interval}秒": "{index}. {name} --- Type: {monitor_type} --- URL: {url} --- Interval: {interval}s",
@@ -61,8 +74,10 @@
       "关闭 Close": "Stop",
       "已切换至主题: {name}": "Switched to theme: {name}",
       "已切换至语言: {name}": "Switched to language: {name}",
+      "已生成示例配置，请在 Config 目录中填写后重新加载": "Sample configuration created. Populate the Config directory then reload.",
       "未读取到有效的监控配置": "No monitor configuration found",
       "本地时间 Local Time(时区 Time Zone: {zone})": "Local Time (Time Zone: {zone})",
+      "模板配置文件格式无效，已恢复默认文案": "Template configuration invalid; fallback content restored.",
       "监控项[{name}]的周期配置无效: {value}": "Monitor '{name}' has invalid interval: {value}",
       "监控项{monitor_name}类型 '{monitor_type}' 未被支持，URL: {url}": "Monitor {monitor_name} type '{monitor_type}' is not supported, URL: {url}",
       "监控项配置缺少名称或地址": "Monitor configuration requires both name and URL",
@@ -70,15 +85,27 @@
       "简体中文": "Simplified Chinese",
       "请输入所在时区(整数):": "Enter your time zone (integer):",
       "输入时区": "Set Time Zone",
-      "配置已保存": "Configuration saved"
+      "配置已保存": "Configuration saved",
+      "配置已保存，但请求超时配置无效: {error}": "Configuration saved, but timeout settings are invalid: {error}",
+      "配置已刷新": "Configuration reloaded",
+      "配置已刷新，但请求超时配置无效: {error}": "Configuration reloaded, but timeout settings are invalid: {error}"
     },
     "MainWindowUI": {
-      "Reports and alerts view under construction. Stay tuned!": "Reports and alerts view under construction. Stay tuned!"
+      "Reports and alerts view under construction. Stay tuned!": "Reports and alerts view under construction. Stay tuned!",
+      "Theme": "Theme",
+      "Global Actions": "Global Actions",
+      "Stop": "Stop",
+      "Start": "Start",
+      "Current Timezone: UTC{offset:+d}": "Current Timezone: UTC{offset:+d}",
+      "Standby": "Standby",
+      "Running": "Running",
+      "Reload": "Reload",
+      "Exit": "Exit"
     },
     "MonitorDashboard": {
-      "UTC时间 UTC Time": "UTC Time",
-      "实时日志 Live Feed": "Live Feed",
-      "本地时间 Local Time": "Local Time"
+      "UTC Time": "UTC Time",
+      "Live Feed": "Live Feed",
+      "Local Time": "Local Time"
     },
     "MonitorState": {
       ">>>运行中...": ">>> Running...",
@@ -93,11 +120,29 @@
     },
     "NavigationBar": {
       "Monitor Center": "Monitor Center",
-      "主题 Theme": "Theme",
-      "时区 Time Zone": "Time Zone",
-      "监控 Monitor": "Monitor",
-      "语言 Language": "Language",
-      "配置 Configuration": "Configuration"
+      "Monitor": "Monitor",
+      "Configuration": "Configuration",
+      "Preferences": "Preferences",
+      "Reports": "Reports"
+    },
+    "PreferencesPage": {
+      "Runtime Information": "Runtime Information",
+      "Set Timezone": "Set Timezone",
+      "Theme": "Theme",
+      "Select Theme": "Select Theme",
+      "Language": "Language",
+      "Select Language": "Select Language"
+    },
+    "PreferencesController": {
+      "English": "English",
+      "{name}（高对比）": "{name} (High Contrast)",
+      "已切换至主题: {name}": "Switched to theme: {name}",
+      "已切换至语言: {name}": "Switched to language: {name}",
+      "已更新时区至 UTC{offset:+d}": "Time zone updated to UTC{offset:+d}",
+      "本地时间 Local Time(时区 Time Zone: {zone})": "Local Time (Time Zone: {zone})",
+      "简体中文": "Simplified Chinese",
+      "请输入所在时区(整数):": "Enter your time zone (integer):",
+      "输入时区": "Set Time Zone"
     },
     "Template.log": {
       ">>>{event_timestamp}: {service_name}{status_label}": ">>>{event_timestamp}: {service_name}{status_label}",
@@ -114,7 +159,6 @@
       "Time: {event_timestamp} --> Status: {service_name}{status_label}": "Time: {event_timestamp} --> Status: {service_name}{status_label}"
     },
     "Theme": {
-      "High Contrast": "High Contrast",
       "Workspace Dark": "Workspace Dark",
       "Workspace Light": "Workspace Light"
     }
