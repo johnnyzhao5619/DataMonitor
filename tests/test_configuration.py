@@ -201,6 +201,30 @@ def test_read_monitor_list_recovers_missing_template(tmp_path, monkeypatch, capl
     _assert_template_file_matches_defaults(template_path)
 
 
+def test_write_config_parser_uses_utf8(tmp_path, monkeypatch):
+    parser = configparser.RawConfigParser()
+    parser.add_section("General")
+    parser.set("General", "name", "接口监控")
+
+    target = tmp_path / "Config.ini"
+    original_open = Path.open
+    observed: dict[str, object] = {}
+
+    def strict_open(self, mode="r", *args, **kwargs):
+        if self == target and "w" in mode:
+            observed["encoding"] = kwargs.get("encoding")
+            if kwargs.get("encoding") is None:
+                raise UnicodeEncodeError("cp1252", b"", 0, 1, "encoding required")
+        return original_open(self, mode, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", strict_open)
+
+    configuration._write_config_parser(parser, target)
+
+    assert observed.get("encoding") == "utf-8"
+    assert "接口监控" in target.read_text(encoding="utf-8")
+
+
 def test_render_template_refreshes_after_manual_update(tmp_path, monkeypatch):
     monkeypatch.setenv(configuration.LOG_DIR_ENV, str(tmp_path))
     config_dir = tmp_path / "Config"
@@ -288,6 +312,27 @@ def test_set_preferences_updates_values(tmp_path, monkeypatch):
     assert prefs["timezone"] == "-5"
 
 
+def test_set_preferences_supports_chinese_values(tmp_path, monkeypatch):
+    monkeypatch.setenv(configuration.LOG_DIR_ENV, str(tmp_path))
+
+    configuration.set_preferences(
+        {
+            "theme": "workspace_dark",
+            "theme_display_name": "夜间主题",
+            "theme_description": "适合夜间使用",
+            "theme_high_contrast": False,
+            "language": configuration.DEFAULT_LANGUAGE,
+            "timezone": 8,
+        }
+    )
+
+    config_path = tmp_path / "Config" / "Config.ini"
+    text = config_path.read_text(encoding="utf-8")
+
+    assert "夜间主题" in text
+    assert "适合夜间使用" in text
+
+
 def test_set_preferences_rejects_invalid_language(tmp_path, monkeypatch):
     monkeypatch.setenv(configuration.LOG_DIR_ENV, str(tmp_path))
 
@@ -341,3 +386,29 @@ def test_set_preferences_requires_mapping(tmp_path, monkeypatch):
 
     with pytest.raises(TypeError):
         configuration.set_preferences(["theme", "workspace"])
+
+
+def test_write_monitor_list_supports_chinese_content(tmp_path, monkeypatch):
+    monkeypatch.setenv(configuration.LOG_DIR_ENV, str(tmp_path))
+
+    monitors = [
+        {
+            "name": "接口服务",
+            "url": "https://example.com/api",
+            "type": "GET",
+            "interval": 30,
+            "email": "报警@example.com",
+            "payload": {"描述": "正常"},
+            "headers": {"X-服务": "接口服务"},
+            "language": configuration.DEFAULT_LANGUAGE,
+        }
+    ]
+
+    configuration.write_monitor_list(monitors)
+
+    config_path = tmp_path / "Config" / "Config.ini"
+    text = config_path.read_text(encoding="utf-8")
+
+    assert "接口服务" in text
+    assert "报警@example.com" in text
+    assert "描述" in text
