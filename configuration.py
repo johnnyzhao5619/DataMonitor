@@ -18,17 +18,32 @@ LOGGER = logging.getLogger(__name__)
 
 
 MAIL_ENV_PREFIX = "MAIL_"
-MAIL_ENV_MAP = {
-    "smtp_server": f"{MAIL_ENV_PREFIX}SMTP_SERVER",
-    "smtp_port": f"{MAIL_ENV_PREFIX}SMTP_PORT",
-    "username": f"{MAIL_ENV_PREFIX}USERNAME",
-    "password": f"{MAIL_ENV_PREFIX}PASSWORD",
-    "from_addr": f"{MAIL_ENV_PREFIX}FROM",
-    "to_addrs": f"{MAIL_ENV_PREFIX}TO",
-    "use_starttls": f"{MAIL_ENV_PREFIX}USE_STARTTLS",
-    "use_ssl": f"{MAIL_ENV_PREFIX}USE_SSL",
+MAIL_ENV_SUFFIXES = {
+    "smtp_server": "SMTP_SERVER",
+    "smtp_port": "SMTP_PORT",
+    "username": "USERNAME",
+    "password": "PASSWORD",
+    "from_addr": "FROM",
+    "to_addrs": "TO",
+    "use_starttls": "USE_STARTTLS",
+    "use_ssl": "USE_SSL",
 }
-MAIL_BOOL_OPTIONS = frozenset({"use_starttls", "use_ssl"})
+REQUIRED_MAIL_ENV_KEYS = (
+    "smtp_server",
+    "smtp_port",
+    "username",
+    "password",
+    "from_addr",
+    "to_addrs",
+)
+OPTIONAL_MAIL_BOOL_KEYS = (
+    "use_starttls",
+    "use_ssl",
+)
+MAIL_ENV_MAP = {
+    key: f"{MAIL_ENV_PREFIX}{suffix}" for key, suffix in MAIL_ENV_SUFFIXES.items()
+}
+MAIL_BOOL_OPTIONS = frozenset(OPTIONAL_MAIL_BOOL_KEYS)
 _BOOL_TRUE_VALUES = {"1", "true", "yes", "on"}
 _BOOL_FALSE_VALUES = {"0", "false", "no", "off"}
 MAIL_SECTION = "Mail"
@@ -892,7 +907,8 @@ def _coerce_mail_bool(value: Any, *, key: str, source: str) -> bool:
 
 def _normalise_mail_values(values: Mapping[str, Any], *, source: str) -> Dict[str, Any]:
     normalised: Dict[str, Any] = {}
-    for key in MAIL_ENV_MAP:
+
+    for key in REQUIRED_MAIL_ENV_KEYS:
         if key not in values:
             raise ValueError(f"{source} 缺少邮件配置字段：{key}")
         value = values[key]
@@ -902,27 +918,35 @@ def _normalise_mail_values(values: Mapping[str, Any], *, source: str) -> Dict[st
                 raise ValueError(
                     f"{source} 包含占位符字段：{key}={value!r}，缺少真实 SMTP 配置，请按照 README 覆盖配置后重试"
                 )
-        if key in MAIL_BOOL_OPTIONS:
-            normalised[key] = _coerce_mail_bool(value, key=key, source=source)
-        else:
-            normalised[key] = value
+        normalised[key] = value
+
+    for key in OPTIONAL_MAIL_BOOL_KEYS:
+        value = values.get(key, False)
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped.startswith("<") and stripped.endswith(">"):
+                raise ValueError(
+                    f"{source} 包含占位符字段：{key}={value!r}，缺少真实 SMTP 配置，请按照 README 覆盖配置后重试"
+                )
+        normalised[key] = _coerce_mail_bool(value, key=key, source=source)
+
     return normalised
 
 
 def _load_mail_config_from_env():
-    values = {}
-    missing_keys = []
+    values: Dict[str, Any] = {}
+    missing_required = []
     for key, env_name in MAIL_ENV_MAP.items():
         value = os.environ.get(env_name)
         if value:
             values[key] = value
-        else:
-            missing_keys.append(key)
+        elif key in REQUIRED_MAIL_ENV_KEYS:
+            missing_required.append(key)
 
-    if values and missing_keys:
+    if values and missing_required:
         raise ValueError(
             "环境变量缺少以下邮件配置字段：{}".format(
-                ", ".join(missing_keys)
+                ", ".join(missing_required)
             )
         )
 
@@ -947,8 +971,13 @@ def _load_mail_config_from_external_file():
     if not config.has_section(MAIL_SECTION):
         raise ValueError(f"外部配置文件缺少 [{MAIL_SECTION}] 配置节：{path}")
 
-    values = {key: config.get(MAIL_SECTION, key, fallback=None) for key in MAIL_ENV_MAP}
-    missing_keys = [key for key, value in values.items() if not value]
+    values: Dict[str, Any] = {}
+    for key in MAIL_ENV_MAP:
+        raw_value = config.get(MAIL_SECTION, key, fallback=None)
+        if raw_value is not None:
+            values[key] = raw_value
+
+    missing_keys = [key for key in REQUIRED_MAIL_ENV_KEYS if not values.get(key)]
     if missing_keys:
         raise ValueError(
             "外部配置文件缺少以下邮件配置字段：{}".format(
@@ -972,8 +1001,13 @@ def _load_mail_config_from_project_file():
             f"项目配置缺少 [{MAIL_SECTION}] 配置节：{os.fspath(config_path)}"
         )
 
-    values = {key: config.get(MAIL_SECTION, key, fallback=None) for key in MAIL_ENV_MAP}
-    missing_keys = [key for key, value in values.items() if not value]
+    values: Dict[str, Any] = {}
+    for key in MAIL_ENV_MAP:
+        raw_value = config.get(MAIL_SECTION, key, fallback=None)
+        if raw_value is not None:
+            values[key] = raw_value
+
+    missing_keys = [key for key in REQUIRED_MAIL_ENV_KEYS if not values.get(key)]
     if missing_keys:
         raise ValueError(
             "项目配置文件缺少以下邮件配置字段：{}".format(
