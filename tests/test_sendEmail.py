@@ -313,3 +313,47 @@ def test_read_mail_configuration_rejects_invalid_boolean_env(monkeypatch):
 
     with pytest.raises(ValueError, match="use_starttls"):
         configuration.read_mail_configuration()
+
+
+def test_send_email_supports_minimal_env_configuration(monkeypatch):
+    required_values = {
+        "smtp_server": "smtp.example.com",
+        "smtp_port": "587",
+        "username": "user",
+        "password": "secret",
+        "from_addr": "from@example.com",
+        "to_addrs": "to@example.com",
+    }
+
+    for key, env_name in configuration.MAIL_ENV_MAP.items():
+        monkeypatch.delenv(env_name, raising=False)
+        if key in required_values:
+            monkeypatch.setenv(env_name, required_values[key])
+
+    monkeypatch.delenv(configuration.EXTERNAL_MAIL_CONFIG_ENV, raising=False)
+
+    mail_config = configuration.read_mail_configuration()
+
+    for key, expected in required_values.items():
+        assert mail_config[key] == expected
+
+    for key in configuration.OPTIONAL_MAIL_BOOL_KEYS:
+        assert mail_config[key] is False
+
+    from monitoring import send_email
+
+    monkeypatch.setattr(send_email.smtplib, "SMTP", DummySMTP)
+
+    class FailSSL:
+        def __init__(self, *args, **kwargs):  # noqa: D401 - 与 SMTP_SSL 接口保持一致
+            pytest.fail("不应使用 SMTP_SSL")
+
+    monkeypatch.setattr(send_email.smtplib, "SMTP_SSL", FailSSL)
+
+    send_email.send_email("Subject", "Body")
+
+    assert PROJECT_SMTP_CALLS, "应该创建 SMTP 连接"
+    smtp_instance = PROJECT_SMTP_CALLS[0]
+    assert isinstance(smtp_instance, DummySMTP)
+    assert smtp_instance.started_tls is False
+    assert smtp_instance.logged_in is True
