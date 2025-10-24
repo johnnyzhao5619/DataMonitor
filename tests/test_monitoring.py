@@ -10,8 +10,19 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 if "requests" not in sys.modules:
+    class _RequestException(Exception):
+        """Minimal stand-in for ``requests.RequestException`` used in tests."""
+
+    class _Timeout(_RequestException):
+        """Minimal stand-in for ``requests.Timeout`` used in tests."""
+
+    class _ConnectionError(_RequestException):
+        """Minimal stand-in for ``requests.ConnectionError`` used in tests."""
+
     sys.modules["requests"] = types.SimpleNamespace(
-        RequestException=Exception,
+        RequestException=_RequestException,
+        Timeout=_Timeout,
+        ConnectionError=_ConnectionError,
         get=lambda *args, **kwargs: types.SimpleNamespace(status_code=200),
         post=lambda *args, **kwargs: types.SimpleNamespace(status_code=200),
     )
