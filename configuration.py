@@ -427,7 +427,7 @@ def _load_config_parser(*, ensure_dir: bool = False) -> Tuple[configparser.RawCo
 
 
 def _write_config_parser(parser: configparser.RawConfigParser, path: Path) -> None:
-    with path.open("w") as configfile:
+    with path.open("w", encoding="utf-8") as configfile:
         parser.write(configfile)
 
 
