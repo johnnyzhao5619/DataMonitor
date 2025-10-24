@@ -2,10 +2,6 @@
 
 from PyQt5 import QtCore
 
-from .dashboard import DashboardController
-from .main_window import MainWindowController
-from .preferences import PreferencesController
-
 
 class ControllerEventBus(QtCore.QObject):
     """Unified event bus for cross-controller communication."""
@@ -19,6 +15,11 @@ class ControllerEventBus(QtCore.QObject):
 
     def __init__(self, parent: QtCore.QObject | None = None) -> None:
         super().__init__(parent)
+
+
+from .dashboard import DashboardController
+from .main_window import MainWindowController
+from .preferences import PreferencesController
 
 
 __all__ = [
