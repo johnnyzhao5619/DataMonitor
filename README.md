@@ -203,7 +203,7 @@ chmod 600 /etc/datamonitor/mail.ini
 
 ## License
 
-本项目按 [MIT License](LICENSE) 授权发布。
+本项目按 [MIT License](LICENSE) 授权发布。详见 [LICENSE](LICENSE) 文件。
 
 ## 技术栈与合规
 
