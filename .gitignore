@@ -52,6 +52,11 @@ Config/
 *.qm.json
 data_monitor/
 
+# Generated icon artifacts (keep source PNGs tracked; ignore generated targets)
+resources/icons/*.ico
+resources/icons/*.icns
+resources/icons/*.iconset/
+
 # 操作系统
 .DS_Store
 Thumbs.db

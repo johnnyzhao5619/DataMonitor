@@ -117,6 +117,25 @@ To bump a release:
 2. Regenerate or review documentation that mentions the version (README, CHANGELOG).
 3. Commit with a message such as `chore: bump version to vX.Y.Z`.
 
+## Icons & Packaging
+
+Project icon resources should live in `resources/icons/` (preferred) so packaging and CI know
+where生成源图与生成的 `.ico`/`.icns`。把 `datamonitor_logo_icon.png`（建议 1024×1024）放到该目录，使用下列命令生成目标图：
+
+```bash
+# 生成 Windows .ico（脚本优先查找 resources/icons/）
+python -m pip install --user Pillow
+python tools/gen_ico.py
+
+# macOS 下生成 .icns（使用系统自带工具）
+rm -rf resources/icons/datamonitor.iconset resources/icons/datamonitor.icns
+mkdir -p resources/icons/datamonitor.iconset
+# 使用 sips 生成多尺寸，然后 iconutil 打包为 .icns（参考 docs/icons.md）
+```
+
+`build.py` 会优先读取 `resources/icons/datamonitor.icns` / `resources/icons/datamonitor.ico`（若存在），若不存在则回退到 `docs/` 中的文件。
+
+
 ---
 
 ## Testing
