@@ -1,11 +1,16 @@
-"""侧边导航栏组件。"""
+# -*- codeing = utf-8 -*-
+# @Create: 2023-02-16 3:37 p.m.
+# @Update: 2025-10-24 12:05 a.m.
+# @Author: John Zhao
+"""Side navigation bar components."""
 from __future__ import annotations
 
 from typing import Dict, Iterable, Optional
 
 from PySide6 import QtCore, QtGui, QtWidgets
 
-NAVIGATION_ORDER = ("monitor", "configuration", "preferences", "documentation", "reports")
+NAVIGATION_ORDER = ("monitor", "configuration", "preferences", "documentation",
+                    "reports")
 NAVIGATION_LABELS = {
     "monitor": "Monitor",
     "configuration": "Configuration",
@@ -16,7 +21,7 @@ NAVIGATION_LABELS = {
 
 
 class NavigationBar(QtWidgets.QFrame):
-    """用于在主界面中切换视图的缩略导航栏。"""
+    """Compact navigation bar used to switch primary views."""
 
     navigationTriggered = QtCore.Signal(str)
 
@@ -83,7 +88,8 @@ class NavigationBar(QtWidgets.QFrame):
         self._buttons[nav_id] = button
         return button
 
-    def _handle_button_clicked(self, button: QtWidgets.QAbstractButton) -> None:
+    def _handle_button_clicked(self,
+                               button: QtWidgets.QAbstractButton) -> None:
         for nav_id, target in self._buttons.items():
             if target is button:
                 self.navigationTriggered.emit(nav_id)

@@ -1,26 +1,42 @@
-# 更新日志
+# Changelog
+
+## [v1.2.0] - 2025-10-25
+
+### Changes
+- Standardized logging/error wording in the configuration subsystem and monitoring pipeline, improving clarity for operators and log parsers.
+- Updated internationalization tooling (catalog builder, template defaults, documentation center) to ship English helper text and guidance out of the box.
+- Refined theme metadata, notification templates, and email content helpers to use English descriptions, ensuring parity between UI, notifications, and documentation.
+
+### Compatibility Notes
+- No breaking changes; existing configuration files and language packs continue to work as-is.
+
+### Installation
+- Same steps as v1.1.0 (`pip install -r requirements.txt`, ensure PySide6 runtime, configure environment or external files per README).
+
+### Licensing
+- Unchanged: Apache License 2.0 with PySide6 components under LGPL v3 (dynamic linking).
 
 ## [v1.1.0] - 2025-10-24
 
-### 变更内容
-- 从 PyQt5 迁移至 PySide6，采用 Qt for Python (LGPL v3) 动态链接方案
-- 核心监控模块可独立运行，无需 UI 依赖
-- 优化国际化支持，新增语言包管理工具
-- 改进安全性，支持环境变量配置和外部凭证文件
-- 主仓库许可证调整为 Apache License 2.0，并补充分发与合规文档
-- 新增日志配置面板与文档中心，可视化管理日志策略并内嵌 License/双语手册
-- 日志配置面板支持自定义日志目录与浏览选择；文档中心支持 Markdown 样式渲染并随语言切换手册
+### Changes
+- Migrated from PyQt5 to PySide6, adopting the Qt for Python (LGPL v3) dynamic-linking approach.
+- Core monitoring module now runs independently with no UI dependency.
+- Improved internationalization with a bundled language-pack build tool.
+- Hardened security by supporting environment variables and external credential files.
+- Repository license switched to Apache License 2.0 with updated redistribution/compliance docs.
+- Added logging configuration panel and documentation center to manage log policies and embed license/manual content.
+- Logging panel now supports custom log directories with browsing UI; documentation center renders Markdown and swaps manuals with the active language.
 
-### 兼容性提示
-- 需要 Python 3.8 或更高版本
-- 桌面版本需要安装 PySide6 运行时
-- 配置文件格式保持兼容，无需修改
+### Compatibility Notes
+- Requires Python 3.8 or later.
+- Desktop build expects PySide6 runtime to be installed.
+- Configuration file format remains backward compatible; no migration required.
 
-### 安装说明
-1. 安装依赖：`pip install -r requirements.txt`
-2. 对于桌面版本，确保系统已安装 Qt 运行时
-3. 参考 README.md 配置环境变量或外部配置文件
+### Installation
+1. Install dependencies: `pip install -r requirements.txt`
+2. Ensure the Qt runtime (PySide6) is available for desktop deployments.
+3. Follow README.md to configure environment variables or external config files.
 
-### 许可说明
-本版本采用 Apache License 2.0 发布，详见 LICENSE 文件。
-PySide6 组件遵循 LGPL v3 协议，运行时仅通过动态链接方式分发。
+### Licensing
+This release ships under the Apache License 2.0 (see LICENSE).
+PySide6 components remain under LGPL v3 and are distributed via dynamic linking only.

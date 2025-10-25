@@ -21,6 +21,7 @@ from ui.main_window import MainWindowUI
 
 
 class DummyScheduler:
+
     def __init__(self, *, event_handler=None, timezone_getter=None):
         self.event_handler = event_handler
         self.timezone_getter = timezone_getter
@@ -55,21 +56,23 @@ class DummyScheduler:
 @pytest.mark.qt
 def test_dashboard_start_and_stop_emits_signals(qtbot, monkeypatch, request):
     monitor = configuration.MonitorItem(
-        name="服务A",
+        name="Service A",
         url="http://example.com",
         monitor_type="GET",
         interval=30,
         email=None,
     )
     monkeypatch.setattr(configuration, "read_monitor_list", lambda: [monitor])
-    monkeypatch.setattr("controllers.dashboard.MonitorScheduler", DummyScheduler)
+    monkeypatch.setattr("controllers.dashboard.MonitorScheduler",
+                        DummyScheduler)
 
     bus = ControllerEventBus()
     log_messages = []
     status_messages = []
     toggled = []
     bus.logMessage.connect(log_messages.append)
-    bus.statusMessage.connect(lambda text, timeout: status_messages.append((text, timeout)))
+    bus.statusMessage.connect(lambda text, timeout: status_messages.append(
+        (text, timeout)))
     bus.monitoringToggled.connect(toggled.append)
 
     controller = DashboardController(event_bus=bus, timezone=8)
@@ -78,19 +81,21 @@ def test_dashboard_start_and_stop_emits_signals(qtbot, monkeypatch, request):
     assert controller.start_monitoring() is True
     assert controller.is_running
     assert toggled == [True]
-    assert any("目前读取到" in msg for msg in log_messages)
-    assert any(msg.endswith("服务A") or "服务A" in msg for msg in log_messages)
-    assert any("监控已启动" in msg for msg, _ in status_messages)
+    assert any("Loaded" in msg for msg in log_messages)
+    assert any("Service A" in msg for msg in log_messages)
+    assert any("Monitoring started" in msg for msg, _ in status_messages)
 
     controller.stop_monitoring()
     assert toggled[-1] is False
     assert not controller.is_running
-    assert any("监控已停止" in msg for msg, _ in status_messages)
+    assert any("Monitoring stopped" in msg for msg, _ in status_messages)
 
 
 @pytest.mark.qt
-def test_dashboard_run_periodically_triggers_event(qtbot, monkeypatch, request):
-    monkeypatch.setattr("controllers.dashboard.MonitorScheduler", DummyScheduler)
+def test_dashboard_run_periodically_triggers_event(qtbot, monkeypatch,
+                                                   request):
+    monkeypatch.setattr("controllers.dashboard.MonitorScheduler",
+                        DummyScheduler)
     bus = ControllerEventBus()
     captured = []
     bus.logMessage.connect(captured.append)
@@ -99,22 +104,24 @@ def test_dashboard_run_periodically_triggers_event(qtbot, monkeypatch, request):
     request.addfinalizer(controller.on_close)
 
     monitor_info = {
-        "name": "周期服务",
+        "name": "Periodic Service",
         "url": "http://example.com/health",
         "type": "GET",
         "interval": 1,
     }
 
     controller.run_periodically(monitor_info)
-    qtbot.waitUntil(lambda: any(msg.startswith("cycle:") for msg in captured), timeout=2000)
-    assert any("周期服务" in msg for msg in captured)
+    qtbot.waitUntil(lambda: any(msg.startswith("cycle:") for msg in captured),
+                    timeout=2000)
+    assert any("Periodic Service" in msg for msg in captured)
     prune_calls = controller._periodic_scheduler.prune_calls
     assert prune_calls and len(prune_calls[-1]) == 1
 
 
 @pytest.mark.qt
 def test_dashboard_logs_unsupported_type(monkeypatch, qtbot, request):
-    monkeypatch.setattr("controllers.dashboard.MonitorScheduler", DummyScheduler)
+    monkeypatch.setattr("controllers.dashboard.MonitorScheduler",
+                        DummyScheduler)
     logged = []
     statuses = []
     bus = ControllerEventBus()
@@ -122,27 +129,28 @@ def test_dashboard_logs_unsupported_type(monkeypatch, qtbot, request):
     bus.statusMessage.connect(lambda text, timeout: statuses.append(text))
 
     records = []
-    monkeypatch.setattr(log_recorder, "record", lambda action, detail: records.append((action, detail)))
+    monkeypatch.setattr(
+        log_recorder, "record", lambda action, detail: records.append(
+            (action, detail)))
 
     controller = DashboardController(event_bus=bus, timezone=0)
     request.addfinalizer(controller.on_close)
 
-    controller.run_periodically(
-        {
-            "name": "异常服务",
-            "url": "http://example.com",
-            "type": "UNKNOWN",
-            "interval": 1,
-        }
-    )
+    controller.run_periodically({
+        "name": "Invalid Service",
+        "url": "http://example.com",
+        "type": "UNKNOWN",
+        "interval": 1,
+    })
 
     assert records and records[0][0] == "Unsupported Monitor Type"
-    assert any("未被支持" in message for message in logged)
-    assert any("异常服务" in message for message in statuses)
+    assert any("not supported" in message for message in logged)
+    assert any("Invalid Service" in message for message in statuses)
 
 
 @pytest.mark.qt
-def test_preferences_language_and_timezone_persistence(qtbot, tmp_path, monkeypatch, request):
+def test_preferences_language_and_timezone_persistence(qtbot, tmp_path,
+                                                       monkeypatch, request):
     monkeypatch.setenv("APIMONITOR_HOME", str(tmp_path))
     config_dir = tmp_path / "Config"
     configuration.writeconfig(str(config_dir))
@@ -164,7 +172,8 @@ def test_preferences_language_and_timezone_persistence(qtbot, tmp_path, monkeypa
     status_messages = []
     timezone_events = []
     bus.languageChanged.connect(language_events.append)
-    bus.statusMessage.connect(lambda text, timeout: status_messages.append(text))
+    bus.statusMessage.connect(
+        lambda text, timeout: status_messages.append(text))
     bus.timezoneChanged.connect(timezone_events.append)
 
     preferences = PreferencesController(
@@ -185,18 +194,19 @@ def test_preferences_language_and_timezone_persistence(qtbot, tmp_path, monkeypa
     en_index = selector.findData("en_US")
     assert en_index >= 0
     preferences.on_language_changed(en_index)
-    qtbot.waitUntil(lambda: preferences.current_language == "en_US", timeout=5000)
+    qtbot.waitUntil(lambda: preferences.current_language == "en_US",
+                    timeout=5000)
+
     def _language_status_seen():
-        return any(
-            ("语言" in message)
-            or ("language" in message.lower())
-            for message in status_messages
-        )
+        return any("language" in message.lower()
+                   for message in status_messages)
+
     qtbot.waitUntil(_language_status_seen, timeout=5000)
     config_file = config_dir / "Config.ini"
     assert "language = en_US" in config_file.read_text(encoding="utf-8")
 
-    monkeypatch.setattr(QtWidgets.QInputDialog, "getInt", lambda *args, **kwargs: (9, True))
+    monkeypatch.setattr(QtWidgets.QInputDialog, "getInt",
+                        lambda *args, **kwargs: (9, True))
     preferences.choose_timezone()
     qtbot.waitUntil(lambda: preferences.current_timezone == 9, timeout=2000)
     assert any("utc+9" in message.lower() for message in status_messages)
@@ -204,9 +214,7 @@ def test_preferences_language_and_timezone_persistence(qtbot, tmp_path, monkeypa
 
     theme_selector = ui.themeSelector
     if theme_selector.count() > 1:
-        next_index = (theme_selector.currentIndex() + 1) % theme_selector.count()
+        next_index = (theme_selector.currentIndex() +
+                      1) % theme_selector.count()
         preferences.on_theme_changed(next_index)
-        assert any(
-            ("主题" in message) or ("theme" in message.lower())
-            for message in status_messages
-        )
+        assert any("theme" in message.lower() for message in status_messages)

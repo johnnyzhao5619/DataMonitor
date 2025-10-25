@@ -11,8 +11,10 @@ if "requests" not in sys.modules:
     class _DummyRequestException(Exception):
         pass
 
-    def _dummy_request(*args, **kwargs):  # pragma: no cover - 调试防护
-        raise NotImplementedError("requests 模块在测试环境中不可用")
+    def _dummy_request(*args,
+                       **kwargs):  # pragma: no cover - defensive debugging
+        raise NotImplementedError(
+            "requests module is unavailable in this test environment")
 
     dummy_requests.RequestException = _DummyRequestException
     dummy_requests.get = _dummy_request
@@ -34,7 +36,9 @@ def reset_template_manager():
     configuration.get_template_manager.cache_clear()
 
 
-def _prepare_config_dir(tmp_path: Path, monkeypatch, templates_content: str = None) -> Path:
+def _prepare_config_dir(tmp_path: Path,
+                        monkeypatch,
+                        templates_content: str = None) -> Path:
     monkeypatch.setenv(configuration.LOG_DIR_ENV, str(tmp_path))
     monkeypatch.setattr(configuration, "_LANGUAGE_CACHE", None, raising=False)
     config_dir = tmp_path / "Config"
@@ -53,50 +57,52 @@ def _sample_context(**overrides):
         "interval": 60,
         "status_code": 3,
         "status_key": "alert",
-        "status_label": "服务异常",
-        "status_text": "异常",
-        "status_action": "告警",
-        "event_description": "监控检测到服务不可达",
-        "time_label": "发生时间",
+        "status_label": " offline",
+        "status_text": "Offline",
+        "status_action": "Alert",
+        "event_description": "Monitoring detected the service is unreachable",
+        "time_label": "Occurred at",
         "event_timestamp": "2023-01-01 00:00:00",
     }
     context.update(overrides)
     return context
 
 
-def test_render_template_uses_default_when_templates_missing(tmp_path, monkeypatch):
+def test_render_template_uses_default_when_templates_missing(
+        tmp_path, monkeypatch):
     _prepare_config_dir(tmp_path, monkeypatch)
     context = {
         "service_name": "DemoService",
-        "status_label": "服务正常",
+        "status_label": " online",
         "event_timestamp": "2023-01-01 00:00:00",
     }
 
     rendered = configuration.render_template("ui", "status_line", context)
-    assert rendered == "时间：2023-01-01 00:00:00 --> 状态：DemoService服务正常"
+    assert rendered == "Time: 2023-01-01 00:00:00 --> Status: DemoService online"
 
 
 def test_render_template_overrides_ini_file(tmp_path, monkeypatch):
-    templates_content = """[ui]\nstatus_line = UI提示 {service_name} - {status_label}\n"""
+    templates_content = """[ui]\nstatus_line = UI hint {service_name} -{status_label}\n"""
     _prepare_config_dir(tmp_path, monkeypatch, templates_content)
 
     context = {
         "service_name": "DemoService",
-        "status_label": "服务异常",
+        "status_label": " offline",
         "event_timestamp": "2023-01-01 00:00:00",
     }
 
     rendered = configuration.render_template("ui", "status_line", context)
-    assert rendered == "UI提示 DemoService - 服务异常"
+    assert rendered == "UI hint DemoService - offline"
 
 
 def test_render_template_missing_variable(tmp_path, monkeypatch):
     _prepare_config_dir(tmp_path, monkeypatch)
 
     with pytest.raises(ValueError) as exc_info:
-        configuration.render_template("mail", "alert_body", {"service_name": "Demo"})
+        configuration.render_template("mail", "alert_body",
+                                      {"service_name": "Demo"})
 
-    assert "缺少变量" in str(exc_info.value)
+    assert "missing variable" in str(exc_info.value)
 
 
 def test_render_email_requires_fields(tmp_path, monkeypatch):
@@ -107,7 +113,7 @@ def test_render_email_requires_fields(tmp_path, monkeypatch):
     with pytest.raises(ValueError) as exc_info:
         send_email.render_email("alert", context)
 
-    assert "缺少必要字段" in str(exc_info.value)
+    assert "missing required fields" in str(exc_info.value)
 
 
 def test_render_email_respects_template_override(tmp_path, monkeypatch):
@@ -118,47 +124,50 @@ def test_render_email_respects_template_override(tmp_path, monkeypatch):
     subject, body = send_email.render_email("alert", context)
 
     assert subject == "ALERT DemoService"
-    assert body == "BODY 告警"
+    assert body == "BODY Alert"
 
 
 def test_render_email_supports_per_monitor_language(tmp_path, monkeypatch):
-    templates_content = (
-        "[mail]\n"
-        "alert_subject = 默认 {service_name}\n"
-        "alert_body = 默认 {time_label}\n"
-        "[mail[en_US]]\n"
-        "alert_subject = EN {service_name}\n"
-        "alert_body = EN {time_label}\n"
-    )
+    templates_content = ("[mail]\n"
+                         "alert_subject = DEFAULT {service_name}\n"
+                         "alert_body = DEFAULT {time_label}\n"
+                         "[mail[en_US]]\n"
+                         "alert_subject = EN {service_name}\n"
+                         "alert_body = EN {time_label}\n")
     _prepare_config_dir(tmp_path, monkeypatch, templates_content)
     configuration.get_template_manager().reload()
 
     default_context = _sample_context()
-    subject_default, body_default = send_email.render_email("alert", default_context)
-    assert subject_default == "默认 DemoService"
-    assert body_default == "默认 发生时间"
+    subject_default, body_default = send_email.render_email(
+        "alert", default_context)
+    assert subject_default == "DEFAULT DemoService"
+    assert body_default == "DEFAULT Occurred at"
 
     english_context = _sample_context(time_label="Occurred at")
-    subject_en, body_en = send_email.render_email(
-        "alert", english_context, language="en_US"
-    )
+    subject_en, body_en = send_email.render_email("alert",
+                                                  english_context,
+                                                  language="en_US")
     assert subject_en == "EN DemoService"
     assert body_en == "EN Occurred at"
 
-    monkeypatch.setattr(configuration, "_LANGUAGE_CACHE", "en_US", raising=False)
+    monkeypatch.setattr(configuration,
+                        "_LANGUAGE_CACHE",
+                        "en_US",
+                        raising=False)
     configuration.get_template_manager().reload()
-    subject_global, body_global = send_email.render_email("alert", english_context)
+    subject_global, body_global = send_email.render_email(
+        "alert", english_context)
     assert subject_global == "EN DemoService"
     assert body_global == "EN Occurred at"
 
 
 def test_render_template_warns_when_ini_invalid(tmp_path, monkeypatch, caplog):
-    templates_content = """[ui\nstatus_line = 无效配置"""
+    templates_content = """[ui\nstatus_line = invalid config"""
     _prepare_config_dir(tmp_path, monkeypatch, templates_content)
 
     context = {
         "service_name": "DemoService",
-        "status_label": "服务正常",
+        "status_label": " online",
         "event_timestamp": "2023-01-01 00:00:00",
     }
 
@@ -166,7 +175,10 @@ def test_render_template_warns_when_ini_invalid(tmp_path, monkeypatch, caplog):
     with caplog.at_level(logging.WARNING, logger=logger_name):
         rendered = configuration.render_template("ui", "status_line", context)
 
-    assert rendered == "时间：2023-01-01 00:00:00 --> 状态：DemoService服务正常"
-    relevant_records = [record for record in caplog.records if record.name == logger_name]
+    assert rendered == "Time: 2023-01-01 00:00:00 --> Status: DemoService online"
+    relevant_records = [
+        record for record in caplog.records if record.name == logger_name
+    ]
     assert relevant_records
-    assert any("模板配置文件" in record.getMessage() for record in relevant_records)
+    assert any("Template config" in record.getMessage()
+               for record in relevant_records)

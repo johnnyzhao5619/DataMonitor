@@ -1,8 +1,7 @@
 # -*- codeing = utf-8 -*-
-# @Time : 2023-03-29 4:14 p.m.
-# @Author: weijiazhao
-# @File : configuration.py
-# @Software: PyCharm
+# @Create: 2023-03-29 4:14 p.m.
+# @Update: 2025-10-24 11:53 p.m.
+# @Author: John Zhao
 import configparser
 import json
 import logging
@@ -14,9 +13,7 @@ from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Tuple, Union
 
-
 LOGGER = logging.getLogger(__name__)
-
 
 MAIL_ENV_PREFIX = "MAIL_"
 MAIL_ENV_SUFFIXES = {
@@ -42,7 +39,8 @@ OPTIONAL_MAIL_BOOL_KEYS = (
     "use_ssl",
 )
 MAIL_ENV_MAP = {
-    key: f"{MAIL_ENV_PREFIX}{suffix}" for key, suffix in MAIL_ENV_SUFFIXES.items()
+    key: f"{MAIL_ENV_PREFIX}{suffix}"
+    for key, suffix in MAIL_ENV_SUFFIXES.items()
 }
 MAIL_BOOL_OPTIONS = frozenset(OPTIONAL_MAIL_BOOL_KEYS)
 _BOOL_TRUE_VALUES = {"1", "true", "yes", "on"}
@@ -54,13 +52,12 @@ REQUEST_TIMEOUT_KEY = "timeout"
 REQUEST_TIMEOUT_ENV = "REQUEST_TIMEOUT"
 DEFAULT_REQUEST_TIMEOUT = 10.0
 
-
 SUPPORTED_MONITOR_TYPES = frozenset({"GET", "POST", "SERVER"})
 
 
 @dataclass(frozen=True)
 class MonitorItem:
-    """用于描述单个监控项的配置。"""
+    """Describe the configuration for a single monitor entry."""
 
     name: str
     url: str
@@ -80,7 +77,7 @@ class MonitorItem:
 
 @dataclass(frozen=True)
 class LoggingSettings:
-    """表示解析后的日志配置。"""
+    """Represent the parsed logging configuration values."""
 
     level_name: str
     level: int
@@ -93,7 +90,6 @@ class LoggingSettings:
 
 
 DEFAULT_TIMEZONE = "0"
-
 
 LOG_DIR_ENV = "APIMONITOR_HOME"
 _LOG_HANDLER_FLAG = "_datamonitor_managed"
@@ -124,18 +120,20 @@ THEME_HIGH_CONTRAST_OPTION = "theme_high_contrast"
 TIMEZONE_SECTION = "TimeZone"
 TIMEZONE_OPTION = "timezone"
 
+
 class TemplateResource:
-    """描述模版使用的翻译资源。"""
+    """Describe a translation resource used by templates."""
 
     __slots__ = ("context", "source")
 
     def __init__(self, context: str, source: str) -> None:
         if not context or not source:
-            raise ValueError("模版资源必须同时提供上下文与源文本")
+            raise ValueError(
+                "Template resources must include both context and source text")
         self.context = context
         self.source = source
 
-    def __repr__(self) -> str:  # pragma: no cover - 调试辅助
+    def __repr__(self) -> str:  # pragma: no cover - debugging helper
         return f"TemplateResource(context={self.context!r}, source={self.source!r})"
 
 
@@ -147,11 +145,12 @@ def _i18n_root() -> Path:
 def _load_catalog_payload() -> dict[str, Any]:
     catalog_path = _i18n_root() / "catalog.json"
     if not catalog_path.is_file():
-        raise RuntimeError(f"缺少翻译 catalog：{catalog_path}")
+        raise RuntimeError(f"Missing translation catalog: {catalog_path}")
     with catalog_path.open("r", encoding="utf-8") as handle:
         payload = json.load(handle)
     if not isinstance(payload, dict):
-        raise RuntimeError("catalog.json 格式错误：顶层必须是对象")
+        raise RuntimeError(
+            "Invalid catalog.json format: the root must be an object")
     return payload
 
 
@@ -159,119 +158,124 @@ def _load_catalog_languages() -> Tuple[str, ...]:
     payload = _load_catalog_payload()
     languages = payload.get("languages")
     if not isinstance(languages, list) or not languages:
-        raise RuntimeError("catalog.json 缺少 languages 配置")
-    normalised = [str(language) for language in languages if str(language).strip()]
+        raise RuntimeError(
+            "catalog.json is missing the languages configuration")
+    normalised = [
+        str(language) for language in languages if str(language).strip()
+    ]
     if not normalised:
-        raise RuntimeError("catalog.json 未定义有效的语言列表")
+        raise RuntimeError(
+            "catalog.json does not define a valid language list")
     return tuple(sorted(dict.fromkeys(normalised)))
 
 
 SUPPORTED_LANGUAGES = _load_catalog_languages()
 if DEFAULT_LANGUAGE not in SUPPORTED_LANGUAGES:
     raise RuntimeError(
-        f"默认语言 {DEFAULT_LANGUAGE} 未包含在 catalog 的 languages 中"
+        f"Default language {DEFAULT_LANGUAGE} is not listed in catalog languages"
     )
 LANGUAGE_SECTION = "Locale"
 LANGUAGE_OPTION = "language"
 
 _LANGUAGE_CACHE: Optional[str] = None
 
-
 _CONFIG_TEMPLATE_CREATED = False
 
-
-_TEMPLATE_SECTION_PATTERN = re.compile(r"^(?P<category>[^\[]+?)(?:\[(?P<language>[^\]]+)\])?$")
+_TEMPLATE_SECTION_PATTERN = re.compile(
+    r"^(?P<category>[^\[]+?)(?:\[(?P<language>[^\]]+)\])?$")
 
 
 @lru_cache(maxsize=None)
 def _load_language_messages(language: str) -> Dict[str, Dict[str, str]]:
     if language not in SUPPORTED_LANGUAGES:
-        raise ValueError(f"不支持的语言：{language}")
+        raise ValueError(f"Unsupported language: {language}")
     path = _i18n_root() / f"{language}.qm.json"
     if not path.is_file():
-        raise RuntimeError(f"缺少翻译文件：{path}")
+        raise RuntimeError(f"Missing translation file: {path}")
     with path.open("r", encoding="utf-8") as handle:
         payload = json.load(handle)
     messages = payload.get("messages")
     if not isinstance(messages, dict):
-        raise RuntimeError(f"翻译文件 {path} 格式无效")
+        raise RuntimeError(f"Translation file {path} has an invalid format")
     normalised: Dict[str, Dict[str, str]] = {}
     for context, entries in messages.items():
         if not isinstance(entries, dict):
             continue
-        normalised[str(context)] = {str(source): str(target) for source, target in entries.items()}
+        normalised[str(context)] = {
+            str(source): str(target)
+            for source, target in entries.items()
+        }
     return normalised
 
 
-def _resolve_template_resource(resource: TemplateResource, language: str) -> str:
+def _resolve_template_resource(resource: TemplateResource,
+                               language: str) -> str:
     translations = _load_language_messages(language)
     context_messages = translations.get(resource.context, {})
     if resource.source not in context_messages:
         raise KeyError(
-            f"缺少模版翻译：{resource.context} -> {resource.source} ({language})"
+            f"Missing template translation: {resource.context} -> {resource.source} ({language})"
         )
     return context_messages[resource.source]
 
 
 TEMPLATE_DEFAULTS: Dict[str, Dict[str, TemplateResource]] = {
     "mail": {
-        "alert_subject": TemplateResource(
-            "Template.mail", "Outage Alert | {service_name}"
-        ),
-        "alert_body": TemplateResource(
+        "alert_subject":
+        TemplateResource("Template.mail", "Outage Alert | {service_name}"),
+        "alert_body":
+        TemplateResource(
             "Template.mail",
-            (
-                "Status: {status_action}\n"
-                "Service: {service_name}\n"
-                "Details: {event_description}\n"
-                "{time_label}: {event_timestamp}"
-            ),
+            ("Status: {status_action}\n"
+             "Service: {service_name}\n"
+             "Details: {event_description}\n"
+             "{time_label}: {event_timestamp}"),
         ),
-        "recovery_subject": TemplateResource(
-            "Template.mail", "Outage Recovery | {service_name}"
-        ),
-        "recovery_body": TemplateResource(
+        "recovery_subject":
+        TemplateResource("Template.mail", "Outage Recovery | {service_name}"),
+        "recovery_body":
+        TemplateResource(
             "Template.mail",
-            (
-                "Status: {status_action}\n"
-                "Service: {service_name}\n"
-                "Details: {event_description}\n"
-                "{time_label}: {event_timestamp}"
-            ),
+            ("Status: {status_action}\n"
+             "Service: {service_name}\n"
+             "Details: {event_description}\n"
+             "{time_label}: {event_timestamp}"),
         ),
     },
     "ui": {
-        "status_line": TemplateResource(
+        "status_line":
+        TemplateResource(
             "Template.ui",
-            "Time: {event_timestamp} --> Status: {service_name}{status_label}",
+            "Time: {event_timestamp} --> Status: {service_name} {status_label}",
         ),
     },
     "log": {
-        "action_line": TemplateResource(
+        "action_line":
+        TemplateResource(
             "Template.log",
             "{service_name} --- Type: {monitor_type} --- URL: {url} --- Interval: {interval}s",
         ),
-        "detail_line": TemplateResource(
+        "detail_line":
+        TemplateResource(
             "Template.log",
-            ">>>{event_timestamp}: {service_name}{status_label}",
+            ">>>{event_timestamp}: {service_name} {status_label}",
         ),
-        "record_entry": TemplateResource(
+        "record_entry":
+        TemplateResource(
             "Template.log",
-            (
-                ">>{log_timestamp}(Local Time)----------------------------------------------\n"
-                ">>Action:{action}\n"
-                "{details}"
-            ),
+            (">>{log_timestamp}(Local Time)----------------------------------------------\n"
+             ">>Action:{action}\n"
+             "{details}"),
         ),
-        "csv_header": TemplateResource(
-            "Template.log", "Time,API,Type,url,Interval,Code,Status"
-        ),
+        "csv_header":
+        TemplateResource("Template.log",
+                         "Time,API,Type,url,Interval,Code,Status"),
     },
 }
 
 
 def _materialise_template_defaults(language: str) -> Dict[str, Dict[str, str]]:
-    """将 ``TEMPLATE_DEFAULTS`` 渲染为指定语言的纯文本模版。"""
+    """Render ``TEMPLATE_DEFAULTS`` into plain-text templates for the target language."""
 
     language_code = _validate_language_code(language)
     resolved: Dict[str, Dict[str, str]] = {}
@@ -285,8 +289,9 @@ def _materialise_template_defaults(language: str) -> Dict[str, Dict[str, str]]:
             if not key_name:
                 continue
             if isinstance(resource, TemplateResource):
-                rendered[key_name] = _resolve_template_resource(resource, language_code)
-            else:  # pragma: no cover - 为向后兼容保留
+                rendered[key_name] = _resolve_template_resource(
+                    resource, language_code)
+            else:  # pragma: no cover - kept for backward compatibility
                 rendered[key_name] = str(resource)
         if rendered:
             resolved[category_key] = rendered
@@ -294,7 +299,7 @@ def _materialise_template_defaults(language: str) -> Dict[str, Dict[str, str]]:
 
 
 class TemplateManager:
-    """负责加载与渲染通知模版。"""
+    """Load and render notification templates."""
 
     def __init__(self):
         self._templates: Optional[Dict[str, Dict[str, Dict[str, str]]]] = None
@@ -308,8 +313,9 @@ class TemplateManager:
                 resolved: Dict[str, str] = {}
                 for key, resource in entries.items():
                     if isinstance(resource, TemplateResource):
-                        resolved[key] = _resolve_template_resource(resource, language)
-                    else:  # pragma: no cover - 向后兼容
+                        resolved[key] = _resolve_template_resource(
+                            resource, language)
+                    else:  # pragma: no cover - backward compatibility
                         resolved[key] = str(resource)
                 language_templates[category_key] = resolved
             templates[language] = language_templates
@@ -318,7 +324,7 @@ class TemplateManager:
         config_path = config_dir / TEMPLATE_CONFIG_NAME
 
         parser = configparser.RawConfigParser()
-        parser.optionxform = str  # 保留键大小写
+        parser.optionxform = str  # preserve key casing
 
         load_failed = False
 
@@ -328,20 +334,21 @@ class TemplateManager:
             except (configparser.Error, OSError) as exc:
                 load_failed = True
                 LOGGER.warning(
-                    "模板配置文件 %s 读取失败，将使用内置模板：%s", config_path, exc
-                )
+                    "Template config %s failed to load; built-in templates will be used: %s",
+                    config_path, exc)
             else:
                 for section in parser.sections():
                     match = _TEMPLATE_SECTION_PATTERN.match(section.strip())
                     if not match:
                         continue
-                    category_key = (match.group("category") or "").strip().lower()
-                    language_key = (match.group("language") or DEFAULT_LANGUAGE).strip()
+                    category_key = (match.group("category")
+                                    or "").strip().lower()
+                    language_key = (match.group("language")
+                                    or DEFAULT_LANGUAGE).strip()
                     if not category_key or not language_key:
                         continue
-                    section_templates = templates.setdefault(language_key, {}).setdefault(
-                        category_key, {}
-                    )
+                    section_templates = templates.setdefault(
+                        language_key, {}).setdefault(category_key, {})
                     for option, value in parser.items(section):
                         option_key = option.strip()
                         if not option_key:
@@ -351,14 +358,17 @@ class TemplateManager:
         self._templates = templates
         return not load_failed
 
-    def get_template(self, category: str, key: str, language: Optional[str] = None) -> str:
+    def get_template(self,
+                     category: str,
+                     key: str,
+                     language: Optional[str] = None) -> str:
         if self._templates is None:
             self._load_templates()
 
         category_key = category.strip().lower()
         key_name = key.strip()
         if not category_key or not key_name:
-            raise KeyError(f"模板缺失：{category}.{key}")
+            raise KeyError(f"Template missing: {category}.{key}")
 
         requested_language = language or get_language()
         candidate_languages = []
@@ -373,10 +383,10 @@ class TemplateManager:
             if category_templates and key_name in category_templates:
                 return category_templates[key_name]
 
-        raise KeyError(f"模板缺失：{category}.{key}")
+        raise KeyError(f"Template missing: {category}.{key}")
 
     def reload(self) -> bool:
-        """在测试或配置更新后重新加载模版。"""
+        """Reload templates after tests or configuration updates."""
 
         self._templates = None
         return self._load_templates()
@@ -394,7 +404,7 @@ def render_template(
     *,
     language: Optional[str] = None,
 ) -> str:
-    """渲染指定类别与键的模版。"""
+    """Render a template for the given category and key."""
 
     template = get_template_manager().get_template(category, key, language)
     try:
@@ -402,7 +412,7 @@ def render_template(
     except KeyError as exc:
         missing = exc.args[0]
         raise ValueError(
-            f"模板 {category}.{key} 渲染时缺少变量：{missing}"
+            f"Template {category}.{key} is missing variable: {missing}"
         ) from exc
 
 
@@ -422,7 +432,8 @@ def set_language(language: str) -> None:
     previous_language = get_language()
 
     parser, config_path = _load_config_parser(ensure_dir=True)
-    changed = _set_config_value(parser, LANGUAGE_SECTION, LANGUAGE_OPTION, language_code)
+    changed = _set_config_value(parser, LANGUAGE_SECTION, LANGUAGE_OPTION,
+                                language_code)
     if changed or not config_path.exists():
         _write_config_parser(parser, config_path)
 
@@ -455,7 +466,9 @@ def _config_file_path() -> Path:
     return Path(get_logdir()) / "Config" / "Config.ini"
 
 
-def _load_config_parser(*, ensure_dir: bool = False) -> Tuple[configparser.RawConfigParser, Path]:
+def _load_config_parser(
+        *,
+        ensure_dir: bool = False) -> Tuple[configparser.RawConfigParser, Path]:
     config_path = _config_file_path()
     if ensure_dir:
         config_path.parent.mkdir(parents=True, exist_ok=True)
@@ -468,7 +481,8 @@ def _load_config_parser(*, ensure_dir: bool = False) -> Tuple[configparser.RawCo
     return parser, config_path
 
 
-def _write_config_parser(parser: configparser.RawConfigParser, path: Path) -> None:
+def _write_config_parser(parser: configparser.RawConfigParser,
+                         path: Path) -> None:
     with path.open("w", encoding="utf-8") as configfile:
         parser.write(configfile)
 
@@ -500,9 +514,9 @@ def _set_config_value(
 def _validate_language_code(language: object) -> str:
     language_code = str(language).strip()
     if not language_code:
-        raise ValueError("语言代码不能为空")
+        raise ValueError("Language code must not be empty")
     if language_code not in SUPPORTED_LANGUAGES:
-        raise ValueError(f"不支持的语言：{language_code}")
+        raise ValueError(f"Unsupported language: {language_code}")
     return language_code
 
 
@@ -518,11 +532,11 @@ def _update_language_cache(new_code: str, previous: Optional[str]) -> None:
 def _normalise_timezone_value(value: object) -> str:
     timezone_text = str(value).strip()
     if not timezone_text:
-        raise ValueError("时区值不能为空")
+        raise ValueError("Timezone value must not be empty")
     try:
         int(timezone_text)
     except (TypeError, ValueError) as exc:
-        raise ValueError(f"无效的时区值：{value}") from exc
+        raise ValueError(f"Invalid timezone value: {value}") from exc
     return timezone_text
 
 
@@ -531,10 +545,10 @@ def _normalise_directory(
     *,
     base_dir: Optional[Path] = None,
 ) -> str:
-    """将路径归一化为绝对形式，并确保以分隔符结尾。"""
+    """Normalize a path to an absolute form and ensure it ends with a separator."""
 
     if path_value is None:
-        raise ValueError("缺少目录路径值")
+        raise ValueError("Missing directory path value")
 
     path = Path(path_value).expanduser()
     if path.is_absolute():
@@ -560,7 +574,9 @@ def _resolve_log_directory(raw_value: object, *, base_home: Path) -> Path:
     return (base_home / _DEFAULT_LOG_DIRECTORY_NAME).resolve()
 
 
-def _parse_log_level(value: object, *, default: str = "INFO") -> tuple[str, int]:
+def _parse_log_level(value: object,
+                     *,
+                     default: str = "INFO") -> tuple[str, int]:
     text = str(value).strip() if value is not None else ""
     if not text:
         text = default
@@ -581,9 +597,10 @@ def _parse_log_level(value: object, *, default: str = "INFO") -> tuple[str, int]
     try:
         numeric_level = int(text)
     except (TypeError, ValueError) as exc:
-        raise ValueError(f"无法解析日志级别值: {value!r}") from exc
+        raise ValueError(f"Unable to parse log level: {value!r}") from exc
     if numeric_level < 0:
-        raise ValueError(f"日志级别必须为非负整数: {numeric_level}")
+        raise ValueError(
+            f"Log level must be a non-negative integer: {numeric_level}")
     level_name = logging.getLevelName(numeric_level)
     if not isinstance(level_name, str):
         level_name = str(numeric_level)
@@ -593,23 +610,27 @@ def _parse_log_level(value: object, *, default: str = "INFO") -> tuple[str, int]
 _SIZE_UNITS = {
     "B": 1,
     "KB": 1024,
-    "MB": 1024 ** 2,
-    "GB": 1024 ** 3,
+    "MB": 1024**2,
+    "GB": 1024**3,
 }
 
 
-def _parse_size_value(value: object, *, default: int = _DEFAULT_LOG_MAX_BYTES) -> int:
+def _parse_size_value(value: object,
+                      *,
+                      default: int = _DEFAULT_LOG_MAX_BYTES) -> int:
     text = str(value).strip() if value is not None else ""
     if not text:
         return max(int(default), 0)
-    match = re.fullmatch(r"\s*(\d+(?:\.\d+)?)\s*([kmgt]?b)?\s*", text, flags=re.IGNORECASE)
+    match = re.fullmatch(r"\s*(\d+(?:\.\d+)?)\s*([kmgt]?b)?\s*",
+                         text,
+                         flags=re.IGNORECASE)
     if not match:
-        raise ValueError(f"无法解析日志大小: {value!r}")
+        raise ValueError(f"Unable to parse log size: {value!r}")
     number = float(match.group(1))
     unit = match.group(2) or "B"
     factor = _SIZE_UNITS.get(unit.upper())
     if factor is None:
-        raise ValueError(f"未知的日志大小单位: {unit}")
+        raise ValueError(f"Unknown log size unit: {unit}")
     size = int(number * factor)
     return max(size, 0)
 
@@ -618,7 +639,7 @@ def _format_size_token(size: int) -> str:
     if size <= 0:
         return "0B"
 
-    for unit, factor in (("GB", 1024 ** 3), ("MB", 1024 ** 2), ("KB", 1024)):
+    for unit, factor in (("GB", 1024**3), ("MB", 1024**2), ("KB", 1024)):
         value = size / factor
         if value >= 1:
             if abs(value - round(value)) < 1e-6:
@@ -637,7 +658,7 @@ def _parse_bool_option(value: object, *, default: bool = True) -> bool:
         return True
     if text in _BOOL_FALSE_VALUES:
         return False
-    raise ValueError(f"无法解析布尔值: {value!r}")
+    raise ValueError(f"Unable to parse boolean value: {value!r}")
 
 
 def _parse_int_option(
@@ -653,27 +674,30 @@ def _parse_int_option(
         try:
             result = int(text)
         except (TypeError, ValueError) as exc:
-            raise ValueError(f"无法解析整数值: {value!r}") from exc
+            raise ValueError(
+                f"Unable to parse integer value: {value!r}") from exc
     if minimum is not None and result < minimum:
-        raise ValueError(f"值 {result} 小于允许的最小值 {minimum}")
+        raise ValueError(
+            f"Value {result} is smaller than the minimum {minimum}")
     return result
 
 
 def get_logdir():
-    f"""返回日志根目录。
+    f"""Return the log root directory.
 
-    优先级：
-    1. 环境变量 ``APIMONITOR_HOME``；
-    2. 仓库根目录 ``config.ini`` 中 ``[Logging].log_file`` 配置；
-    3. 项目默认目录 ``{APPLICATION_HOME_NAME}``。
+    Priority order:
+    1. Environment variable ``APIMONITOR_HOME``
+    2. ``config.ini`` at the repo root, option ``[Logging].log_file``
+    3. Project default directory ``{APPLICATION_HOME_NAME}``
     """
 
     env_path = os.environ.get(LOG_DIR_ENV)
     if env_path:
         try:
             return _normalise_directory(env_path)
-        except Exception as exc:  # pragma: no cover - 防御性日志
-            LOGGER.warning("环境变量 %s 的值无效：%s", LOG_DIR_ENV, exc)
+        except Exception as exc:  # pragma: no cover - defensive logging
+            LOGGER.warning("Environment variable %s has an invalid value: %s",
+                           LOG_DIR_ENV, exc)
 
     candidate_configs = [
         Path("config.ini"),
@@ -695,10 +719,11 @@ def get_logdir():
             continue
 
         try:
-            return _normalise_directory(raw_value, base_dir=resolved_path.parent)
-        except Exception as exc:  # pragma: no cover - 防御性日志
+            return _normalise_directory(raw_value,
+                                        base_dir=resolved_path.parent)
+        except Exception as exc:  # pragma: no cover - defensive logging
             LOGGER.warning(
-                "配置文件 %s 中的 [Logging].log_file 无法解析：%s",
+                "[Logging].log_file in %s could not be parsed: %s",
                 config_path,
                 exc,
             )
@@ -708,13 +733,13 @@ def get_logdir():
 
 
 def get_config_directory() -> Path:
-    """返回配置目录路径。"""
+    """Return the configuration directory path."""
 
     return Path(get_logdir()).resolve() / "Config"
 
 
 def get_logging_settings() -> LoggingSettings:
-    """读取并解析日志配置。"""
+    """Read and parse logging configuration into ``LoggingSettings``."""
 
     parser, _ = _load_config_parser()
     section = "Logging"
@@ -729,15 +754,19 @@ def get_logging_settings() -> LoggingSettings:
     try:
         level_name, level_value = _parse_log_level(raw_level, default="INFO")
     except ValueError as exc:
-        raise ValueError(f"[Logging].log_level 配置无效: {raw_level!r}") from exc
+        raise ValueError(
+            f"[Logging].log_level is invalid: {raw_level!r}") from exc
 
     raw_max_size = _option("log_max_size", "")
     try:
-        max_bytes = _parse_size_value(raw_max_size, default=_DEFAULT_LOG_MAX_BYTES)
+        max_bytes = _parse_size_value(raw_max_size,
+                                      default=_DEFAULT_LOG_MAX_BYTES)
     except ValueError as exc:
-        raise ValueError(f"[Logging].log_max_size 配置无效: {raw_max_size!r}") from exc
+        raise ValueError(
+            f"[Logging].log_max_size is invalid: {raw_max_size!r}") from exc
 
-    raw_backup_count = _option("log_backup_count", str(_DEFAULT_LOG_BACKUP_COUNT))
+    raw_backup_count = _option("log_backup_count",
+                               str(_DEFAULT_LOG_BACKUP_COUNT))
     try:
         backup_count = _parse_int_option(
             raw_backup_count,
@@ -745,22 +774,28 @@ def get_logging_settings() -> LoggingSettings:
             minimum=0,
         )
     except ValueError as exc:
-        raise ValueError(f"[Logging].log_backup_count 配置无效: {raw_backup_count!r}") from exc
+        raise ValueError(
+            f"[Logging].log_backup_count is invalid: {raw_backup_count!r}"
+        ) from exc
 
     raw_console = _option("log_console", "true")
     try:
         console_enabled = _parse_bool_option(raw_console, default=True)
     except ValueError as exc:
-        raise ValueError(f"[Logging].log_console 配置无效: {raw_console!r}") from exc
+        raise ValueError(
+            f"[Logging].log_console is invalid: {raw_console!r}") from exc
 
-    log_format = _option("log_format", _DEFAULT_LOG_FORMAT).strip() or _DEFAULT_LOG_FORMAT
-    log_datefmt = _option("log_datefmt", _DEFAULT_LOG_DATEFMT).strip() or _DEFAULT_LOG_DATEFMT
+    log_format = _option("log_format",
+                         _DEFAULT_LOG_FORMAT).strip() or _DEFAULT_LOG_FORMAT
+    log_datefmt = _option("log_datefmt",
+                          _DEFAULT_LOG_DATEFMT).strip() or _DEFAULT_LOG_DATEFMT
 
     base_home = Path(get_logdir()).resolve()
     raw_directory = _option("log_directory", "")
     directory_path = _resolve_log_directory(raw_directory, base_home=base_home)
 
-    raw_filename = _option("log_filename", _DEFAULT_LOG_FILENAME).strip() or _DEFAULT_LOG_FILENAME
+    raw_filename = _option(
+        "log_filename", _DEFAULT_LOG_FILENAME).strip() or _DEFAULT_LOG_FILENAME
     file_path = Path(raw_filename)
     if file_path.is_absolute():
         file_path = file_path.resolve()
@@ -790,7 +825,7 @@ def get_logging_preferences() -> Dict[str, object]:
         if raw_filename:
             filename = raw_filename
 
-    max_mb = round(settings.max_bytes / (1024 ** 2), 2)
+    max_mb = round(settings.max_bytes / (1024**2), 2)
     return {
         "level": settings.level_name,
         "max_size_mb": max_mb,
@@ -826,9 +861,11 @@ def set_logging_preferences(
     base_home = Path(get_logdir()).resolve()
     directory_text = str(directory).strip() if directory is not None else ""
     if directory_text:
-        normalised_directory = _normalise_directory(directory_text, base_dir=base_home)
+        normalised_directory = _normalise_directory(directory_text,
+                                                    base_dir=base_home)
     else:
-        normalised_directory = _normalise_directory(base_home / _DEFAULT_LOG_DIRECTORY_NAME)
+        normalised_directory = _normalise_directory(
+            base_home / _DEFAULT_LOG_DIRECTORY_NAME)
 
     filename_text = str(filename).strip() if filename is not None else ""
     if not filename_text:
@@ -845,13 +882,17 @@ def set_logging_preferences(
     changed = False
     if _set_config_value(parser, section, "log_level", level_name):
         changed = True
-    if _set_config_value(parser, section, "log_max_size", _format_size_token(max_bytes)):
+    if _set_config_value(parser, section, "log_max_size",
+                         _format_size_token(max_bytes)):
         changed = True
-    if _set_config_value(parser, section, "log_backup_count", str(backup_value)):
+    if _set_config_value(parser, section, "log_backup_count",
+                         str(backup_value)):
         changed = True
-    if _set_config_value(parser, section, "log_console", "true" if console_enabled else "false"):
+    if _set_config_value(parser, section, "log_console",
+                         "true" if console_enabled else "false"):
         changed = True
-    if _set_config_value(parser, section, "log_directory", normalised_directory):
+    if _set_config_value(parser, section, "log_directory",
+                         normalised_directory):
         changed = True
     if _set_config_value(parser, section, "log_filename", filename_text):
         changed = True
@@ -871,15 +912,16 @@ def configure_logging(
     replace_existing: bool = False,
     install_console: Optional[bool] = None,
 ) -> LoggingSettings:
-    """根据配置初始化日志处理器。
+    """Initialise logging handlers based on the configuration.
 
-    :param replace_existing: 是否移除已存在的 DataMonitor 处理器。
-    :param install_console: 强制启用或禁用控制台输出，默认遵循配置文件。
-    :return: 应用后的日志配置。
+    :param replace_existing: Remove existing DataMonitor handlers if True.
+    :param install_console: Force enable/disable console output, defaults to config.
+    :return: The applied ``LoggingSettings``.
     """
 
     settings = get_logging_settings()
-    console_enabled = settings.console if install_console is None else bool(install_console)
+    console_enabled = settings.console if install_console is None else bool(
+        install_console)
 
     settings.file_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -887,7 +929,8 @@ def configure_logging(
     root_logger.setLevel(settings.level)
 
     managed_handlers = [
-        handler for handler in root_logger.handlers if getattr(handler, _LOG_HANDLER_FLAG, False)
+        handler for handler in root_logger.handlers
+        if getattr(handler, _LOG_HANDLER_FLAG, False)
     ]
 
     if replace_existing and managed_handlers:
@@ -965,7 +1008,7 @@ def configure_logging(
 
 
 def reset_logging_configuration() -> None:
-    """移除由 ``configure_logging`` 添加的日志处理器。"""
+    """Remove handlers previously added by ``configure_logging``."""
 
     root_logger = logging.getLogger()
     for handler in list(root_logger.handlers):
@@ -978,9 +1021,9 @@ def reset_logging_configuration() -> None:
 
 
 def _ensure_templates_file(config_dir: Path) -> bool:
-    """确保模版配置文件存在。
+    """Ensure the template configuration file exists.
 
-    返回值指示是否创建了新的示例模版文件。
+    The return value indicates whether a new sample file was created.
     """
 
     templates_path = config_dir / TEMPLATE_CONFIG_NAME
@@ -1009,11 +1052,11 @@ def _ensure_templates_file(config_dir: Path) -> bool:
                 parser.set(section_name, key, value)
 
     header_lines = [
-        "; 此文件由系统自动生成，展示当前可用模版键的默认内容。",
-        f"; [类别] 节表示 {DEFAULT_LANGUAGE} 语言的默认文本。",
-        "; 若需覆盖其它语言，请新增 [类别[语言代码]] 节并复制所需键进行修改。",
-        "; 例如：在 [mail[en_US]] 中自定义邮件模版。",
-        "; 删除某个键即可回退到内置默认模版。",
+        "; This file is auto-generated and shows the default content for available template keys.",
+        f"; The [category] section contains default text for language {DEFAULT_LANGUAGE}.",
+        "; To override other languages, add a [category[language_code]] section and copy the keys you need.",
+        "; Example: customize mail templates in [mail[en_US]].",
+        "; Remove a key to fall back to the built-in default template.",
     ]
 
     with templates_path.open("w", encoding="utf-8") as handle:
@@ -1022,6 +1065,7 @@ def _ensure_templates_file(config_dir: Path) -> bool:
         parser.write(handle)
 
     return True
+
 
 def read_monitor_list() -> List[MonitorItem]:
     global _CONFIG_TEMPLATE_CREATED
@@ -1033,8 +1077,8 @@ def read_monitor_list() -> List[MonitorItem]:
     if not config_path.exists():
         try:
             writeconfig(str(config_dir))
-        except Exception as exc:  # pragma: no cover - 非预期错误
-            LOGGER.error("初始配置生成失败: %s", exc)
+        except Exception as exc:  # pragma: no cover - unexpected failure
+            LOGGER.error("Failed to generate initial configuration: %s", exc)
             return []
 
         config_created = True
@@ -1042,25 +1086,26 @@ def read_monitor_list() -> List[MonitorItem]:
     template_created = False
     try:
         template_created = _ensure_templates_file(config_dir)
-    except Exception as exc:  # pragma: no cover - 防御性日志
-        LOGGER.error("模版文件生成失败: %s", exc)
+    except Exception as exc:  # pragma: no cover - defensive logging
+        LOGGER.error("Failed to generate template file: %s", exc)
 
     if config_created:
         _CONFIG_TEMPLATE_CREATED = True
-        LOGGER.info("配置文件缺失，已在 %s 生成示例模板", config_path)
+        LOGGER.info("Config file missing; generated sample templates at %s",
+                    config_path)
     elif template_created:
         _CONFIG_TEMPLATE_CREATED = True
-        LOGGER.info(
-            "模版文件缺失，已在 %s 生成示例模版", config_dir / TEMPLATE_CONFIG_NAME
-        )
+        LOGGER.info("Template file missing; generated sample templates at %s",
+                    config_dir / TEMPLATE_CONFIG_NAME)
 
     parser, _ = _load_config_parser()
     monitorlist: List[MonitorItem] = []
 
     try:
         total_number = parser.getint("MonitorNum", "total")
-    except (configparser.NoSectionError, configparser.NoOptionError, ValueError):
-        LOGGER.error("缺少 MonitorNum.total 配置或值无效")
+    except (configparser.NoSectionError, configparser.NoOptionError,
+            ValueError):
+        LOGGER.error("MonitorNum.total is missing or invalid")
         return monitorlist
 
     for index in range(total_number):
@@ -1068,7 +1113,8 @@ def read_monitor_list() -> List[MonitorItem]:
         try:
             monitor = _build_monitor_item(parser, section_name)
         except ValueError as exc:
-            LOGGER.error("监控项 %s 解析失败: %s", section_name, exc)
+            LOGGER.error("Monitor entry %s failed to parse: %s", section_name,
+                         exc)
             continue
 
         monitorlist.append(monitor)
@@ -1080,7 +1126,7 @@ def read_monitor_list() -> List[MonitorItem]:
 
 
 def consume_config_template_created_flag() -> bool:
-    """返回并清除示例配置创建标记。"""
+    """Return and reset the flag indicating sample configs were created."""
 
     global _CONFIG_TEMPLATE_CREATED
     created = _CONFIG_TEMPLATE_CREATED
@@ -1088,24 +1134,25 @@ def consume_config_template_created_flag() -> bool:
     return created
 
 
-def _build_monitor_item(config: configparser.RawConfigParser, section_name: str) -> MonitorItem:
+def _build_monitor_item(config: configparser.RawConfigParser,
+                        section_name: str) -> MonitorItem:
     if not config.has_section(section_name):
-        raise ValueError("缺少配置节")
+        raise ValueError("Missing configuration section")
 
     name = _require_non_empty(config, section_name, "name")
     url = _require_non_empty(config, section_name, "url")
 
     raw_type = _require_non_empty(config, section_name, "type").upper()
     if raw_type not in SUPPORTED_MONITOR_TYPES:
-        raise ValueError(f"不支持的监控类型: {raw_type}")
+        raise ValueError(f"Unsupported monitor type: {raw_type}")
 
     interval_value = _require_non_empty(config, section_name, "interval")
     try:
         interval = int(interval_value)
     except ValueError as exc:
-        raise ValueError("interval 必须为整数") from exc
+        raise ValueError("interval must be an integer") from exc
     if interval <= 0:
-        raise ValueError("interval 必须为正数")
+        raise ValueError("interval must be a positive number")
 
     email = config.get(section_name, "email", fallback=None)
     email = email.strip() if isinstance(email, str) else None
@@ -1122,7 +1169,9 @@ def _build_monitor_item(config: configparser.RawConfigParser, section_name: str)
         try:
             language_code = _validate_language_code(language_value)
         except ValueError as exc:
-            raise ValueError(f"{section_name}.language 配置无效：{exc}") from exc
+            raise ValueError(
+                f"{section_name}.language configuration is invalid: {exc}"
+            ) from exc
     else:
         language_code = None
 
@@ -1138,14 +1187,15 @@ def _build_monitor_item(config: configparser.RawConfigParser, section_name: str)
     )
 
 
-def _require_non_empty(config: configparser.RawConfigParser, section: str, option: str) -> str:
+def _require_non_empty(config: configparser.RawConfigParser, section: str,
+                       option: str) -> str:
     value = config.get(section, option, fallback="")
     if value is None:
-        raise ValueError(f"{section}.{option} 不能为空")
+        raise ValueError(f"{section}.{option} must not be empty")
 
     stripped = str(value).strip()
     if not stripped:
-        raise ValueError(f"{section}.{option} 不能为空")
+        raise ValueError(f"{section}.{option} must not be empty")
     return stripped
 
 
@@ -1157,7 +1207,8 @@ def _load_optional_headers(config: configparser.RawConfigParser, section: str):
     return _load_optional_mapping(config, section, "headers")
 
 
-def _load_optional_mapping(config: configparser.RawConfigParser, section: str, option: str):
+def _load_optional_mapping(config: configparser.RawConfigParser, section: str,
+                           option: str):
     if not config.has_option(section, option):
         return None
 
@@ -1166,7 +1217,7 @@ def _load_optional_mapping(config: configparser.RawConfigParser, section: str, o
 
 
 def parse_mapping_string(raw_value: Optional[str]):
-    """解析映射字符串，支持 JSON 或 key=value 对列表。"""
+    """Parse a mapping string formatted as JSON or key=value pairs."""
 
     if raw_value is None:
         return None
@@ -1181,7 +1232,7 @@ def parse_mapping_string(raw_value: Optional[str]):
         parsed = _parse_key_value_pairs(text)
     else:
         if not isinstance(parsed, dict):
-            raise ValueError("映射内容必须为 JSON 对象")
+            raise ValueError("Mapping content must be a JSON object")
     return parsed
 
 
@@ -1193,7 +1244,7 @@ def _prepare_mapping_for_write(value):
         return text or None
     if isinstance(value, dict):
         return json.dumps(value, ensure_ascii=False)
-    raise TypeError("映射值必须为 dict 或字符串")
+    raise TypeError("Mapping value must be a dict or string")
 
 
 def _parse_key_value_pairs(raw_value: str):
@@ -1203,11 +1254,8 @@ def _parse_key_value_pairs(raw_value: str):
         line = line.strip()
         if not line:
             continue
-        segments.extend(
-            sub.strip()
-            for sub in re.split(r"[;,]", line)
-            if sub.strip()
-        )
+        segments.extend(sub.strip() for sub in re.split(r"[;,]", line)
+                        if sub.strip())
 
     for segment in segments:
         if "=" in segment:
@@ -1215,23 +1263,23 @@ def _parse_key_value_pairs(raw_value: str):
         elif ":" in segment:
             key, value = segment.split(":", 1)
         else:
-            raise ValueError(f"无法解析键值对: '{segment}'")
+            raise ValueError(f"Unable to parse key/value pair: '{segment}'")
 
         key = key.strip()
         value = value.strip()
         if not key:
-            raise ValueError("键不能为空")
+            raise ValueError("Key must not be empty")
         pairs[key] = value
 
     if not pairs:
-        raise ValueError("未解析到有效的键值对")
+        raise ValueError("No valid key/value pairs were parsed")
 
     return pairs
 
 
 @lru_cache(maxsize=1)
 def get_request_timeout():
-    """返回请求超时时间，优先使用环境变量，其次读取配置文件，最后回退到默认值。"""
+    """Return the request timeout, preferring env vars, then config files, then defaults."""
 
     env_timeout = os.environ.get(REQUEST_TIMEOUT_ENV)
     if env_timeout:
@@ -1242,7 +1290,7 @@ def get_request_timeout():
             return timeout_value
         except ValueError as exc:
             raise ValueError(
-                f"环境变量 {REQUEST_TIMEOUT_ENV} 的值无效，需为正数。"
+                f"Environment variable {REQUEST_TIMEOUT_ENV} must be a positive number."
             ) from exc
 
     config_paths = [
@@ -1257,10 +1305,11 @@ def get_request_timeout():
         config = configparser.RawConfigParser()
         config.read(os.fspath(path_obj))
         if config.has_option(REQUEST_SECTION, REQUEST_TIMEOUT_KEY):
-            timeout_value = config.getfloat(REQUEST_SECTION, REQUEST_TIMEOUT_KEY)
+            timeout_value = config.getfloat(REQUEST_SECTION,
+                                            REQUEST_TIMEOUT_KEY)
             if timeout_value <= 0:
                 raise ValueError(
-                    f"配置文件 {path_obj} 中的 {REQUEST_SECTION}.{REQUEST_TIMEOUT_KEY} 必须为正数"
+                    f"{REQUEST_SECTION}.{REQUEST_TIMEOUT_KEY} in {path_obj} must be positive"
                 )
             return timeout_value
 
@@ -1268,15 +1317,16 @@ def get_request_timeout():
 
 
 def reset_request_timeout_cache() -> float:
-    """清空请求超时的缓存，并返回刷新后的最新值。"""
+    """Clear the cached request-timeout value and return the refreshed result."""
 
     cache_clear = getattr(get_request_timeout, "cache_clear", None)
     if callable(cache_clear):
         cache_clear()
     return get_request_timeout()
 
+
 def read_mail_configuration():
-    """读取邮件配置，优先使用环境变量，其次使用外部配置文件，最后回退到项目配置。"""
+    """Load mail configuration from env vars, external files, or bundled defaults."""
 
     mailconfig = _load_mail_config_from_env()
     if mailconfig:
@@ -1300,21 +1350,23 @@ def _coerce_mail_bool(value: Any, *, key: str, source: str) -> bool:
             return True
         if normalised in _BOOL_FALSE_VALUES:
             return False
-    raise ValueError(f"{source} 的 {key} 不是有效的布尔值：{value!r}")
+    raise ValueError(f"{key} from {source} is not a valid boolean: {value!r}")
 
 
-def _normalise_mail_values(values: Mapping[str, Any], *, source: str) -> Dict[str, Any]:
+def _normalise_mail_values(values: Mapping[str, Any], *,
+                           source: str) -> Dict[str, Any]:
     normalised: Dict[str, Any] = {}
 
     for key in REQUIRED_MAIL_ENV_KEYS:
         if key not in values:
-            raise ValueError(f"{source} 缺少邮件配置字段：{key}")
+            raise ValueError(
+                f"{source} is missing mail configuration field: {key}")
         value = values[key]
         if isinstance(value, str):
             stripped = value.strip()
             if stripped.startswith("<") and stripped.endswith(">"):
                 raise ValueError(
-                    f"{source} 包含占位符字段：{key}={value!r}，缺少真实 SMTP 配置，请按照 README 覆盖配置后重试"
+                    f"{source} contains placeholder field {key}={value!r}; provide real SMTP settings per the README"
                 )
         normalised[key] = value
 
@@ -1324,7 +1376,7 @@ def _normalise_mail_values(values: Mapping[str, Any], *, source: str) -> Dict[st
             stripped = value.strip()
             if stripped.startswith("<") and stripped.endswith(">"):
                 raise ValueError(
-                    f"{source} 包含占位符字段：{key}={value!r}，缺少真实 SMTP 配置，请按照 README 覆盖配置后重试"
+                    f"{source} contains placeholder field {key}={value!r}; provide real SMTP settings per the README"
                 )
         normalised[key] = _coerce_mail_bool(value, key=key, source=source)
 
@@ -1343,13 +1395,11 @@ def _load_mail_config_from_env():
 
     if values and missing_required:
         raise ValueError(
-            "环境变量缺少以下邮件配置字段：{}".format(
-                ", ".join(missing_required)
-            )
-        )
+            "Environment variables are missing the following mail fields: {}".
+            format(", ".join(missing_required)))
 
     if values:
-        return _normalise_mail_values(values, source="环境变量")
+        return _normalise_mail_values(values, source="environment variables")
 
     return None
 
@@ -1361,13 +1411,16 @@ def _load_mail_config_from_external_file():
 
     path = Path(config_path).expanduser()
     if not path.is_file():
-        raise FileNotFoundError(f"指定的邮件配置文件不存在：{path}")
+        raise FileNotFoundError(
+            f"Specified mail configuration file does not exist: {path}")
 
     config = configparser.RawConfigParser()
     config.read(path)
 
     if not config.has_section(MAIL_SECTION):
-        raise ValueError(f"外部配置文件缺少 [{MAIL_SECTION}] 配置节：{path}")
+        raise ValueError(
+            f"External configuration file is missing [{MAIL_SECTION}] section: {path}"
+        )
 
     values: Dict[str, Any] = {}
     for key in MAIL_ENV_MAP:
@@ -1375,15 +1428,16 @@ def _load_mail_config_from_external_file():
         if raw_value is not None:
             values[key] = raw_value
 
-    missing_keys = [key for key in REQUIRED_MAIL_ENV_KEYS if not values.get(key)]
+    missing_keys = [
+        key for key in REQUIRED_MAIL_ENV_KEYS if not values.get(key)
+    ]
     if missing_keys:
         raise ValueError(
-            "外部配置文件缺少以下邮件配置字段：{}".format(
-                ", ".join(missing_keys)
-            )
-        )
+            "External configuration file is missing the following mail fields: {}"
+            .format(", ".join(missing_keys)))
 
-    return _normalise_mail_values(values, source=f"外部配置文件 {path}")
+    return _normalise_mail_values(values,
+                                  source=f"external configuration file {path}")
 
 
 def _load_mail_config_from_project_file():
@@ -1415,19 +1469,19 @@ def _load_mail_config_from_project_file():
             if raw_value is not None:
                 values[key] = raw_value
 
-        missing_keys = [key for key in REQUIRED_MAIL_ENV_KEYS if not values.get(key)]
+        missing_keys = [
+            key for key in REQUIRED_MAIL_ENV_KEYS if not values.get(key)
+        ]
         if missing_keys:
             errors.append(
                 ValueError(
-                    "配置文件 {} 缺少以下邮件配置字段：{}".format(
-                        os.fspath(path), ", ".join(missing_keys)
-                    )
-                )
-            )
+                    "Configuration file {} is missing the following mail fields: {}"
+                    .format(os.fspath(path), ", ".join(missing_keys))))
             continue
 
         try:
-            return _normalise_mail_values(values, source=f"配置文件 {os.fspath(path)}")
+            return _normalise_mail_values(
+                values, source=f"configuration file {os.fspath(path)}")
         except ValueError as exc:
             errors.append(exc)
             continue
@@ -1436,22 +1490,21 @@ def _load_mail_config_from_project_file():
         raise errors[0]
 
     raise ValueError(
-        "未找到包含完整邮件配置的 Config.ini，请在 {} 中任一文件补全 [Mail] 设置".format(
-            ", ".join(os.fspath(path) for path in candidate_paths)
-        )
-    )
+        "No Config.ini with complete mail settings found; update [Mail] in any of {}"
+        .format(", ".join(os.fspath(path) for path in candidate_paths)))
 
 
 def get_timezone():
     parser, config_path = _load_config_parser()
 
     if not config_path.exists():
-        LOGGER.warning("未找到时区配置文件 %s，使用默认值 %s", config_path, DEFAULT_TIMEZONE)
+        LOGGER.warning("Timezone config %s not found; using default %s",
+                       config_path, DEFAULT_TIMEZONE)
         return DEFAULT_TIMEZONE
 
     if not parser.has_section(TIMEZONE_SECTION):
         LOGGER.warning(
-            "配置文件 %s 缺少 [%s] 节，使用默认值 %s",
+            "Config file %s lacks [%s]; using default %s",
             config_path,
             TIMEZONE_SECTION,
             DEFAULT_TIMEZONE,
@@ -1460,7 +1513,7 @@ def get_timezone():
 
     if not parser.has_option(TIMEZONE_SECTION, TIMEZONE_OPTION):
         LOGGER.warning(
-            "配置文件 %s 缺少 [%s].%s，使用默认值 %s",
+            "Config file %s lacks [%s].%s; using default %s",
             config_path,
             TIMEZONE_SECTION,
             TIMEZONE_OPTION,
@@ -1468,10 +1521,12 @@ def get_timezone():
         )
         return DEFAULT_TIMEZONE
 
-    timezone_value = parser.get(TIMEZONE_SECTION, TIMEZONE_OPTION, fallback=None)
+    timezone_value = parser.get(TIMEZONE_SECTION,
+                                TIMEZONE_OPTION,
+                                fallback=None)
     if timezone_value is None:
         LOGGER.warning(
-            "配置文件 %s 的 [%s].%s 为空，使用默认值 %s",
+            "[%s].%s in %s is empty; using default %s",
             config_path,
             TIMEZONE_SECTION,
             TIMEZONE_OPTION,
@@ -1482,7 +1537,7 @@ def get_timezone():
     timezone_value = timezone_value.strip()
     if not timezone_value:
         LOGGER.warning(
-            "配置文件 %s 的 [%s].%s 为空字符串，使用默认值 %s",
+            "[%s].%s in %s is an empty string; using default %s",
             config_path,
             TIMEZONE_SECTION,
             TIMEZONE_OPTION,
@@ -1496,7 +1551,8 @@ def get_timezone():
 def set_timezone(timezone):
     timezone_value = _normalise_timezone_value(timezone)
     parser, config_path = _load_config_parser(ensure_dir=True)
-    changed = _set_config_value(parser, TIMEZONE_SECTION, TIMEZONE_OPTION, timezone_value)
+    changed = _set_config_value(parser, TIMEZONE_SECTION, TIMEZONE_OPTION,
+                                timezone_value)
     if changed or not config_path.exists():
         _write_config_parser(parser, config_path)
 
@@ -1509,25 +1565,27 @@ def get_preferences() -> Dict[str, Optional[str]]:
     theme_description: Optional[str] = None
     theme_high_contrast = False
     if parser.has_section(PREFERENCES_SECTION):
-        raw_theme = parser.get(PREFERENCES_SECTION, THEME_OPTION, fallback=None)
+        raw_theme = parser.get(PREFERENCES_SECTION,
+                               THEME_OPTION,
+                               fallback=None)
         if raw_theme is not None:
             stripped = raw_theme.strip()
             theme_value = stripped or None
-        raw_display = parser.get(
-            PREFERENCES_SECTION, THEME_DISPLAY_NAME_OPTION, fallback=None
-        )
+        raw_display = parser.get(PREFERENCES_SECTION,
+                                 THEME_DISPLAY_NAME_OPTION,
+                                 fallback=None)
         if raw_display is not None:
             stripped = raw_display.strip()
             theme_display = stripped or None
-        raw_description = parser.get(
-            PREFERENCES_SECTION, THEME_DESCRIPTION_OPTION, fallback=None
-        )
+        raw_description = parser.get(PREFERENCES_SECTION,
+                                     THEME_DESCRIPTION_OPTION,
+                                     fallback=None)
         if raw_description is not None:
             stripped = raw_description.strip()
             theme_description = stripped or None
-        raw_contrast = parser.get(
-            PREFERENCES_SECTION, THEME_HIGH_CONTRAST_OPTION, fallback=None
-        )
+        raw_contrast = parser.get(PREFERENCES_SECTION,
+                                  THEME_HIGH_CONTRAST_OPTION,
+                                  fallback=None)
         if raw_contrast is not None:
             theme_high_contrast = _parse_bool(raw_contrast)
 
@@ -1552,7 +1610,7 @@ def _parse_bool(value: object) -> bool:
 
 def set_preferences(preferences: Mapping[str, object]) -> None:
     if not isinstance(preferences, Mapping):
-        raise TypeError("偏好设置必须为映射类型")
+        raise TypeError("Preferences must be a mapping")
 
     parser, config_path = _load_config_parser(ensure_dir=True)
     changed = False
@@ -1593,12 +1651,14 @@ def set_preferences(preferences: Mapping[str, object]) -> None:
     if "language" in preferences:
         previous_language = get_language()
         language_code = _validate_language_code(preferences["language"])
-        if _set_config_value(parser, LANGUAGE_SECTION, LANGUAGE_OPTION, language_code):
+        if _set_config_value(parser, LANGUAGE_SECTION, LANGUAGE_OPTION,
+                             language_code):
             changed = True
 
     if "timezone" in preferences:
         timezone_value = _normalise_timezone_value(preferences["timezone"])
-        if _set_config_value(parser, TIMEZONE_SECTION, TIMEZONE_OPTION, timezone_value):
+        if _set_config_value(parser, TIMEZONE_SECTION, TIMEZONE_OPTION,
+                             timezone_value):
             changed = True
 
     if "theme" in preferences:
@@ -1607,7 +1667,8 @@ def set_preferences(preferences: Mapping[str, object]) -> None:
         if theme_value is not None:
             theme_text = str(theme_value).strip()
         if theme_text:
-            if _set_config_value(parser, PREFERENCES_SECTION, THEME_OPTION, theme_text):
+            if _set_config_value(parser, PREFERENCES_SECTION, THEME_OPTION,
+                                 theme_text):
                 changed = True
         else:
             _remove_preference_option(THEME_OPTION)
@@ -1616,15 +1677,16 @@ def set_preferences(preferences: Mapping[str, object]) -> None:
             _remove_preference_option(THEME_HIGH_CONTRAST_OPTION)
 
     if "theme_display_name" in preferences:
-        _set_text_option(THEME_DISPLAY_NAME_OPTION, preferences["theme_display_name"])
+        _set_text_option(THEME_DISPLAY_NAME_OPTION,
+                         preferences["theme_display_name"])
 
     if "theme_description" in preferences:
-        _set_text_option(THEME_DESCRIPTION_OPTION, preferences["theme_description"])
+        _set_text_option(THEME_DESCRIPTION_OPTION,
+                         preferences["theme_description"])
 
     if "theme_high_contrast" in preferences:
-        _set_bool_option(
-            THEME_HIGH_CONTRAST_OPTION, preferences["theme_high_contrast"]
-        )
+        _set_bool_option(THEME_HIGH_CONTRAST_OPTION,
+                         preferences["theme_high_contrast"])
 
     if changed or not config_path.exists():
         _write_config_parser(parser, config_path)
@@ -1634,7 +1696,7 @@ def set_preferences(preferences: Mapping[str, object]) -> None:
 
 
 def write_monitor_list(monitors: List[Dict[str, object]]) -> None:
-    """将监控项列表写入配置文件。"""
+    """Write the list of monitor definitions into the configuration file."""
 
     config, config_path = _load_config_parser(ensure_dir=True)
 
@@ -1658,15 +1720,16 @@ def write_monitor_list(monitors: List[Dict[str, object]]) -> None:
         email = str(monitor.get("email", "")).strip()
 
         if not name:
-            raise ValueError(f"{section} 名称不能为空")
+            raise ValueError(f"{section} name must not be empty")
         if not url:
-            raise ValueError(f"{section} URL 不能为空")
+            raise ValueError(f"{section} URL must not be empty")
         if monitor_type not in SUPPORTED_MONITOR_TYPES:
             raise ValueError(
-                f"{section} 类型必须为 {sorted(SUPPORTED_MONITOR_TYPES)} 之一"
+                f"{section} type must be one of {sorted(SUPPORTED_MONITOR_TYPES)}"
             )
         if interval <= 0:
-            raise ValueError(f"{section} 轮询周期必须为正整数")
+            raise ValueError(
+                f"{section} polling interval must be a positive integer")
 
         config.set(section, "name", name)
         config.set(section, "url", url)
@@ -1688,8 +1751,6 @@ def write_monitor_list(monitors: List[Dict[str, object]]) -> None:
             config.set(section, "headers", headers_text)
 
     _write_config_parser(config, config_path)
-
-
 
 
 def writeconfig(configDir: str) -> None:
@@ -1740,7 +1801,8 @@ def writeconfig(configDir: str) -> None:
         info.set(MAIL_SECTION, option, value)
 
     info.add_section(REQUEST_SECTION)
-    info.set(REQUEST_SECTION, REQUEST_TIMEOUT_KEY, str(DEFAULT_REQUEST_TIMEOUT))
+    info.set(REQUEST_SECTION, REQUEST_TIMEOUT_KEY,
+             str(DEFAULT_REQUEST_TIMEOUT))
 
     info.add_section("MonitorNum")
     info.set("MonitorNum", "total", "0")

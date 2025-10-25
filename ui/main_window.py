@@ -1,4 +1,8 @@
-"""主界面与装配逻辑。"""
+# -*- codeing = utf-8 -*-
+# @Create: 2023-02-16 3:37 p.m.
+# @Update: 2025-10-24 12:05 a.m.
+# @Author: John Zhao
+"""Main window wiring and layout logic."""
 from __future__ import annotations
 
 from typing import Dict, Optional
@@ -13,7 +17,7 @@ from .views.documentation import DocumentationPage
 
 
 class MainWindowUI(QtCore.QObject):
-    """负责搭建主界面布局，并暴露关键控件。"""
+    """Assemble the main interface layout and expose key widgets."""
     navigationRequested = QtCore.Signal(str)
 
     def __init__(self) -> None:
@@ -172,12 +176,13 @@ class MainWindowUI(QtCore.QObject):
         self.logDatefmtEdit = self.preferencesPage.logDatefmtEdit
         self.saveLoggingButton = self.preferencesPage.saveLoggingButton
 
-        self.navigationBar.navigationTriggered.connect(self.navigationRequested.emit)
+        self.navigationBar.navigationTriggered.connect(
+            self.navigationRequested.emit)
 
         self.retranslate_ui()
         self.show_monitor_page()
 
-    # 导航方法
+    # Navigation helpers
     def show_monitor_page(self) -> None:
         self._show_view("monitor")
 
@@ -196,39 +201,29 @@ class MainWindowUI(QtCore.QObject):
     def update_monitoring_controls(self, running: bool) -> None:
         self._monitoring_active = running
         self.toggleMonitoringButton.setText(
-            self.tr("Stop") if running else self.tr("Start")
-        )
-        self._status_text = (
-            self.tr("Running")
-            if self._monitoring_active
-            else self.tr("Standby")
-        )
+            self.tr("Stop") if running else self.tr("Start"))
+        self._status_text = (self.tr("Running") if self._monitoring_active else
+                             self.tr("Standby"))
 
     def set_timezone_hint(self, timezone: int) -> None:
         self._timezone_offset = timezone
         self.timezoneDisplay.setText(
-            self.tr("Current Timezone: UTC{offset:+d}").format(offset=timezone)
-        )
+            self.tr("Current Timezone: UTC{offset:+d}").format(
+                offset=timezone))
 
     def retranslate_ui(self) -> None:
         self.commandBar.setToolTip(self.tr("Global Actions"))
         self.toggleMonitoringButton.setText(
-            self.tr("Stop")
-            if self._monitoring_active
-            else self.tr("Start")
-        )
-        self._status_text = (
-            self.tr("Running")
-            if self._monitoring_active
-            else self.tr("Standby")
-        )
+            self.tr("Stop") if self._monitoring_active else self.tr("Start"))
+        self._status_text = (self.tr("Running") if self._monitoring_active else
+                             self.tr("Standby"))
         self.reloadConfigButton.setText(self.tr("Reload"))
         self.exitButton.setText(self.tr("Exit"))
 
         self.navigationBar.retranslate_ui()
         self.timezoneDisplay.setText(
-            self.tr("Current Timezone: UTC{offset:+d}").format(offset=self._timezone_offset)
-        )
+            self.tr("Current Timezone: UTC{offset:+d}").format(
+                offset=self._timezone_offset))
 
         for widget in self._views.values():
             retranslate = getattr(widget, "retranslate_ui", None)
@@ -236,16 +231,12 @@ class MainWindowUI(QtCore.QObject):
                 retranslate()
 
         self.reportPlaceholderLabel.setText(
-            self.tr("Reports and alerts view under construction. Stay tuned!")
-        )
+            self.tr("Reports and alerts view under construction. Stay tuned!"))
 
     def current_status_text(self) -> str:
         if not self._status_text:
-            self._status_text = (
-                self.tr("Running")
-                if self._monitoring_active
-                else self.tr("Standby")
-            )
+            self._status_text = (self.tr("Running") if self._monitoring_active
+                                 else self.tr("Standby"))
         return self._status_text
 
     # ------------------------------------------------------------------

@@ -35,12 +35,17 @@ def test_main_window_layout_structure(qtbot):
     assert ui.documentation_view_index == 3
     assert ui.report_view_index == 4
 
-    assert isinstance(ui.contentStack.widget(ui.monitor_view_index), MonitorDashboard)
+    assert isinstance(ui.contentStack.widget(ui.monitor_view_index),
+                      MonitorDashboard)
     assert isinstance(ui.configWizard, ConfigWizard)
-    assert ui.contentStack.widget(ui.config_view_index).objectName() == "configurationWorkspace"
-    assert ui.contentStack.widget(ui.preferences_view_index).objectName() == "preferencesPage"
-    assert ui.contentStack.widget(ui.documentation_view_index).objectName() == "documentationPage"
-    assert ui.contentStack.widget(ui.report_view_index).objectName() == "reportsPlaceholder"
+    assert ui.contentStack.widget(
+        ui.config_view_index).objectName() == "configurationWorkspace"
+    assert ui.contentStack.widget(
+        ui.preferences_view_index).objectName() == "preferencesPage"
+    assert ui.contentStack.widget(
+        ui.documentation_view_index).objectName() == "documentationPage"
+    assert ui.contentStack.widget(
+        ui.report_view_index).objectName() == "reportsPlaceholder"
 
     assert ui.reportPlaceholderLabel.objectName() == "reportsPlaceholderLabel"
     assert ui.timezoneDisplay.objectName() == "timezoneDisplay"
@@ -54,29 +59,37 @@ def test_navigation_updates_stack_and_highlight(qtbot):
     received = []
     window.ui.navigationRequested.connect(received.append)
 
-    qtbot.mouseClick(window.ui.navigationBar.configButton, QtCore.Qt.LeftButton)
+    qtbot.mouseClick(window.ui.navigationBar.configButton,
+                     QtCore.Qt.LeftButton)
     assert received and received[-1] == "configuration"
     assert window.ui.contentStack.currentIndex() == window.ui.config_view_index
     assert window.ui.navigationBar.active_id() == "configuration"
 
-    qtbot.mouseClick(window.ui.navigationBar.preferencesButton, QtCore.Qt.LeftButton)
+    qtbot.mouseClick(window.ui.navigationBar.preferencesButton,
+                     QtCore.Qt.LeftButton)
     assert received and received[-1] == "preferences"
-    assert window.ui.contentStack.currentIndex() == window.ui.preferences_view_index
+    assert window.ui.contentStack.currentIndex(
+    ) == window.ui.preferences_view_index
     assert window.ui.navigationBar.active_id() == "preferences"
 
-    qtbot.mouseClick(window.ui.navigationBar.documentationButton, QtCore.Qt.LeftButton)
+    qtbot.mouseClick(window.ui.navigationBar.documentationButton,
+                     QtCore.Qt.LeftButton)
     assert received and received[-1] == "documentation"
-    assert window.ui.contentStack.currentIndex() == window.ui.documentation_view_index
+    assert window.ui.contentStack.currentIndex(
+    ) == window.ui.documentation_view_index
     assert window.ui.navigationBar.active_id() == "documentation"
 
-    qtbot.mouseClick(window.ui.navigationBar.reportButton, QtCore.Qt.LeftButton)
+    qtbot.mouseClick(window.ui.navigationBar.reportButton,
+                     QtCore.Qt.LeftButton)
     assert received and received[-1] == "reports"
     assert window.ui.contentStack.currentIndex() == window.ui.report_view_index
     assert window.ui.navigationBar.active_id() == "reports"
 
-    qtbot.mouseClick(window.ui.navigationBar.monitorButton, QtCore.Qt.LeftButton)
+    qtbot.mouseClick(window.ui.navigationBar.monitorButton,
+                     QtCore.Qt.LeftButton)
     assert received and received[-1] == "monitor"
-    assert window.ui.contentStack.currentIndex() == window.ui.monitor_view_index
+    assert window.ui.contentStack.currentIndex(
+    ) == window.ui.monitor_view_index
     assert window.ui.navigationBar.active_id() == "monitor"
 
     assert window.controller._navigation_shortcuts

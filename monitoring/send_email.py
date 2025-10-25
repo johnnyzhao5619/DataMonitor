@@ -1,7 +1,7 @@
 # -*- codeing = utf-8 -*-
-# @Time : 2025-09-29 3:56 p.m.
-# @Author: weijiazhao
-# @File : send_email.py
+# @Create: 2025-09-29 3:56 p.m.
+# @Update: 2025-10-24 11:53 p.m.
+# @Author: John Zhao
 
 import datetime as _dt
 import logging
@@ -16,7 +16,6 @@ from PySide6 import QtCore
 
 import configuration
 
-
 LOGGER = logging.getLogger(__name__)
 
 
@@ -25,8 +24,14 @@ def _translate(text: str) -> str:
 
 
 MAIL_EVENT_MAP = {
-    "alert": {"subject": "alert_subject", "body": "alert_body"},
-    "recovery": {"subject": "recovery_subject", "body": "recovery_body"},
+    "alert": {
+        "subject": "alert_subject",
+        "body": "alert_body"
+    },
+    "recovery": {
+        "subject": "recovery_subject",
+        "body": "recovery_body"
+    },
 }
 
 REQUIRED_CONTEXT_FIELDS = {
@@ -38,29 +43,33 @@ REQUIRED_CONTEXT_FIELDS = {
 }
 
 
-def render_email(
-    event: str, context: Mapping[str, object], *, language: Optional[str] = None
-) -> Tuple[str, str]:
-    """根据事件类型渲染邮件主题与正文。"""
+def render_email(event: str,
+                 context: Mapping[str, object],
+                 *,
+                 language: Optional[str] = None) -> Tuple[str, str]:
+    """Render the email subject and body for the specified event type."""
 
     if event not in MAIL_EVENT_MAP:
-        raise KeyError(_translate("未知的邮件事件类型：{event}").format(event=event))
+        raise KeyError(
+            _translate("Unknown mail event type: {event}").format(event=event))
 
-    missing_fields = [field for field in REQUIRED_CONTEXT_FIELDS if field not in context]
+    missing_fields = [
+        field for field in REQUIRED_CONTEXT_FIELDS if field not in context
+    ]
     if missing_fields:
         raise ValueError(
-            _translate("邮件模版缺少必要字段：{fields}").format(
-                fields=", ".join(sorted(missing_fields))
-            )
-        )
+            _translate("Mail template is missing required fields: {fields}").
+            format(fields=", ".join(sorted(missing_fields))))
 
     mapping = MAIL_EVENT_MAP[event]
-    subject = configuration.render_template(
-        "mail", mapping["subject"], context, language=language
-    )
-    body = configuration.render_template(
-        "mail", mapping["body"], context, language=language
-    )
+    subject = configuration.render_template("mail",
+                                            mapping["subject"],
+                                            context,
+                                            language=language)
+    body = configuration.render_template("mail",
+                                         mapping["body"],
+                                         context,
+                                         language=language)
     return subject, body
 
 
@@ -72,9 +81,10 @@ def _normalise_timestamp(occurred_at) -> str:
     return str(occurred_at)
 
 
-def _build_notification(
-    event: str, service_name, occurred_at, language: Optional[str] = None
-) -> Tuple[str, str]:
+def _build_notification(event: str,
+                        service_name,
+                        occurred_at,
+                        language: Optional[str] = None) -> Tuple[str, str]:
     context_defaults = _event_context_presets(event)
 
     context = {
@@ -86,14 +96,16 @@ def _build_notification(
 
 
 def build_outage_alert_message(
-    service_name, occurred_at, language: Optional[str] = None
-) -> Tuple[str, str]:
+        service_name,
+        occurred_at,
+        language: Optional[str] = None) -> Tuple[str, str]:
     return _build_notification("alert", service_name, occurred_at, language)
 
 
 def build_outage_recovery_message(
-    service_name, occurred_at, language: Optional[str] = None
-) -> Tuple[str, str]:
+        service_name,
+        occurred_at,
+        language: Optional[str] = None) -> Tuple[str, str]:
     return _build_notification("recovery", service_name, occurred_at, language)
 
 
@@ -101,29 +113,34 @@ def _normalize_recipients(
     explicit_recipients,
     default_recipients: str,
 ) -> Tuple[str, Iterable[str]]:
-    """返回用于邮件头和发送列表的收件人信息。"""
+    """Return recipients for display headers and the SMTP send list."""
 
     candidate = explicit_recipients if explicit_recipients else default_recipients
     if candidate is None:
-        raise ValueError(_translate("未配置任何收件人地址"))
+        raise ValueError(_translate("No recipient addresses are configured"))
 
     if isinstance(candidate, str):
-        addresses = [addr.strip() for addr in candidate.split(",") if addr.strip()]
+        addresses = [
+            addr.strip() for addr in candidate.split(",") if addr.strip()
+        ]
     else:
         try:
             iterator = iter(candidate)
         except TypeError as exc:  # pragma: no cover - defensive programming
-            raise TypeError(_translate("收件人必须为字符串或可迭代对象")) from exc
-        addresses = [str(addr).strip() for addr in iterator if str(addr).strip()]
+            raise TypeError(
+                _translate("Recipients must be a string or iterable")) from exc
+        addresses = [
+            str(addr).strip() for addr in iterator if str(addr).strip()
+        ]
 
     if not addresses:
-        raise ValueError(_translate("收件人地址不能为空"))
+        raise ValueError(_translate("Recipient address list cannot be empty"))
 
     return ", ".join(addresses), addresses
 
 
 def _format_address(address: str) -> str:
-    """将地址字符串转换为符合 RFC 的显示格式，并保证 UTF-8 编码。"""
+    """Convert an address into an RFC-compliant display string encoded as UTF-8."""
 
     name, email_addr = parseaddr(address)
     if not email_addr:
@@ -137,7 +154,7 @@ def _format_address(address: str) -> str:
 
 
 def _extract_email(address: str) -> str:
-    """从地址字符串中提取用于 SMTP 传输的邮箱地址。"""
+    """Extract the SMTP transport address from a formatted string."""
 
     return parseaddr(address)[1] or address
 
@@ -149,7 +166,8 @@ def send_email(subject: str, body: str, recipients=None):
     try:
         smtp_port = int(mailconfig['smtp_port'])
     except (TypeError, ValueError) as exc:
-        raise ValueError(_translate("SMTP 端口配置必须为整数")) from exc
+        raise ValueError(
+            _translate("SMTP port configuration must be an integer")) from exc
     username = mailconfig['username']
     password = mailconfig['password']
     from_addr = mailconfig['from_addr']
@@ -158,7 +176,10 @@ def send_email(subject: str, body: str, recipients=None):
     use_ssl = mailconfig.get('use_ssl', False)
 
     if use_starttls and use_ssl:
-        raise ValueError(_translate("邮件配置 use_starttls 与 use_ssl 不能同时启用"))
+        raise ValueError(
+            _translate(
+                "Email settings use_starttls and use_ssl cannot both be enabled"
+            ))
 
     _, send_to_list = _normalize_recipients(recipients, to_addrs)
     display_from = _format_address(from_addr)
@@ -190,7 +211,7 @@ def send_email(subject: str, body: str, recipients=None):
             server.login(username, password)
             server.sendmail(transmit_from, transmit_to, message.as_string())
     except smtplib.SMTPAuthenticationError:
-        message = _translate("SMTP 身份验证失败：")
+        message = _translate("SMTP authentication failed:")
         LOGGER.exception(
             "mail.smtp.authentication_error message=%s server=%s username=%s recipients=%s",
             message,
@@ -200,7 +221,7 @@ def send_email(subject: str, body: str, recipients=None):
         )
         raise
     except smtplib.SMTPException:
-        message = _translate("SMTP 通信异常：")
+        message = _translate("SMTP communication error:")
         LOGGER.exception(
             "mail.smtp.communication_error message=%s server=%s port=%s recipients=%s",
             message,
@@ -210,7 +231,7 @@ def send_email(subject: str, body: str, recipients=None):
         )
         raise
     except Exception:
-        message = _translate("发生未知错误：")
+        message = _translate("An unknown error occurred:")
         LOGGER.exception(
             "mail.smtp.unknown_error message=%s server=%s port=%s recipients=%s",
             message,
@@ -224,14 +245,21 @@ def send_email(subject: str, body: str, recipients=None):
 def _event_context_presets(event: str) -> Mapping[str, str]:
     if event == "alert":
         return {
-            "status_action": _translate("告警"),
-            "event_description": _translate("监控检测到服务不可达"),
-            "time_label": _translate("发生时间"),
+            "status_action":
+            _translate("Alert"),
+            "event_description":
+            _translate("Monitoring detected the service is unreachable"),
+            "time_label":
+            _translate("Event time"),
         }
     if event == "recovery":
         return {
-            "status_action": _translate("恢复"),
-            "event_description": _translate("监控检测到服务恢复至正常状态"),
-            "time_label": _translate("恢复时间"),
+            "status_action":
+            _translate("Recovery"),
+            "event_description":
+            _translate("Monitoring detected the service has recovered"),
+            "time_label":
+            _translate("Recovery time"),
         }
-    raise KeyError(_translate("未知的邮件事件类型：{event}").format(event=event))
+    raise KeyError(
+        _translate("Unknown mail event type: {event}").format(event=event))

@@ -1,4 +1,8 @@
-"""监控调度相关组件。"""
+# -*- codeing = utf-8 -*-
+# @Create: 2023-03-29 3:23 p.m.
+# @Update: 2025-10-24 11:53 p.m.
+# @Author: John Zhao
+"""Components related to the monitoring scheduler."""
 
 from . import api_monitor, http_probe, icmp_probe, log_recorder, network_probe, send_email
 from .service import MonitorScheduler, default_notification_dispatcher, default_notification_templates

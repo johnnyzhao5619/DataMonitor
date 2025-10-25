@@ -10,6 +10,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 if "requests" not in sys.modules:
+
     class _RequestException(Exception):
         """Minimal stand-in for ``requests.RequestException`` used in tests."""
 
@@ -32,16 +33,11 @@ import pytest
 import configuration  # noqa: E402  pylint: disable=wrong-import-position
 from monitoring import log_recorder  # noqa: E402  pylint: disable=wrong-import-position
 from monitoring.service import (  # noqa: E402
-    MonitorScheduler,
-    MonitorStrategy,
-    ServerMonitorStrategy,
-    default_notification_templates,
-    parse_network_address,
+    MonitorScheduler, MonitorStrategy, ServerMonitorStrategy,
+    default_notification_templates, parse_network_address,
 )
 from monitoring.state_machine import (  # noqa: E402
-    MonitorState,
-    MonitorStateMachine,
-    NotificationTemplates,
+    MonitorState, MonitorStateMachine, NotificationTemplates,
 )
 
 
@@ -53,6 +49,7 @@ def reset_template_manager():
 
 
 class SequenceStrategy(MonitorStrategy):
+
     def __init__(self, results):
         self._results = iter(results)
         self._last = results[-1] if results else True
@@ -66,6 +63,7 @@ class SequenceStrategy(MonitorStrategy):
 
 
 class PerMonitorSequenceStrategy(MonitorStrategy):
+
     def __init__(self, sequences, default=True):
         self._default = default
         self._iterators = {}
@@ -104,11 +102,13 @@ def test_state_machine_transitions_and_notifications():
 
     templates = NotificationTemplates(
         channel="email",
-        build_outage=lambda name, ts, language=None: (  # noqa: ARG005 - 测试桩
+        build_outage=lambda name, ts, language=None:
+        (  # noqa: ARG005 - test stub
             f"Outage {name}",
             ts.isoformat(),
         ),
-        build_recovery=lambda name, ts, language=None: (  # noqa: ARG005 - 测试桩
+        build_recovery=lambda name, ts, language=None:
+        (  # noqa: ARG005 - test stub
             f"Recovery {name}",
             ts.isoformat(),
         ),
@@ -155,11 +155,13 @@ def test_state_machine_respects_template_overrides(tmp_path, monkeypatch):
     )
     templates = NotificationTemplates(
         channel="email",
-        build_outage=lambda name, ts, language=None: (  # noqa: ARG005 - 测试桩
+        build_outage=lambda name, ts, language=None:
+        (  # noqa: ARG005 - test stub
             f"Outage {name}",
             ts.isoformat(),
         ),
-        build_recovery=lambda name, ts, language=None: (  # noqa: ARG005 - 测试桩
+        build_recovery=lambda name, ts, language=None:
+        (  # noqa: ARG005 - test stub
             f"Recovery {name}",
             ts.isoformat(),
         ),
@@ -168,9 +170,10 @@ def test_state_machine_respects_template_overrides(tmp_path, monkeypatch):
     base_time = datetime.datetime(2023, 1, 1, 8, 30, 0)
 
     event = machine.transition(False, base_time, base_time)
-    assert event.message == "[2023-01-01 08:30:00] ServiceA::服务异常"
+    assert (event.message ==
+            "Time: 2023-01-01 08:30:00 --> Status: ServiceA Service outage")
     assert event.log_action == "ACTION ServiceA GET"
-    assert event.log_detail == "DETAIL 异常 @ 2023-01-01 08:30:00"
+    assert event.log_detail == "DETAIL Service outage @ 2023-01-01 08:30:00"
 
 
 def test_scheduler_runs_strategies_and_emits_events(monkeypatch):
@@ -180,8 +183,10 @@ def test_scheduler_runs_strategies_and_emits_events(monkeypatch):
     events = []
     finished = threading.Event()
 
-    monkeypatch.setattr(log_recorder, "record", lambda action, detail: logs.append((action, detail)))
-    monkeypatch.setattr(log_recorder, "saveToFile", lambda row, name: csv_rows.append((tuple(row), name)))
+    monkeypatch.setattr(log_recorder, "record",
+                        lambda action, detail: logs.append((action, detail)))
+    monkeypatch.setattr(log_recorder, "saveToFile",
+                        lambda row, name: csv_rows.append((tuple(row), name)))
 
     base_time = datetime.datetime(2023, 1, 1, 0, 0, 0)
 
@@ -196,11 +201,13 @@ def test_scheduler_runs_strategies_and_emits_events(monkeypatch):
         clock=lambda: base_time,
         templates=NotificationTemplates(
             channel="email",
-            build_outage=lambda name, ts, language=None: (  # noqa: ARG005 - 测试桩
+            build_outage=lambda name, ts, language=None:
+            (  # noqa: ARG005 - test stub
                 f"{name}-outage",
                 ts.isoformat(),
             ),
-            build_recovery=lambda name, ts, language=None: (  # noqa: ARG005 - 测试桩
+            build_recovery=lambda name, ts, language=None:
+            (  # noqa: ARG005 - test stub
                 f"{name}-recovery",
                 ts.isoformat(),
             ),
@@ -208,7 +215,8 @@ def test_scheduler_runs_strategies_and_emits_events(monkeypatch):
         dispatcher=lambda notification: notifications.append(notification),
     )
 
-    scheduler.register_strategy("GET", SequenceStrategy([True, False, False, True]))
+    scheduler.register_strategy("GET",
+                                SequenceStrategy([True, False, False, True]))
 
     monitor = configuration.MonitorItem(
         name="ServiceA",
@@ -220,7 +228,7 @@ def test_scheduler_runs_strategies_and_emits_events(monkeypatch):
 
     scheduler.start([monitor])
     try:
-        assert finished.wait(5), "调度器未在预期时间内产生事件"
+        assert finished.wait(5), "Scheduler did not emit events in time"
     finally:
         scheduler.stop()
 
@@ -235,7 +243,8 @@ def test_scheduler_runs_strategies_and_emits_events(monkeypatch):
 
 
 def test_parse_network_address_variants():
-    assert parse_network_address("example.com") == ("http", "example.com", None, "")
+    assert parse_network_address("example.com") == ("http", "example.com",
+                                                    None, "")
     assert parse_network_address("https://example.org:8443/status") == (
         "https",
         "example.org",
@@ -248,12 +257,13 @@ def test_parse_network_address_variants():
         None,
         "api/v1",
     )
-    assert parse_network_address("https://[2001:db8::1]:8443/status/health") == (
-        "https",
-        "2001:db8::1",
-        8443,
-        "status/health",
-    )
+    assert parse_network_address(
+        "https://[2001:db8::1]:8443/status/health") == (
+            "https",
+            "2001:db8::1",
+            8443,
+            "status/health",
+        )
     assert parse_network_address("[2001:db8::2]/metrics") == (
         "http",
         "2001:db8::2",
@@ -290,7 +300,8 @@ def test_server_strategy_uses_shared_parser(monkeypatch):
     assert strategy.run(monitor) is True
 
     assert parse_calls == ["https://example.com:9443/health"]
-    assert monitor_calls == [("https", "example.com", 9443, "health"), ("https", "example.com", 9443, "health")]
+    assert monitor_calls == [("https", "example.com", 9443, "health"),
+                             ("https", "example.com", 9443, "health")]
 
 
 def test_scheduler_handles_payload_and_headers_monitor(monkeypatch):
@@ -300,7 +311,8 @@ def test_scheduler_handles_payload_and_headers_monitor(monkeypatch):
     events = []
     finished = threading.Event()
 
-    monkeypatch.setattr(log_recorder, "record", lambda action, detail: logs.append((action, detail)))
+    monkeypatch.setattr(log_recorder, "record",
+                        lambda action, detail: logs.append((action, detail)))
     monkeypatch.setattr(
         log_recorder,
         "saveToFile",
@@ -320,11 +332,13 @@ def test_scheduler_handles_payload_and_headers_monitor(monkeypatch):
         clock=lambda: base_time,
         templates=NotificationTemplates(
             channel="email",
-            build_outage=lambda name, ts, language=None: (  # noqa: ARG005 - 测试桩
+            build_outage=lambda name, ts, language=None:
+            (  # noqa: ARG005 - test stub
                 f"{name}-outage",
                 ts.isoformat(),
             ),
-            build_recovery=lambda name, ts, language=None: (  # noqa: ARG005 - 测试桩
+            build_recovery=lambda name, ts, language=None:
+            (  # noqa: ARG005 - test stub
                 f"{name}-recovery",
                 ts.isoformat(),
             ),
@@ -346,7 +360,8 @@ def test_scheduler_handles_payload_and_headers_monitor(monkeypatch):
 
     scheduler.start([monitor])
     try:
-        assert finished.wait(5), "调度器未在预期时间内处理带 payload 的监控"
+        assert finished.wait(
+            5), "Scheduler did not process payload-backed monitors in time"
     finally:
         scheduler.stop()
 
@@ -362,8 +377,8 @@ def test_scheduler_handles_payload_and_headers_monitor(monkeypatch):
     assert notifications[0].subject.endswith("-outage")
     assert notifications[1].subject.endswith("-recovery")
 
-    assert any("服务异常" in detail for _, detail in logs)
-    assert any(row[0][6] in {"异常", "持续异常"} for row in csv_rows)
+    assert any("Service outage" in detail for _, detail in logs)
+    assert any(row[0][6] in {"Outage", "Outage ongoing"} for row in csv_rows)
 
 
 def test_default_notification_templates_builders():
@@ -412,7 +427,7 @@ def test_scheduler_uses_default_templates(monkeypatch):
 
     scheduler.start([monitor])
     try:
-        assert finished.wait(5), "调度器未在预期时间内产生事件"
+        assert finished.wait(5), "Scheduler did not emit events in time"
     finally:
         scheduler.stop()
 
@@ -443,12 +458,10 @@ def test_scheduler_handles_monitors_with_same_name(monkeypatch):
         email="ops@example.com",
     )
 
-    strategy = PerMonitorSequenceStrategy(
-        {
-            monitor_primary: [True, False, True],
-            monitor_secondary: [True, False, False],
-        }
-    )
+    strategy = PerMonitorSequenceStrategy({
+        monitor_primary: [True, False, True],
+        monitor_secondary: [True, False, False],
+    })
 
     events_by_monitor = {monitor_primary: [], monitor_secondary: []}
     notifications_by_monitor = {monitor_primary: [], monitor_secondary: []}
@@ -459,12 +472,12 @@ def test_scheduler_handles_monitors_with_same_name(monkeypatch):
         events = events_by_monitor.setdefault(event.monitor, [])
         events.append(event.status)
         if event.notification:
-            notifications = notifications_by_monitor.setdefault(event.monitor, [])
+            notifications = notifications_by_monitor.setdefault(
+                event.monitor, [])
             notifications.append(event.notification.subject)
         if all(
-            len(events_by_monitor[monitor]) >= expected_counts[monitor]
-            for monitor in expected_counts
-        ):
+                len(events_by_monitor[monitor]) >= expected_counts[monitor]
+                for monitor in expected_counts):
             finished.set()
 
     scheduler = MonitorScheduler(
@@ -473,11 +486,13 @@ def test_scheduler_handles_monitors_with_same_name(monkeypatch):
         clock=lambda: base_time,
         templates=NotificationTemplates(
             channel="email",
-            build_outage=lambda name, ts, language=None: (  # noqa: ARG005 - 测试桩
+            build_outage=lambda name, ts, language=None:
+            (  # noqa: ARG005 - test stub
                 f"{name}-outage",
                 ts.isoformat(),
             ),
-            build_recovery=lambda name, ts, language=None: (  # noqa: ARG005 - 测试桩
+            build_recovery=lambda name, ts, language=None:
+            (  # noqa: ARG005 - test stub
                 f"{name}-recovery",
                 ts.isoformat(),
             ),
@@ -488,7 +503,7 @@ def test_scheduler_handles_monitors_with_same_name(monkeypatch):
 
     scheduler.start([monitor_primary, monitor_secondary])
     try:
-        assert finished.wait(5), "调度器未在预期时间内产生事件"
+        assert finished.wait(5), "Scheduler did not emit events in time"
     finally:
         scheduler.stop()
 
@@ -522,7 +537,8 @@ def test_scheduler_restart_after_stop(monkeypatch):
         email=None,
     )
 
-    scheduler = MonitorScheduler(event_handler=lambda event: None, timezone_getter=lambda: 0)
+    scheduler = MonitorScheduler(event_handler=lambda event: None,
+                                 timezone_getter=lambda: 0)
     scheduler.register_strategy("GET", SequenceStrategy([True]))
 
     scheduler.start([monitor])
@@ -543,6 +559,7 @@ def test_scheduler_logs_strategy_exception(caplog):
     )
 
     class FailingStrategy(MonitorStrategy):
+
         def run(self, monitor):
             raise RuntimeError("boom")
 
@@ -555,11 +572,8 @@ def test_scheduler_logs_strategy_exception(caplog):
         event = scheduler.run_single_cycle(monitor, strategy=FailingStrategy())
 
     assert event.monitor is monitor
-    assert any(
-        "monitor.scheduler.strategy_error" in record.message
-        and monitor.name in record.message
-        for record in caplog.records
-    )
+    assert any("monitor.scheduler.strategy_error" in record.message
+               and monitor.name in record.message for record in caplog.records)
 
 
 def test_scheduler_logs_event_handler_exception(caplog):
@@ -583,11 +597,8 @@ def test_scheduler_logs_event_handler_exception(caplog):
     with caplog.at_level(logging.ERROR, logger="monitoring.service"):
         scheduler.run_single_cycle(monitor, strategy=SequenceStrategy([True]))
 
-    assert any(
-        "monitor.scheduler.event_handler_error" in record.message
-        and monitor.name in record.message
-        for record in caplog.records
-    )
+    assert any("monitor.scheduler.event_handler_error" in record.message
+               and monitor.name in record.message for record in caplog.records)
 
 
 def test_scheduler_logs_notification_exception(caplog):
@@ -609,14 +620,12 @@ def test_scheduler_logs_notification_exception(caplog):
     )
 
     with caplog.at_level(logging.ERROR, logger="monitoring.service"):
-        event = scheduler.run_single_cycle(monitor, strategy=SequenceStrategy([False]))
+        event = scheduler.run_single_cycle(monitor,
+                                           strategy=SequenceStrategy([False]))
 
     assert event.notification is not None
-    assert any(
-        "monitor.scheduler.notification_error" in record.message
-        and monitor.name in record.message
-        for record in caplog.records
-    )
+    assert any("monitor.scheduler.notification_error" in record.message
+               and monitor.name in record.message for record in caplog.records)
 
 
 def test_scheduler_reuses_state_machine_for_repeated_cycles(monkeypatch):

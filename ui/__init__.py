@@ -1,4 +1,4 @@
-"""用户界面模块。"""
+"""User interface modules."""
 
 from .components.navigation import NavigationBar
 from .main_window import MainWindowUI

@@ -42,7 +42,7 @@ def test_configuration_wizard_round_trip(qtbot, tmp_path, monkeypatch):
     qtbot.mouseClick(wizard.addButton, QtCore.Qt.LeftButton)
     assert wizard.monitorList.count() == 1
 
-    wizard.nameEdit.setText("测试服务")
+    wizard.nameEdit.setText("Test Service")
     wizard.urlEdit.setText("http://example.com/api")
     wizard.typeCombo.setCurrentText("GET")
     wizard.intervalSpin.setValue(120)
@@ -55,13 +55,14 @@ def test_configuration_wizard_round_trip(qtbot, tmp_path, monkeypatch):
     monitors = configuration.read_monitor_list()
     assert len(monitors) == 1
     saved = asdict(monitors[0])
-    assert saved["name"] == "测试服务"
+    assert saved["name"] == "Test Service"
     assert saved["url"] == "http://example.com/api"
     assert saved["monitor_type"] == "GET"
     assert saved["interval"] == 120
     assert saved["email"] == "ops@example.com"
 
-    assert window.ui.contentStack.currentIndex() == window.ui.monitor_view_index
+    assert window.ui.contentStack.currentIndex(
+    ) == window.ui.monitor_view_index
 
 
 @pytest.mark.qt
@@ -100,6 +101,7 @@ def test_toggle_stop_only_halts_monitoring(qtbot, monkeypatch):
     qtbot.addWidget(window)
 
     class DummyScheduler:
+
         def __init__(self) -> None:
             self.stopped = False
 
@@ -127,7 +129,9 @@ def test_toggle_stop_only_halts_monitoring(qtbot, monkeypatch):
     assert dummy_scheduler.stopped is True
     assert window.dashboard._scheduler is None
     expected_start = window.ui.tr("Start")
-    qtbot.waitUntil(lambda: window.ui.toggleMonitoringButton.text() == expected_start, timeout=1000)
+    qtbot.waitUntil(
+        lambda: window.ui.toggleMonitoringButton.text() == expected_start,
+        timeout=1000)
     assert window.ui.current_status_text() == window.ui.tr("Standby")
     assert quit_calls["count"] == 0
 
@@ -136,7 +140,7 @@ def test_toggle_stop_only_halts_monitoring(qtbot, monkeypatch):
 def test_config_wizard_loads_existing_monitor_items(qtbot):
     monitors = [
         configuration.MonitorItem(
-            name="服务一",
+            name="Service A",
             url="http://example.com/a",
             monitor_type="GET",
             interval=45,
@@ -145,7 +149,7 @@ def test_config_wizard_loads_existing_monitor_items(qtbot):
             headers={"Accept": "application/json"},
         ),
         configuration.MonitorItem(
-            name="服务二",
+            name="Service B",
             url="http://example.com/b",
             monitor_type="POST",
             interval=120,
@@ -163,7 +167,7 @@ def test_config_wizard_loads_existing_monitor_items(qtbot):
 
     assert wizard.monitorList.count() == 2
     assert wizard.monitorList.currentRow() == 0
-    assert wizard.nameEdit.text() == "服务一"
+    assert wizard.nameEdit.text() == "Service A"
     assert wizard.urlEdit.text() == "http://example.com/a"
     assert wizard.typeCombo.currentText() == "GET"
     assert wizard.intervalSpin.value() == 45
@@ -185,7 +189,8 @@ def test_config_wizard_loads_existing_monitor_items(qtbot):
         ("SERVER", "https://example.com:8443/status"),
     ],
 )
-def test_run_periodically_single_iteration(qtbot, tmp_path, monkeypatch, monitor_type, url):
+def test_run_periodically_single_iteration(qtbot, tmp_path, monkeypatch,
+                                           monitor_type, url):
     monkeypatch.setenv("APIMONITOR_HOME", str(tmp_path))
     config_dir = tmp_path / "Config"
     configuration.writeconfig(str(config_dir))
@@ -222,7 +227,11 @@ def test_run_periodically_single_iteration(qtbot, tmp_path, monkeypatch, monitor
         assert actual_url == url
         return True
 
-    def fake_monitor_post(actual_url, payload=None, *, headers=None, timeout=None):
+    def fake_monitor_post(actual_url,
+                          payload=None,
+                          *,
+                          headers=None,
+                          timeout=None):
         call_sequence.append("POST")
         assert actual_url == url
         return True
@@ -254,7 +263,7 @@ def test_run_periodically_single_iteration(qtbot, tmp_path, monkeypatch, monitor
     monkeypatch.setattr(threading, "Thread", tracking_thread)
 
     monitor_info = {
-        "name": "测试服务",
+        "name": "Test Service",
         "url": url,
         "type": monitor_type,
         "interval": 1,
@@ -274,9 +283,9 @@ def test_run_periodically_single_iteration(qtbot, tmp_path, monkeypatch, monitor
     assert call_sequence, "strategy should run at least once"
     assert set(call_sequence) == {monitor_type}
     assert recorded_logs
-    assert saved_rows and saved_rows[0][1] == "测试服务"
+    assert saved_rows and saved_rows[0][1] == "Test Service"
     row = list(saved_rows[0][0])
-    assert row[1] == "测试服务"
+    assert row[1] == "Test Service"
     assert row[2] == monitor_type
     assert row[5] == 1
     assert row[6]
@@ -311,14 +320,15 @@ def test_run_periodically_with_duplicate_names(qtbot, tmp_path, monkeypatch):
     created_threads = []
 
     class ImmediateThread:
+
         def __init__(
-            self,
-            group=None,
-            target=None,
-            name=None,
-            args=(),
-            kwargs=None,
-            daemon=None,
+                self,
+                group=None,
+                target=None,
+                name=None,
+                args=(),
+                kwargs=None,
+                daemon=None,
         ):
             self._target = target
             self._args = args
@@ -334,13 +344,13 @@ def test_run_periodically_with_duplicate_names(qtbot, tmp_path, monkeypatch):
 
     monitors = [
         {
-            "name": "重复服务",
+            "name": "Duplicate Service",
             "url": "http://example.com/a",
             "type": "GET",
             "interval": 1,
         },
         {
-            "name": "重复服务",
+            "name": "Duplicate Service",
             "url": "http://example.com/b",
             "type": "GET",
             "interval": 1,
@@ -352,19 +362,26 @@ def test_run_periodically_with_duplicate_names(qtbot, tmp_path, monkeypatch):
 
     assert len(window.controller.dashboard._periodic_monitors) == 2
     assert len(window.controller.dashboard._periodic_timers) == 2
-    assert created_threads == ["Monitor:重复服务", "Monitor:重复服务"]
+    assert created_threads == [
+        "Monitor:Duplicate Service", "Monitor:Duplicate Service"
+    ]
     assert run_calls == [
-        ("重复服务", "http://example.com/a", "GET"),
-        ("重复服务", "http://example.com/b", "GET"),
+        ("Duplicate Service", "http://example.com/a", "GET"),
+        ("Duplicate Service", "http://example.com/b", "GET"),
     ]
 
     expected_keys = {
-        ("重复服务", "http://example.com/a", "GET"),
-        ("重复服务", "http://example.com/b", "GET"),
+        ("Duplicate Service", "http://example.com/a", "GET"),
+        ("Duplicate Service", "http://example.com/b", "GET"),
     }
-    assert set(window.controller.dashboard._periodic_monitors.keys()) == expected_keys
-    assert set(window.controller.dashboard._periodic_timers.keys()) == expected_keys
-    urls = {monitor.url for monitor in window.controller.dashboard._periodic_monitors.values()}
+    assert set(
+        window.controller.dashboard._periodic_monitors.keys()) == expected_keys
+    assert set(
+        window.controller.dashboard._periodic_timers.keys()) == expected_keys
+    urls = {
+        monitor.url
+        for monitor in window.controller.dashboard._periodic_monitors.values()
+    }
     assert urls == {"http://example.com/a", "http://example.com/b"}
     assert window.controller.dashboard._running_periodic == set()
 
@@ -390,7 +407,8 @@ def test_main_window_uses_navigation_bar(qtbot):
     theme_selector = window.ui.themeSelector
     assert theme_selector.count() >= 2
     current_theme_name = window.controller.theme_manager.current_theme_name()
-    assert theme_selector.itemData(theme_selector.currentIndex()) == current_theme_name
+    assert theme_selector.itemData(
+        theme_selector.currentIndex()) == current_theme_name
     language_selector = window.ui.languageSelector
     assert isinstance(language_selector, QtWidgets.QComboBox)
     assert isinstance(window.ui.locationButton, QtWidgets.QPushButton)
@@ -419,7 +437,8 @@ def test_main_window_uses_navigation_bar(qtbot):
 
 
 @pytest.mark.qt
-def test_language_switch_updates_ui_and_templates(qtbot, tmp_path, monkeypatch):
+def test_language_switch_updates_ui_and_templates(qtbot, tmp_path,
+                                                  monkeypatch):
     monkeypatch.setenv("APIMONITOR_HOME", str(tmp_path))
     monkeypatch.setattr(configuration, "_LANGUAGE_CACHE", None, raising=False)
     config_dir = tmp_path / "Config"
@@ -432,13 +451,14 @@ def test_language_switch_updates_ui_and_templates(qtbot, tmp_path, monkeypatch):
     qtbot.addWidget(window)
 
     wizard = window.ui.configWizard
-    assert wizard.addButton.text() == "新增"
+    assert wizard.addButton.text() == "Add"
     language_selector = window.ui.languageSelector
     en_index = language_selector.findData("en_US")
     assert en_index >= 0
 
     language_selector.setCurrentIndex(en_index)
-    qtbot.waitUntil(lambda: window.controller._current_language == "en_US", timeout=2000)
+    qtbot.waitUntil(lambda: window.controller._current_language == "en_US",
+                    timeout=2000)
 
     assert wizard.addButton.text() == "Add"
     assert window.ui.languageLabel.text().startswith("Language")
@@ -453,9 +473,10 @@ def test_language_switch_updates_ui_and_templates(qtbot, tmp_path, monkeypatch):
     }
     rendered = configuration.render_template("log", "action_line", context)
     assert "Type:" in rendered
-    assert "类型" not in rendered
+    assert "Type" not in rendered
 
     zh_index = language_selector.findData("zh_CN")
     if zh_index >= 0:
         language_selector.setCurrentIndex(zh_index)
-        qtbot.waitUntil(lambda: window.controller._current_language == "zh_CN", timeout=2000)
+        qtbot.waitUntil(lambda: window.controller._current_language == "zh_CN",
+                        timeout=2000)

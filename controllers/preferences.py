@@ -1,4 +1,8 @@
-"""主题、语言与时区偏好控制器。"""
+# -*- codeing = utf-8 -*-
+# @Create: 2023-02-16 3:37 p.m.
+# @Update: 2025-10-24 11:53 p.m.
+# @Author: John Zhao
+"""Controller for theme, language, and timezone preferences."""
 
 from __future__ import annotations
 
@@ -16,7 +20,7 @@ _TranslatorBase = getattr(QtCore, "QTranslator", object)
 
 
 class JsonTranslator(_TranslatorBase):
-    """基于 JSON 存储的轻量级翻译器，实现 QTranslator 接口。"""
+    """Lightweight JSON-backed translator that implements the QTranslator API."""
 
     def __init__(self, parent: Optional[QtCore.QObject] = None) -> None:
         if _TranslatorBase is object:
@@ -67,13 +71,13 @@ class JsonTranslator(_TranslatorBase):
             if not isinstance(entries, dict):
                 continue
             catalog[str(context)] = {
-                str(source): str(target) for source, target in entries.items()
+                str(source): str(target)
+                for source, target in entries.items()
             }
 
         self._catalog = catalog
-        self._language = (
-            str(payload.get("language")) if payload.get("language") else None
-        )
+        self._language = (str(payload.get("language"))
+                          if payload.get("language") else None)
         return True
 
     def translate(
@@ -98,7 +102,7 @@ class JsonTranslator(_TranslatorBase):
 
 
 class PreferencesController(QtCore.QObject):
-    """封装主题、语言和时区偏好逻辑。"""
+    """Encapsulates the logic for theme, language, and timezone preferences."""
 
     def __init__(
         self,
@@ -121,7 +125,7 @@ class PreferencesController(QtCore.QObject):
         self._time_zone = self._read_config_timezone()
         self._logging_snapshot: Optional[dict[str, object]] = None
 
-    # --- 初始化 -----------------------------------------------------
+    # --- Initialization ----------------------------------------------
     def setup(self) -> None:
         self._initialise_theme_selector()
         self._initialise_language_selector()
@@ -130,7 +134,7 @@ class PreferencesController(QtCore.QObject):
         self._event_bus.timezoneChanged.emit(self._time_zone)
         self._event_bus.languageChanged.emit(self._current_language)
 
-    # --- 属性访问 ---------------------------------------------------
+    # --- Property access ---------------------------------------------
     @property
     def current_language(self) -> str:
         return self._current_language
@@ -139,7 +143,7 @@ class PreferencesController(QtCore.QObject):
     def current_timezone(self) -> int:
         return self._time_zone
 
-    # --- 主题逻辑 ---------------------------------------------------
+    # --- Theme logic --------------------------------------------------
     def _initialise_theme_selector(self) -> None:
         selector = self.ui.themeSelector
         names = self.theme_manager.available_themes()
@@ -154,9 +158,8 @@ class PreferencesController(QtCore.QObject):
             selector.addItem(display_text, name)
             index = selector.count() - 1
             selector.setItemData(index, description, QtCore.Qt.ToolTipRole)
-            selector.setItemData(
-                index, theme.metadata.is_high_contrast, QtCore.Qt.UserRole + 1
-            )
+            selector.setItemData(index, theme.metadata.is_high_contrast,
+                                 QtCore.Qt.UserRole + 1)
 
         preferred_theme = None
         if isinstance(self._preferences, dict):
@@ -178,7 +181,8 @@ class PreferencesController(QtCore.QObject):
                 current = preferred_theme
             except KeyError:
                 configuration.LOGGER.warning(
-                    "主题偏好 %s 未注册，使用当前主题", preferred_theme
+                    "Theme preference %s is not registered; using current theme",
+                    preferred_theme,
                 )
 
         if current is None and names:
@@ -213,9 +217,8 @@ class PreferencesController(QtCore.QObject):
 
         self._refresh_theme_widgets()
         self._persist_theme_preference(theme, force=True)
-        message = self.tr("已切换至主题: {name}").format(
-            name=self._display_theme_name(theme)
-        )
+        message = self.tr("Switched to theme: {name}").format(
+            name=self._display_theme_name(theme))
         self._event_bus.statusMessage.emit(message, 3000)
         self._event_bus.themeChanged.emit(theme.name)
 
@@ -223,7 +226,7 @@ class PreferencesController(QtCore.QObject):
         base_name = theme.metadata.display_name or theme.name
         translated = QtCore.QCoreApplication.translate("Theme", base_name)
         if theme.metadata.is_high_contrast:
-            return self.tr("{name}（高对比）").format(name=translated)
+            return self.tr("{name} (High Contrast)").format(name=translated)
         return translated
 
     def _refresh_theme_widgets(self) -> None:
@@ -232,17 +235,17 @@ class PreferencesController(QtCore.QObject):
             return
 
         for widget in (
-            self.window,
-            self.ui.central_widget,
-            getattr(self.ui, "commandBar", None),
-            self.ui.navigationBar,
-            self.ui.contentStack,
-            self.ui.monitorBrowser,
-            self.ui.configWizard,
-            getattr(self.ui, "preferencesPage", None),
-            getattr(self.ui, "timezoneDisplay", None),
-            getattr(self.ui, "loggingGroup", None),
-            getattr(self.ui, "logMaxSizeSuffix", None),
+                self.window,
+                self.ui.central_widget,
+                getattr(self.ui, "commandBar", None),
+                self.ui.navigationBar,
+                self.ui.contentStack,
+                self.ui.monitorBrowser,
+                self.ui.configWizard,
+                getattr(self.ui, "preferencesPage", None),
+                getattr(self.ui, "timezoneDisplay", None),
+                getattr(self.ui, "loggingGroup", None),
+                getattr(self.ui, "logMaxSizeSuffix", None),
         ):
             if widget is None:
                 continue
@@ -263,14 +266,14 @@ class PreferencesController(QtCore.QObject):
         }
 
         preferences = getattr(self, "_preferences", None)
-        if (
-            not force
-            and isinstance(preferences, dict)
-            and preferences.get("theme") == payload["theme"]
-            and preferences.get("theme_display_name") == payload["theme_display_name"]
-            and preferences.get("theme_description") == payload["theme_description"]
-            and preferences.get("theme_high_contrast") == payload["theme_high_contrast"]
-        ):
+        if (not force and isinstance(preferences, dict)
+                and preferences.get("theme") == payload["theme"]
+                and preferences.get("theme_display_name")
+                == payload["theme_display_name"]
+                and preferences.get("theme_description")
+                == payload["theme_description"]
+                and preferences.get("theme_high_contrast")
+                == payload["theme_high_contrast"]):
             return
 
         configuration.set_preferences(payload)
@@ -297,7 +300,7 @@ class PreferencesController(QtCore.QObject):
                 QtCore.Qt.UserRole + 1,
             )
 
-    # --- 语言逻辑 ---------------------------------------------------
+    # --- Language logic ----------------------------------------------
     def _initialise_language_selector(self) -> None:
         selector = self.ui.languageSelector
         languages = configuration.available_languages()
@@ -318,7 +321,7 @@ class PreferencesController(QtCore.QObject):
         if isinstance(selected_code, str) and selected_code:
             self._apply_language(selected_code, persist=False, notify=False)
 
-    # --- 日志配置 ---------------------------------------------------
+    # --- Logging configuration --------------------------------------
     def _initialise_logging_controls(self) -> None:
         level_combo = self.ui.logLevelCombo
         level_combo.blockSignals(True)
@@ -330,15 +333,21 @@ class PreferencesController(QtCore.QObject):
         self.ui.saveLoggingButton.setEnabled(False)
 
         level_combo.currentTextChanged.connect(self._on_logging_field_changed)
-        self.ui.logDirectoryEdit.textEdited.connect(self._on_logging_field_changed)
+        self.ui.logDirectoryEdit.textEdited.connect(
+            self._on_logging_field_changed)
         self.ui.logDirectoryBrowse.clicked.connect(self._choose_log_directory)
         self.ui.logFileEdit.textEdited.connect(self._on_logging_field_changed)
-        self.ui.logMaxSizeSpin.valueChanged.connect(self._on_logging_field_changed)
-        self.ui.logBackupSpin.valueChanged.connect(self._on_logging_field_changed)
+        self.ui.logMaxSizeSpin.valueChanged.connect(
+            self._on_logging_field_changed)
+        self.ui.logBackupSpin.valueChanged.connect(
+            self._on_logging_field_changed)
         self.ui.logConsoleCheck.toggled.connect(self._on_logging_field_changed)
-        self.ui.logFormatEdit.textEdited.connect(self._on_logging_field_changed)
-        self.ui.logDatefmtEdit.textEdited.connect(self._on_logging_field_changed)
-        self.ui.saveLoggingButton.clicked.connect(self.save_logging_preferences)
+        self.ui.logFormatEdit.textEdited.connect(
+            self._on_logging_field_changed)
+        self.ui.logDatefmtEdit.textEdited.connect(
+            self._on_logging_field_changed)
+        self.ui.saveLoggingButton.clicked.connect(
+            self.save_logging_preferences)
 
         self._load_logging_preferences()
 
@@ -348,24 +357,33 @@ class PreferencesController(QtCore.QObject):
         except Exception as exc:
             QtWidgets.QMessageBox.warning(
                 self.window,
-                self.tr("读取失败"),
+                self.tr("Read failed"),
                 str(exc),
             )
             preferences = {
-                "level": "INFO",
-                "max_size_mb": 10.0,
-                "backup_count": 5,
-                "console": True,
-                "directory": str((Path(configuration.get_logdir()).resolve() / "Log")),
-                "filename": "system.log",
-                "format": "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-                "datefmt": "%Y-%m-%d %H:%M:%S",
+                "level":
+                "INFO",
+                "max_size_mb":
+                10.0,
+                "backup_count":
+                5,
+                "console":
+                True,
+                "directory":
+                str((Path(configuration.get_logdir()).resolve() / "Log")),
+                "filename":
+                "system.log",
+                "format":
+                "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+                "datefmt":
+                "%Y-%m-%d %H:%M:%S",
             }
 
         with QtCore.QSignalBlocker(self.ui.logLevelCombo):
             index = self.ui.logLevelCombo.findData(preferences["level"])
             if index < 0:
-                self.ui.logLevelCombo.addItem(preferences["level"], preferences["level"])
+                self.ui.logLevelCombo.addItem(preferences["level"],
+                                              preferences["level"])
                 index = self.ui.logLevelCombo.count() - 1
             self.ui.logLevelCombo.setCurrentIndex(index)
 
@@ -388,9 +406,11 @@ class PreferencesController(QtCore.QObject):
             self.ui.logFormatEdit.setText(preferences["format"])
 
         with QtCore.QSignalBlocker(self.ui.logDatefmtEdit):
-            self.ui.logDatefmtEdit.setText(preferences["datefmt"])  # type: ignore[arg-type]
+            self.ui.logDatefmtEdit.setText(
+                preferences["datefmt"])  # type: ignore[arg-type]
 
-        self._logging_snapshot = self._normalise_logging_values(self._current_logging_values())
+        self._logging_snapshot = self._normalise_logging_values(
+            self._current_logging_values())
         self._update_logging_dirty_state()
 
     def _current_logging_values(self) -> dict[str, object]:
@@ -405,12 +425,14 @@ class PreferencesController(QtCore.QObject):
             "datefmt": self.ui.logDatefmtEdit.text().strip(),
         }
 
-    def _normalise_logging_values(self, values: dict[str, object]) -> dict[str, object]:
+    def _normalise_logging_values(
+            self, values: dict[str, object]) -> dict[str, object]:
         normalised = dict(values)
         normalised["level"] = str(normalised.get("level", "INFO")).upper()
         normalised["directory"] = str(normalised.get("directory", "")).strip()
         normalised["filename"] = str(normalised.get("filename", "")).strip()
-        normalised["max_size"] = round(float(normalised.get("max_size", 0.0)), 2)
+        normalised["max_size"] = round(float(normalised.get("max_size", 0.0)),
+                                       2)
         normalised["backup"] = int(normalised.get("backup", 0))
         normalised["console"] = bool(normalised.get("console", True))
         normalised["format"] = str(normalised.get("format", "")).strip()
@@ -418,7 +440,8 @@ class PreferencesController(QtCore.QObject):
         return normalised
 
     def _update_logging_dirty_state(self) -> None:
-        current = self._normalise_logging_values(self._current_logging_values())
+        current = self._normalise_logging_values(
+            self._current_logging_values())
         dirty = self._logging_snapshot is None or current != self._logging_snapshot
         self.ui.saveLoggingButton.setEnabled(dirty)
 
@@ -431,8 +454,8 @@ class PreferencesController(QtCore.QObject):
         if size_value < 0:
             QtWidgets.QMessageBox.warning(
                 self.window,
-                self.tr("保存失败"),
-                self.tr("日志大小不能为负数"),
+                self.tr("Save failed"),
+                self.tr("Log size cannot be negative"),
             )
             return
 
@@ -452,24 +475,24 @@ class PreferencesController(QtCore.QObject):
         except Exception as exc:
             QtWidgets.QMessageBox.critical(
                 self.window,
-                self.tr("保存失败"),
+                self.tr("Save failed"),
                 str(exc),
             )
             self._event_bus.statusMessage.emit(
-                self.tr("日志配置保存失败: {error}").format(error=exc),
+                self.tr("Failed to save logging configuration: {error}").
+                format(error=exc),
                 6000,
             )
             return
 
         self._logging_snapshot = self._normalise_logging_values(values)
         self._update_logging_dirty_state()
-        message = self.tr("日志配置已保存")
+        message = self.tr("Logging configuration saved")
         self._event_bus.statusMessage.emit(message, 4000)
 
     def _choose_log_directory(self) -> None:
         current = self.ui.logDirectoryEdit.text().strip() or str(
-            (Path(configuration.get_logdir()).resolve() / "Log")
-        )
+            (Path(configuration.get_logdir()).resolve() / "Log"))
         directory = QtWidgets.QFileDialog.getExistingDirectory(
             self.window,
             self.tr("Select Log Directory"),
@@ -514,9 +537,9 @@ class PreferencesController(QtCore.QObject):
 
         if not loaded:
             if code != configuration.DEFAULT_LANGUAGE:
-                self._apply_language(
-                    configuration.DEFAULT_LANGUAGE, persist=True, notify=notify
-                )
+                self._apply_language(configuration.DEFAULT_LANGUAGE,
+                                     persist=True,
+                                     notify=notify)
             return
 
         previous_language = configuration.get_language()
@@ -541,14 +564,13 @@ class PreferencesController(QtCore.QObject):
         self._event_bus.languageChanged.emit(self._current_language)
 
         if notify:
-            message = self.tr("已切换至语言: {name}").format(
-                name=self._describe_language(self._current_language)
-            )
+            message = self.tr("Switched to language: {name}").format(
+                name=self._describe_language(self._current_language))
             self._event_bus.statusMessage.emit(message, 3000)
 
     def _describe_language(self, code: str) -> str:
         mapping = {
-            "zh_CN": self.tr("简体中文"),
+            "zh_CN": self.tr("Simplified Chinese"),
             "en_US": self.tr("English"),
         }
         return mapping.get(code, code)
@@ -568,12 +590,12 @@ class PreferencesController(QtCore.QObject):
             if isinstance(code, str) and code:
                 selector.setItemText(index, self._describe_language(code))
 
-    # --- 时区逻辑 ---------------------------------------------------
+    # --- Timezone logic ----------------------------------------------
     def choose_timezone(self) -> None:
         time_zone, ok = QtWidgets.QInputDialog.getInt(
             self.window,
-            self.tr("输入时区"),
-            self.tr("请输入所在时区(整数):"),
+            self.tr("Enter timezone"),
+            self.tr("Please enter your timezone (integer):"),
             self._time_zone,
             -12,
             14,
@@ -589,7 +611,8 @@ class PreferencesController(QtCore.QObject):
         self._update_timezone_display()
         self._event_bus.timezoneChanged.emit(self._time_zone)
         self._event_bus.statusMessage.emit(
-            self.tr("已更新时区至 UTC{offset:+d}").format(offset=self._time_zone),
+            self.tr("Updated timezone to UTC{offset:+d}").format(
+                offset=self._time_zone),
             3000,
         )
 
@@ -605,14 +628,13 @@ class PreferencesController(QtCore.QObject):
             return 0
 
     def _update_timezone_display(self) -> None:
-        title = self.tr("本地时间 Local Time(时区 Time Zone: {zone})").format(
-            zone=self._time_zone
-        )
+        title = self.tr("Local Time (Time Zone: {zone})").format(
+            zone=self._time_zone)
         self.ui.localTimeGroupBox.setTitle(title)
         if hasattr(self.ui, "set_timezone_hint"):
             self.ui.set_timezone_hint(self._time_zone)
 
-    # --- 清理 -------------------------------------------------------
+    # --- Cleanup ------------------------------------------------------
     def on_close(self) -> None:
         if self._translator is None:
             return

@@ -1,4 +1,8 @@
-"""监控仪表盘视图。"""
+# -*- codeing = utf-8 -*-
+# @Create: 2023-02-16 3:37 p.m.
+# @Update: 2025-10-24 12:05 a.m.
+# @Author: John Zhao
+"""Monitoring dashboard view."""
 from __future__ import annotations
 
 from typing import Optional
@@ -7,7 +11,7 @@ from PySide6 import QtCore, QtGui, QtWidgets
 
 
 class MonitorDashboard(QtWidgets.QWidget):
-    """监控信息仪表盘。"""
+    """Dashboard displaying monitoring information."""
 
     def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
         super().__init__(parent)

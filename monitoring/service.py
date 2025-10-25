@@ -1,3 +1,7 @@
+# -*- codeing = utf-8 -*-
+# @Create: 2023-02-16 3:37 p.m.
+# @Update: 2025-10-24 11:53 p.m.
+# @Author: John Zhao
 """Implementation of the monitoring orchestration layer."""
 
 from __future__ import annotations
@@ -22,23 +26,26 @@ from .state_machine import (
     NotificationTemplates,
 )
 
-
 LOGGER = logging.getLogger(__name__)
 
 
 class MonitorStrategy:
     """Strategy interface that executes a single monitoring check."""
 
-    def run(self, monitor: configuration.MonitorItem) -> bool:  # pragma: no cover - interface contract
+    def run(
+        self, monitor: configuration.MonitorItem
+    ) -> bool:  # pragma: no cover - interface contract
         raise NotImplementedError
 
 
 class GetMonitorStrategy(MonitorStrategy):
+
     def run(self, monitor: configuration.MonitorItem) -> bool:
         return http_probe.monitor_get(monitor.url)
 
 
 class PostMonitorStrategy(MonitorStrategy):
+
     def run(self, monitor: configuration.MonitorItem) -> bool:
         return http_probe.monitor_post(
             monitor.url,
@@ -71,6 +78,7 @@ def parse_network_address(address: str) -> Tuple[str, str, Optional[int], str]:
 
 
 class ServerMonitorStrategy(MonitorStrategy):
+
     def __init__(self) -> None:
         self._cache: Dict[str, Iterable[str]] = {}
 
@@ -97,6 +105,7 @@ class MonitorScheduler:
         self._strategies: Dict[str, MonitorStrategy] = {}
         self._event_handler = event_handler or (lambda event: None)
         self._timezone_getter = timezone_getter or (lambda: 0)
+
         def _default_clock() -> _dt.datetime:
             return _dt.datetime.now(_dt.UTC).replace(tzinfo=None)
 
@@ -111,18 +120,20 @@ class MonitorScheduler:
         self.register_strategy("POST", PostMonitorStrategy())
         self.register_strategy("SERVER", ServerMonitorStrategy())
 
-    def register_strategy(self, monitor_type: str, strategy: MonitorStrategy) -> None:
+    def register_strategy(self, monitor_type: str,
+                          strategy: MonitorStrategy) -> None:
         self._strategies[monitor_type.upper()] = strategy
 
     def start(self, monitors: Iterable[configuration.MonitorItem]) -> None:
         if self._threads:
-            raise RuntimeError("调度器已经在运行")
+            raise RuntimeError("Scheduler is already running")
 
         self._stop_event.clear()
         for monitor in monitors:
             strategy = self._strategies.get(monitor.monitor_type.upper())
             if strategy is None:
-                raise ValueError(f"未注册监控类型 {monitor.monitor_type}")
+                raise ValueError(
+                    f"Unregistered monitor type {monitor.monitor_type}")
 
             thread = threading.Thread(
                 name=monitor.name,
@@ -156,7 +167,8 @@ class MonitorScheduler:
         if strategy is None:
             strategy = self._strategies.get(monitor.monitor_type.upper())
             if strategy is None:
-                raise ValueError(f"未注册监控类型 {monitor.monitor_type}")
+                raise ValueError(
+                    f"Unregistered monitor type {monitor.monitor_type}")
 
         key, state_machine = self._ensure_state_machine(monitor)
 
@@ -221,8 +233,7 @@ class MonitorScheduler:
         return key, state_machine
 
     def prune_state_machines(
-        self, monitors: Iterable[configuration.MonitorItem]
-    ) -> None:
+            self, monitors: Iterable[configuration.MonitorItem]) -> None:
         """Drop state machines that no longer belong to the active monitor set."""
 
         active_keys = {self._monitor_key(monitor) for monitor in monitors}
@@ -240,7 +251,8 @@ class MonitorScheduler:
         utc_now = self._clock()
         try:
             offset = int(self._timezone_getter())
-        except (TypeError, ValueError):  # pragma: no cover - defensive safeguard
+        except (TypeError,
+                ValueError):  # pragma: no cover - defensive safeguard
             offset = 0
         local_now = utc_now + _dt.timedelta(hours=offset)
         return utc_now, local_now
@@ -276,9 +288,8 @@ class MonitorScheduler:
                 exc,
             )
 
-    def _log_strategy_error(
-        self, monitor: configuration.MonitorItem, exc: Exception
-    ) -> None:
+    def _log_strategy_error(self, monitor: configuration.MonitorItem,
+                            exc: Exception) -> None:
         LOGGER.exception(
             "monitor.scheduler.strategy_error monitor=%s type=%s error=%s",
             monitor.name,
@@ -297,7 +308,8 @@ def default_notification_templates() -> NotificationTemplates:
 
 def default_notification_dispatcher(notification: NotificationMessage) -> None:
     if notification.channel != "email":
-        raise ValueError(f"未知通知渠道: {notification.channel}")
+        raise ValueError(
+            f"Unknown notification channel: {notification.channel}")
     send_email.send_email(
         notification.subject,
         notification.body,

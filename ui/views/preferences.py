@@ -1,3 +1,7 @@
+# -*- codeing = utf-8 -*-
+# @Create: 2023-02-16 3:37 p.m.
+# @Update: 2025-10-24 12:05 a.m.
+# @Author: John Zhao
 """Preferences page view containing runtime and display settings."""
 from __future__ import annotations
 
@@ -37,7 +41,8 @@ class PreferencesPage(QtWidgets.QWidget):
 
         self.themeSelector = QtWidgets.QComboBox(self)
         self.themeSelector.setObjectName("themeSelector")
-        self.themeSelector.setSizeAdjustPolicy(QtWidgets.QComboBox.AdjustToContents)
+        self.themeSelector.setSizeAdjustPolicy(
+            QtWidgets.QComboBox.AdjustToContents)
         layout.addWidget(self.themeSelector)
 
         self.languageLabel = QtWidgets.QLabel(self)
@@ -47,7 +52,8 @@ class PreferencesPage(QtWidgets.QWidget):
 
         self.languageSelector = QtWidgets.QComboBox(self)
         self.languageSelector.setObjectName("languageSelector")
-        self.languageSelector.setSizeAdjustPolicy(QtWidgets.QComboBox.AdjustToContents)
+        self.languageSelector.setSizeAdjustPolicy(
+            QtWidgets.QComboBox.AdjustToContents)
         layout.addWidget(self.languageSelector)
 
         layout.addSpacing(12)
@@ -55,7 +61,8 @@ class PreferencesPage(QtWidgets.QWidget):
         self.loggingCard = QtWidgets.QWidget(self)
         self.loggingCard.setObjectName("loggingCard")
         self.loggingCard.setProperty("role", "card")
-        self.loggingCard.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred)
+        self.loggingCard.setSizePolicy(QtWidgets.QSizePolicy.Expanding,
+                                       QtWidgets.QSizePolicy.Preferred)
         self.loggingCard.setMinimumHeight(360)
         self.loggingGroup = self.loggingCard  # backward compatibility
 
@@ -89,7 +96,8 @@ class PreferencesPage(QtWidgets.QWidget):
         self.logLevelCombo = QtWidgets.QComboBox(self.loggingCard)
         self.logLevelCombo.setObjectName("logLevelCombo")
         self.logLevelCombo.setFixedWidth(160)
-        self.logLevelCombo.setSizeAdjustPolicy(QtWidgets.QComboBox.AdjustToContents)
+        self.logLevelCombo.setSizeAdjustPolicy(
+            QtWidgets.QComboBox.AdjustToContents)
         self.logLevelCombo.setMinimumHeight(component_height)
         form_layout.addWidget(self.logLevelLabel, 0, 0)
         form_layout.addWidget(self.logLevelCombo, 0, 1)
@@ -194,7 +202,8 @@ class PreferencesPage(QtWidgets.QWidget):
         button_layout = QtWidgets.QHBoxLayout()
         button_layout.setContentsMargins(0, 0, 0, 0)
         button_layout.addStretch(1)
-        button_layout.addWidget(self.saveLoggingButton, 0, QtCore.Qt.AlignRight)
+        button_layout.addWidget(self.saveLoggingButton, 0,
+                                QtCore.Qt.AlignRight)
         logging_container.addLayout(button_layout)
 
         scroll = QtWidgets.QScrollArea(self)
@@ -218,8 +227,9 @@ class PreferencesPage(QtWidgets.QWidget):
         self.languageSelector.setToolTip(self.tr("Select Language"))
         self.logHeaderLabel.setText(self.tr("Logging Settings"))
         self.logDescriptionLabel.setText(
-            self.tr("Configure the log destination, rotation policy, and formatting for application output.")
-        )
+            self.
+            tr("Configure the log destination, rotation policy, and formatting for application output."
+               ))
         self.logLevelLabel.setText(self.tr("Log Level"))
         self.logDirectoryLabel.setText(self.tr("Log Directory"))
         self.logDirectoryBrowse.setText(self.tr("Browse"))
@@ -231,12 +241,15 @@ class PreferencesPage(QtWidgets.QWidget):
         self.logBackupLabel.setText(self.tr("Backup Files"))
         self.logConsoleLabel.setText(self.tr("Enable Console Output"))
         self.logFormatLabel.setText(self.tr("Log Format"))
-        self.logFormatEdit.setPlaceholderText(self.tr("Leave empty to use default format"))
+        self.logFormatEdit.setPlaceholderText(
+            self.tr("Leave empty to use default format"))
         self.logDatefmtLabel.setText(self.tr("Date Format"))
-        self.logDatefmtEdit.setPlaceholderText(self.tr("Leave empty to use default date format"))
+        self.logDatefmtEdit.setPlaceholderText(
+            self.tr("Leave empty to use default date format"))
         self.loggingHintLabel.setText(
-            self.tr("Set size to 0 to disable rotation. Changes take effect immediately after saving.")
-        )
+            self.
+            tr("Set size to 0 to disable rotation. Changes take effect immediately after saving."
+               ))
         self.saveLoggingButton.setText(self.tr("Save Logging Settings"))
 
 

@@ -1,3 +1,7 @@
+# -*- codeing = utf-8 -*-
+# @Create: 2023-02-16 3:37 p.m.
+# @Update: 2025-10-24 12:05 a.m.
+# @Author: John Zhao
 """Documentation page providing license overview and styled user manuals."""
 from __future__ import annotations
 
@@ -26,8 +30,10 @@ class DocumentationPage(QtWidgets.QWidget):
     """Displays license summary and a language-aware user manual."""
 
     _LICENSE_PATH = Path(__file__).resolve().parents[2] / "LICENSE"
-    _MANUAL_ZH_PATH = Path(__file__).resolve().parents[2] / "docs" / "manual_zh.md"
-    _MANUAL_EN_PATH = Path(__file__).resolve().parents[2] / "docs" / "manual_en.md"
+    _MANUAL_ZH_PATH = Path(
+        __file__).resolve().parents[2] / "docs" / "manual_zh.md"
+    _MANUAL_EN_PATH = Path(
+        __file__).resolve().parents[2] / "docs" / "manual_en.md"
 
     def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
         super().__init__(parent)
@@ -101,22 +107,24 @@ class DocumentationPage(QtWidgets.QWidget):
         except FileNotFoundError:
             return self.tr("File not found: {path}").format(path=path)
         except Exception as exc:
-            return self.tr("Failed to load {path}: {error}").format(path=path, error=exc)
+            return self.tr("Failed to load {path}: {error}").format(path=path,
+                                                                    error=exc)
 
     def retranslate_ui(self) -> None:
         self.licenseGroup.setTitle(self.tr("License Overview"))
         self.licenseSummaryLabel.setText(
-            self.tr(
-                "DataMonitor 使用 Apache License 2.0 发布。以下内容展示完整许可文本，"
-                "并说明在二次分发或商业部署时需要保留的版权与许可证条款。"
-            )
-        )
+            self.
+            tr("DataMonitor is released under the Apache License 2.0. The following section contains the full license text "
+               "and summarizes the copyright and licensing terms that must be preserved in redistribution or commercial deployments."
+               ))
         self.manualGroup.setTitle(self.tr("User Manual"))
         language = configuration.get_language()
         if language == "zh_CN":
-            self.manualSummaryLabel.setText(self.tr("当前显示简体中文用户手册。"))
+            self.manualSummaryLabel.setText(
+                self.tr("Displaying the Simplified Chinese user manual."))
         else:
-            self.manualSummaryLabel.setText(self.tr("Displaying the English user manual."))
+            self.manualSummaryLabel.setText(
+                self.tr("Displaying the English user manual."))
         self.reload_content()
 
 

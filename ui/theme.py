@@ -1,4 +1,8 @@
-"""主题管理与主题定义模块。"""
+# -*- codeing = utf-8 -*-
+# @Create: 2023-02-16 3:37 p.m.
+# @Update: 2025-10-24 12:05 a.m.
+# @Author: John Zhao
+"""Theme management and definitions."""
 
 from __future__ import annotations
 
@@ -13,13 +17,12 @@ from PySide6 import QtGui, QtWidgets
 
 import configuration
 
-try:  # pragma: no cover - 可选依赖
+try:  # pragma: no cover - optional dependency
     import yaml  # type: ignore
-except Exception:  # pragma: no cover - 可选依赖
+except Exception:  # pragma: no cover - optional dependency
     yaml = None
 
 LOGGER = logging.getLogger(__name__)
-
 
 PaletteFactory = Callable[["ThemeTokens"], QtGui.QPalette]
 StylesheetBuilder = Callable[["ThemeTokens"], str]
@@ -27,7 +30,7 @@ StylesheetBuilder = Callable[["ThemeTokens"], str]
 
 @dataclass(frozen=True)
 class ThemeSpacing:
-    """描述样式表中使用到的间距令牌。"""
+    """Define spacing tokens referenced by the stylesheet."""
 
     button_vertical: int = 8
     button_horizontal: int = 18
@@ -45,7 +48,7 @@ class ThemeSpacing:
 
 @dataclass(frozen=True)
 class ThemeRadii:
-    """描述控件圆角的令牌。"""
+    """Define corner-radius tokens for widgets."""
 
     button: int = 6
     navigation: int = 8
@@ -56,7 +59,7 @@ class ThemeRadii:
 
 @dataclass(frozen=True)
 class ThemePaletteColors:
-    """用于构建 Qt 调色板的颜色集合。"""
+    """Color set used to build the Qt palette."""
 
     window: str
     window_text: str
@@ -77,7 +80,7 @@ class ThemePaletteColors:
 
 @dataclass(frozen=True)
 class ThemeSurfaceColors:
-    """描述样式表使用到的界面颜色。"""
+    """Surface colors referenced throughout the stylesheet."""
 
     window_bg: str
     window_text: str
@@ -129,7 +132,7 @@ class ThemeSurfaceColors:
 
 @dataclass(frozen=True)
 class ThemeTokens:
-    """聚合主题所需的令牌。"""
+    """Aggregate all tokens required by a theme."""
 
     palette: ThemePaletteColors
     colors: ThemeSurfaceColors
@@ -138,7 +141,7 @@ class ThemeTokens:
     font_family: str = '"Segoe UI", "Microsoft YaHei", sans-serif'
 
     def to_stylesheet_mapping(self) -> dict[str, str]:
-        """转换为样式表模板可用的映射。"""
+        """Convert the token set into a stylesheet-friendly mapping."""
 
         spacing = self.spacing
         radii = self.radii
@@ -193,13 +196,18 @@ class ThemeTokens:
             "spacing_button_vertical": f"{spacing.button_vertical}px",
             "spacing_button_horizontal": f"{spacing.button_horizontal}px",
             "spacing_navigation_vertical": f"{spacing.navigation_vertical}px",
-            "spacing_navigation_horizontal": f"{spacing.navigation_horizontal}px",
+            "spacing_navigation_horizontal":
+            f"{spacing.navigation_horizontal}px",
             "spacing_control_padding": f"{spacing.control_padding}px",
             "spacing_text_padding": f"{spacing.text_padding}px",
-            "spacing_groupbox_title_offset": f"{spacing.groupbox_title_offset}px",
-            "spacing_groupbox_title_padding": f"{spacing.groupbox_title_padding}px",
-            "spacing_tab_padding_vertical": f"{spacing.tab_padding_vertical}px",
-            "spacing_tab_padding_horizontal": f"{spacing.tab_padding_horizontal}px",
+            "spacing_groupbox_title_offset":
+            f"{spacing.groupbox_title_offset}px",
+            "spacing_groupbox_title_padding":
+            f"{spacing.groupbox_title_padding}px",
+            "spacing_tab_padding_vertical":
+            f"{spacing.tab_padding_vertical}px",
+            "spacing_tab_padding_horizontal":
+            f"{spacing.tab_padding_horizontal}px",
             "spacing_tab_gap": f"{spacing.tab_gap}px",
             "spacing_card_title_spacing": f"{spacing.card_title_spacing}px",
             "radius_button": f"{radii.button}px",
@@ -212,7 +220,7 @@ class ThemeTokens:
 
 @dataclass(frozen=True)
 class ThemeMetadata:
-    """描述主题的附加信息。"""
+    """Describe additional theme metadata."""
 
     display_name: str
     descriptions: Mapping[str, str]
@@ -233,7 +241,7 @@ class ThemeMetadata:
 
 @dataclass(frozen=True)
 class ThemeDefinition:
-    """封装单个主题的调色板与样式表定义。"""
+    """Encapsulate a theme's palette and stylesheet definitions."""
 
     name: str
     palette_factory: PaletteFactory
@@ -242,7 +250,7 @@ class ThemeDefinition:
     metadata: ThemeMetadata = ThemeMetadata(display_name="", descriptions={})
 
     def create_palette(self) -> QtGui.QPalette:
-        """构造调色板副本，避免外部修改共享状态。"""
+        """Build a palette copy to avoid leaking shared state."""
 
         palette = self.palette_factory(self.tokens)
         return QtGui.QPalette(palette)
@@ -252,21 +260,22 @@ class ThemeDefinition:
 
 
 class ThemeManager:
-    """负责注册与切换主题的管理器。"""
+    """Register and switch between available themes."""
 
     THEME_CONFIG_DIRNAME = "themes"
 
     def __init__(self, app: Optional[QtWidgets.QApplication] = None) -> None:
         self._app = app or QtWidgets.QApplication.instance()
         if self._app is None:
-            raise RuntimeError("ThemeManager 需要有效的 QApplication 实例")
+            raise RuntimeError(
+                "ThemeManager requires a valid QApplication instance")
 
         self._themes: "dict[str, ThemeDefinition]" = {}
         self._order: list[str] = []
         self._current: Optional[str] = None
 
     def register(self, theme: ThemeDefinition) -> None:
-        """注册单个主题，如果名称重复则覆盖旧值。"""
+        """Register a single theme, replacing any existing entry with the same name."""
 
         if theme.name in self._themes:
             self._themes[theme.name] = theme
@@ -276,7 +285,7 @@ class ThemeManager:
         self._order.append(theme.name)
 
     def register_many(self, themes: Iterable[ThemeDefinition]) -> None:
-        """按顺序批量注册主题，并加载配置目录中的扩展定义。"""
+        """Register multiple themes in order and load configuration-defined additions."""
 
         for theme in themes:
             self.register(theme)
@@ -299,10 +308,10 @@ class ThemeManager:
         return self._themes.get(self._current)
 
     def apply_theme(self, name: str) -> ThemeDefinition:
-        """应用指定名称的主题，同时刷新已存在的控件。"""
+        """Apply the named theme and refresh any existing widgets."""
 
         if name not in self._themes:
-            raise KeyError(f"未注册主题: {name}")
+            raise KeyError(f"Theme not registered: {name}")
 
         theme = self._themes[name]
         palette = theme.create_palette()
@@ -325,7 +334,7 @@ class ThemeManager:
 
         return theme
 
-    # -- 配置主题加载 --------------------------------------------------
+    # -- Config-driven theme loading -----------------------------------
     def _load_configured_themes(self) -> list[ThemeDefinition]:
         config_dir = configuration.get_config_directory()
         theme_dir = config_dir / self.THEME_CONFIG_DIRNAME
@@ -338,25 +347,25 @@ class ThemeManager:
                 continue
             try:
                 payload = _read_theme_payload(path)
-            except Exception as exc:  # pragma: no cover - 防御性日志
-                LOGGER.warning("主题文件 %s 解析失败: %s", path, exc)
+            except Exception as exc:  # pragma: no cover - defensive logging
+                LOGGER.warning("Theme file %s failed to parse: %s", path, exc)
                 continue
             definition = self._build_theme_from_payload(payload, path)
             if definition is not None:
                 definitions.append(definition)
         return definitions
 
-    def _build_theme_from_payload(
-        self, payload: Mapping[str, object], path: Path
-    ) -> Optional[ThemeDefinition]:
+    def _build_theme_from_payload(self, payload: Mapping[str, object],
+                                  path: Path) -> Optional[ThemeDefinition]:
         if not isinstance(payload, Mapping):
-            LOGGER.warning("主题文件 %s 格式无效，预期为映射", path)
+            LOGGER.warning("Theme file %s is invalid; expected a mapping",
+                           path)
             return None
 
         raw_name = payload.get("name")
         name = str(raw_name).strip() if raw_name is not None else ""
         if not name:
-            LOGGER.warning("主题文件 %s 缺少名称", path)
+            LOGGER.warning("Theme file %s is missing a name", path)
             return None
 
         base_tokens = self._resolve_base_tokens(payload.get("extends"))
@@ -364,8 +373,8 @@ class ThemeManager:
         tokens_payload = payload.get("tokens")
         try:
             tokens = _merge_tokens(base_tokens, tokens_payload)
-        except Exception as exc:  # pragma: no cover - 防御性日志
-            LOGGER.warning("主题 %s 令牌合并失败: %s", path, exc)
+        except Exception as exc:  # pragma: no cover - defensive logging
+            LOGGER.warning("Theme %s token merge failed: %s", path, exc)
             return None
 
         display_name = str(payload.get("display_name") or name)
@@ -392,7 +401,8 @@ class ThemeManager:
             base = self._themes.get(key)
             if base is not None:
                 return base.tokens
-            LOGGER.warning("找不到继承基准主题 %s，使用默认主题", key)
+            LOGGER.warning("Base theme %s not found; falling back to default",
+                           key)
         if "workspace_light" in self._themes:
             return self._themes["workspace_light"].tokens
         if self._themes:
@@ -400,10 +410,10 @@ class ThemeManager:
             return self._themes[first_key].tokens
         return workspace_light.tokens
 
-    # -- 工具方法 -----------------------------------------------------
+    # -- Helper methods ------------------------------------------------
     @staticmethod
     def refresh_widget(widget: QtWidgets.QWidget) -> None:
-        """刷新控件绘制，兼容视图类在 PySide6 中 update() 签名变更。"""
+        """Refresh widget painting, handling PySide6 update() signature changes."""
 
         update_method = getattr(widget, "update", None)
         if callable(update_method):
@@ -465,10 +475,10 @@ def _read_theme_payload(path: Path) -> Mapping[str, object]:
         payload = json.loads(text)
     else:
         if yaml is None:
-            raise RuntimeError("需要 PyYAML 才能解析 YAML 主题文件")
+            raise RuntimeError("PyYAML is required to parse YAML theme files")
         payload = yaml.safe_load(text)
     if not isinstance(payload, Mapping):
-        raise ValueError("主题文件未解析为映射")
+        raise ValueError("Theme file did not parse into a mapping")
     return payload
 
 
@@ -513,7 +523,8 @@ def _merge_dataclass(instance: object, payload: object):
     return replace(instance, **kwargs)
 
 
-def _coerce_field(field_type: object, override: object, default_value: object) -> object:
+def _coerce_field(field_type: object, override: object,
+                  default_value: object) -> object:
     if isinstance(default_value, bool) or field_type is bool:
         return _coerce_bool(override)
     if isinstance(default_value, int) or field_type is int:
@@ -527,31 +538,33 @@ def _create_palette(tokens: ThemeTokens) -> QtGui.QPalette:
     colors = tokens.palette
     palette = QtGui.QPalette()
     palette.setColor(QtGui.QPalette.Window, QtGui.QColor(colors.window))
-    palette.setColor(QtGui.QPalette.WindowText, QtGui.QColor(colors.window_text))
+    palette.setColor(QtGui.QPalette.WindowText,
+                     QtGui.QColor(colors.window_text))
     palette.setColor(QtGui.QPalette.Base, QtGui.QColor(colors.base))
-    palette.setColor(
-        QtGui.QPalette.AlternateBase, QtGui.QColor(colors.alternate_base)
-    )
-    palette.setColor(QtGui.QPalette.ToolTipBase, QtGui.QColor(colors.tooltip_base))
-    palette.setColor(QtGui.QPalette.ToolTipText, QtGui.QColor(colors.tooltip_text))
+    palette.setColor(QtGui.QPalette.AlternateBase,
+                     QtGui.QColor(colors.alternate_base))
+    palette.setColor(QtGui.QPalette.ToolTipBase,
+                     QtGui.QColor(colors.tooltip_base))
+    palette.setColor(QtGui.QPalette.ToolTipText,
+                     QtGui.QColor(colors.tooltip_text))
     palette.setColor(QtGui.QPalette.Text, QtGui.QColor(colors.text))
     palette.setColor(QtGui.QPalette.Button, QtGui.QColor(colors.button))
-    palette.setColor(QtGui.QPalette.ButtonText, QtGui.QColor(colors.button_text))
+    palette.setColor(QtGui.QPalette.ButtonText,
+                     QtGui.QColor(colors.button_text))
     palette.setColor(QtGui.QPalette.Highlight, QtGui.QColor(colors.highlight))
-    palette.setColor(
-        QtGui.QPalette.HighlightedText, QtGui.QColor(colors.highlighted_text)
-    )
-    palette.setColor(QtGui.QPalette.BrightText, QtGui.QColor(colors.bright_text))
+    palette.setColor(QtGui.QPalette.HighlightedText,
+                     QtGui.QColor(colors.highlighted_text))
+    palette.setColor(QtGui.QPalette.BrightText,
+                     QtGui.QColor(colors.bright_text))
     palette.setColor(QtGui.QPalette.Link, QtGui.QColor(colors.link))
-    palette.setColor(QtGui.QPalette.LinkVisited, QtGui.QColor(colors.link_visited))
-    palette.setColor(
-        QtGui.QPalette.PlaceholderText, QtGui.QColor(colors.placeholder_text)
-    )
+    palette.setColor(QtGui.QPalette.LinkVisited,
+                     QtGui.QColor(colors.link_visited))
+    palette.setColor(QtGui.QPalette.PlaceholderText,
+                     QtGui.QColor(colors.placeholder_text))
     return palette
 
 
-_BASE_STYLESHEET_TEMPLATE = dedent(
-    """
+_BASE_STYLESHEET_TEMPLATE = dedent("""
     QMainWindow {{
         background-color: {window_bg};
     }}
@@ -685,15 +698,14 @@ _BASE_STYLESHEET_TEMPLATE = dedent(
         background-color: {list_selection_bg};
         color: {list_selection_text};
     }}
-    """
-)
+    """)
 
 
 def _build_stylesheet(tokens: ThemeTokens) -> str:
     return _BASE_STYLESHEET_TEMPLATE.format_map(tokens.to_stylesheet_mapping())
 
 
-# --- 内置主题定义 -------------------------------------------------------
+# --- Built-in theme definitions ------------------------------------------
 _light_tokens = ThemeTokens(
     palette=ThemePaletteColors(
         window="#F3F2F1",
@@ -770,7 +782,7 @@ workspace_light = ThemeDefinition(
     metadata=ThemeMetadata(
         display_name="Workspace Light",
         descriptions={
-            "zh_CN": "柔和的浅色主题，适合大多数场景",
+            "zh_CN": "Soft light theme suitable for most scenarios",
             "en_US": "Balanced light theme for everyday use",
         },
     ),
@@ -852,7 +864,7 @@ workspace_dark = ThemeDefinition(
     metadata=ThemeMetadata(
         display_name="Workspace Dark",
         descriptions={
-            "zh_CN": "深色主题，适合弱光环境",
+            "zh_CN": "Dark theme optimized for low-light environments",
             "en_US": "Dark theme designed for low-light work",
         },
     ),
@@ -862,7 +874,6 @@ BUILTIN_THEMES: tuple[ThemeDefinition, ...] = (
     workspace_light,
     workspace_dark,
 )
-
 
 __all__ = [
     "ThemeDefinition",

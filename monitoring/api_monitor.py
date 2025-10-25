@@ -1,14 +1,12 @@
 # -*- codeing = utf-8 -*-
-# @Time : 2023-03-29 3:23 p.m.
-# @Author: weijiazhao
-# @File : api_monitor.py
-# @Software: PyCharm
+# @Create: 2023-03-29 3:23 p.m.
+# @Update: 2025-10-24 11:53 p.m.
+# @Author: John Zhao
 
 import logging
 
 from . import http_probe
 from . import network_probe
-
 
 LOGGER = logging.getLogger(__name__)
 
@@ -47,7 +45,8 @@ def monitor_server(address, timeout=None):
     try:
         resolved_timeout = http_probe.resolve_timeout(timeout)
     except ValueError as exc:
-        LOGGER.error("monitor.server.timeout_error host=%s error=%s", host, exc)
+        LOGGER.error("monitor.server.timeout_error host=%s error=%s", host,
+                     exc)
         return False
 
     url = _compose_service_url(protocol, host, port, suffix, explicit_port)
@@ -55,8 +54,7 @@ def monitor_server(address, timeout=None):
     LOGGER.info("monitor.server.start host=%s port=%s url=%s", host, port, url)
 
     socket_success = network_probe.check_socket_connectivity(
-        host, port, resolved_timeout
-    )
+        host, port, resolved_timeout)
     ping_success = network_probe.perform_ping_probe(host, resolved_timeout)
     network_probe.perform_icmp_probe(host, resolved_timeout)
 

@@ -1,1 +1,1 @@
-"""UI 视图模块。"""
+"""UI view modules."""

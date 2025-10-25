@@ -1,4 +1,8 @@
-"""监控调度与周期任务控制器。"""
+# -*- codeing = utf-8 -*-
+# @Create: 2023-02-16 3:37 p.m.
+# @Update: 2025-10-24 11:53 p.m.
+# @Author: John Zhao
+"""Controller for the monitoring scheduler and periodic tasks."""
 
 from __future__ import annotations
 
@@ -18,12 +22,11 @@ from monitoring.state_machine import MonitorEvent
 
 from . import ControllerEventBus
 
-
 PeriodicMonitorKey = Tuple[str, str, str]
 
 
 class DashboardController(QtCore.QObject):
-    """负责监控调度器与周期任务管理。"""
+    """Manage the primary monitoring scheduler and periodic jobs."""
 
     def __init__(
         self,
@@ -37,49 +40,49 @@ class DashboardController(QtCore.QObject):
         self._timezone = timezone
         self._scheduler: Optional[MonitorScheduler] = None
         self._periodic_scheduler = self._create_scheduler()
-        self._periodic_monitors: Dict[PeriodicMonitorKey, configuration.MonitorItem] = {}
+        self._periodic_monitors: Dict[PeriodicMonitorKey,
+                                      configuration.MonitorItem] = {}
         self._periodic_timers: Dict[PeriodicMonitorKey, QtCore.QTimer] = {}
         self._running_periodic: set[PeriodicMonitorKey] = set()
 
         self._event_bus.timezoneChanged.connect(self._on_timezone_changed)
 
-    # --- 公开属性 ----------------------------------------------------
+    # --- Public attributes ----------------------------------------------------
     @property
     def is_running(self) -> bool:
         return self._scheduler is not None
 
-    # --- 主监控调度 --------------------------------------------------
+    # --- Main monitoring scheduler -----------------------------------
     def start_monitoring(self) -> bool:
         if self._scheduler is not None:
-            raise RuntimeError(self.tr("监控已经在运行"))
+            raise RuntimeError(self.tr("Monitoring is already running"))
 
         monitors = configuration.read_monitor_list()
-        overview = self.tr("目前读取到{count}个监控项，分别是：").format(
-            count=len(monitors)
-        )
+        overview = self.tr("Loaded {count} monitor entries:").format(
+            count=len(monitors))
         self._event_bus.logMessage.emit(overview)
         for index, monitor in enumerate(monitors, start=1):
             self._event_bus.logMessage.emit(
-                self.tr(
-                    "{index}. {name} --- 类型: {monitor_type} --- 地址: {url} --- 周期: {interval}秒"
-                ).format(
-                    index=index,
-                    name=monitor.name,
-                    monitor_type=monitor.monitor_type,
-                    url=monitor.url,
-                    interval=monitor.interval,
-                )
-            )
+                self.
+                tr("{index}. {name} --- Type: {monitor_type} --- URL: {url} --- Interval: {interval}s"
+                   ).format(
+                       index=index,
+                       name=monitor.name,
+                       monitor_type=monitor.monitor_type,
+                       url=monitor.url,
+                       interval=monitor.interval,
+                   ))
 
         if not monitors:
-            self._event_bus.statusMessage.emit(self.tr("未读取到有效的监控配置"), 4000)
+            self._event_bus.statusMessage.emit(
+                self.tr("No valid monitor configuration was found"), 4000)
             return False
 
         scheduler = self._create_scheduler()
         scheduler.start(monitors)
         self._scheduler = scheduler
         self._event_bus.monitoringToggled.emit(True)
-        self._event_bus.statusMessage.emit(self.tr("监控已启动"), 3000)
+        self._event_bus.statusMessage.emit(self.tr("Monitoring started"), 3000)
         return True
 
     def stop_monitoring(self) -> None:
@@ -90,13 +93,13 @@ class DashboardController(QtCore.QObject):
         scheduler.stop()
         self._scheduler = None
         self._event_bus.monitoringToggled.emit(False)
-        self._event_bus.statusMessage.emit(self.tr("监控已停止"), 3000)
+        self._event_bus.statusMessage.emit(self.tr("Monitoring stopped"), 3000)
 
     def on_close(self) -> None:
         self.stop_monitoring()
         self._stop_periodic_monitors()
 
-    # --- 周期任务 ----------------------------------------------------
+    # --- Periodic jobs ------------------------------------------------
     def run_periodically(self, monitor_info) -> None:
         monitor = self._build_monitor_item(monitor_info)
         if monitor is None:
@@ -108,7 +111,8 @@ class DashboardController(QtCore.QObject):
         self._trigger_periodic_monitor(monitor_key)
         self._schedule_periodic_monitor(monitor, monitor_key)
 
-    def _trigger_periodic_monitor(self, monitor_key: PeriodicMonitorKey) -> None:
+    def _trigger_periodic_monitor(self,
+                                  monitor_key: PeriodicMonitorKey) -> None:
         monitor = self._periodic_monitors.get(monitor_key)
         if not monitor:
             timer = self._periodic_timers.pop(monitor_key, None)
@@ -151,7 +155,8 @@ class DashboardController(QtCore.QObject):
         if timer is None:
             timer = QtCore.QTimer(self.parent())
             timer.setSingleShot(False)
-            timer.timeout.connect(lambda key=monitor_key: self._trigger_periodic_monitor(key))
+            timer.timeout.connect(
+                lambda key=monitor_key: self._trigger_periodic_monitor(key))
             self._periodic_timers[monitor_key] = timer
 
         timer.setInterval(interval_ms)
@@ -169,10 +174,9 @@ class DashboardController(QtCore.QObject):
 
     def _sync_periodic_state(self) -> None:
         self._periodic_scheduler.prune_state_machines(
-            self._periodic_monitors.values()
-        )
+            self._periodic_monitors.values())
 
-    # --- 工具方法 ----------------------------------------------------
+    # --- Helper methods ----------------------------------------------
     def _create_scheduler(self) -> MonitorScheduler:
         return MonitorScheduler(
             event_handler=self._handle_monitor_event,
@@ -194,7 +198,8 @@ class DashboardController(QtCore.QObject):
         name = monitor_info.get("name")
         url = monitor_info.get("url")
         if not name or not url:
-            self._event_bus.logMessage.emit(self.tr("监控项配置缺少名称或地址"))
+            self._event_bus.logMessage.emit(
+                self.tr("Monitor configuration is missing a name or URL"))
             return None
 
         raw_type = monitor_info.get("type")
@@ -208,17 +213,18 @@ class DashboardController(QtCore.QObject):
             return None
 
         if monitor_type not in SUPPORTED_MONITOR_TYPES:
-            self._log_unsupported_type(monitor_type or raw_type, url, name=name)
+            self._log_unsupported_type(monitor_type or raw_type,
+                                       url,
+                                       name=name)
             return None
 
         try:
             interval = int(monitor_info.get("interval", 0))
         except (TypeError, ValueError):
             self._event_bus.logMessage.emit(
-                self.tr("监控项[{name}]的周期配置无效: {value}").format(
-                    name=name, value=monitor_info.get("interval")
-                )
-            )
+                self.tr(
+                    "Invalid interval for monitor [{name}]: {value}").format(
+                        name=name, value=monitor_info.get("interval")))
             return None
 
         return configuration.MonitorItem(
@@ -231,13 +237,17 @@ class DashboardController(QtCore.QObject):
             headers=monitor_info.get("headers"),
         )
 
-    def _make_periodic_key(self, monitor: configuration.MonitorItem) -> PeriodicMonitorKey:
+    def _make_periodic_key(
+            self, monitor: configuration.MonitorItem) -> PeriodicMonitorKey:
         return (monitor.name, monitor.url, monitor.monitor_type)
 
     def _log_unsupported_type(self, monitor_type, url, *, name=None):
         monitor_name = f"[{name}]" if name else ""
-        readable_type = monitor_type if monitor_type not in (None, "") else "<empty>"
-        message = self.tr("监控项{monitor_name}类型 '{monitor_type}' 未被支持，URL: {url}").format(
+        readable_type = monitor_type if monitor_type not in (None,
+                                                             "") else "<empty>"
+        message = self.tr(
+            "Monitor{monitor_name} type '{monitor_type}' is not supported, URL: {url}"
+        ).format(
             monitor_name=monitor_name,
             monitor_type=readable_type,
             url=url,

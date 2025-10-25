@@ -1,8 +1,7 @@
 # -*- codeing = utf-8 -*-
-# @Time : 2023-02-16 3:37 p.m.
-# @Author: weijiazhao
-# @File : log_recorder.py
-# @Software: PyCharm
+# @Create: 2023-02-16 3:37 p.m.
+# @Update: 2025-10-24 11:53 p.m.
+# @Author: John Zhao
 import datetime
 import csv
 import re
@@ -50,8 +49,12 @@ def _ensure_log_folder() -> Path:
 
 
 def _csv_header() -> list:
-    header_template = configuration.get_template_manager().get_template("log", "csv_header")
-    return [column.strip() for column in header_template.split(",") if column.strip()]
+    header_template = configuration.get_template_manager().get_template(
+        "log", "csv_header")
+    return [
+        column.strip() for column in header_template.split(",")
+        if column.strip()
+    ]
 
 
 def record(action: str, log):
@@ -94,6 +97,7 @@ def saveToFile(dataString, API):
         with filename.open(mode='a', newline='', encoding='utf8') as cfa:
             wf = csv.writer(cfa)
             wf.writerow(row)
+
 
 # Example usage for manual testing:
 # sample_row = ['aaa', 'vvvv', 'ssss', 'wwww', 'gggg', 'qqqq', 'rrrr', 'yyyy']

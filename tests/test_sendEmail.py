@@ -23,11 +23,11 @@ if str(PROJECT_ROOT) not in sys.path:
 import configuration
 import pytest
 
-
 PROJECT_SMTP_CALLS = []
 
 
 class DummySMTP:
+
     def __init__(self, host, port):
         assert isinstance(port, int)
         self.host = host
@@ -71,7 +71,8 @@ def _patch_mail_configuration(monkeypatch, module, **overrides):
         "use_ssl": False,
     }
     base.update(overrides)
-    monkeypatch.setattr(module.configuration, "read_mail_configuration", lambda: dict(base))
+    monkeypatch.setattr(module.configuration, "read_mail_configuration",
+                        lambda: dict(base))
 
 
 @pytest.fixture(autouse=True)
@@ -94,7 +95,7 @@ def test_send_email_prefers_explicit_recipients(monkeypatch):
         recipients="override1@example.com, override2@example.com",
     )
 
-    assert PROJECT_SMTP_CALLS, "应该创建 SMTP 连接"
+    assert PROJECT_SMTP_CALLS, "SMTP connection should have been created"
     smtp_instance = PROJECT_SMTP_CALLS[0]
     assert smtp_instance.started_tls is True
     assert smtp_instance.logged_in is True
@@ -112,18 +113,18 @@ def test_send_email_supports_utf8_headers(monkeypatch):
     _patch_mail_configuration(
         monkeypatch,
         send_email,
-        from_addr="监控系统 <monitor@example.com>",
-        to_addrs="张三 <zhangsan@example.com>, 李四 <lisi@example.com>",
+        from_addr="Monitoring System <monitor@example.com>",
+        to_addrs="Alice <alice@example.com>, Bob <bob@example.com>",
     )
 
     monkeypatch.setattr(send_email.smtplib, "SMTP", DummySMTP)
 
-    subject = "测试告警"
-    body = "系统出现异常，请关注。"
+    subject = "Test Alert"
+    body = "The system encountered an error."
 
     send_email.send_email(subject, body)
 
-    assert PROJECT_SMTP_CALLS, "应该创建 SMTP 连接"
+    assert PROJECT_SMTP_CALLS, "SMTP connection should have been created"
     smtp_instance = PROJECT_SMTP_CALLS[0]
     assert smtp_instance.started_tls is True
     assert len(smtp_instance.sent_messages) == 1
@@ -142,12 +143,12 @@ def test_send_email_supports_utf8_headers(monkeypatch):
         decoded_name = str(make_header(decode_header(name))) if name else ""
         parsed_recipients.append((decoded_name, addr))
     assert parsed_recipients == [
-        ("张三", "zhangsan@example.com"),
-        ("李四", "lisi@example.com"),
+        ("Alice", "alice@example.com"),
+        ("Bob", "bob@example.com"),
     ]
 
     from_header = str(make_header(decode_header(parsed["From"])))
-    assert from_header == "监控系统 <monitor@example.com>"
+    assert from_header == "Monitoring System <monitor@example.com>"
 
     assert parsed.is_multipart() is True
     payload_part = parsed.get_payload()[0]
@@ -159,19 +160,25 @@ def test_build_outage_messages_localized_in_chinese(monkeypatch):
     from monitoring import send_email
 
     template_manager = configuration.TemplateManager()
-    monkeypatch.setattr(configuration, "get_template_manager", lambda: template_manager)
-    monkeypatch.setattr(configuration, "_LANGUAGE_CACHE", "zh_CN", raising=False)
+    monkeypatch.setattr(configuration, "get_template_manager",
+                        lambda: template_manager)
+    monkeypatch.setattr(configuration,
+                        "_LANGUAGE_CACHE",
+                        "zh_CN",
+                        raising=False)
 
     template_manager.reload()
 
-    service_name = "示例服务"
+    service_name = "Sample Service"
     occurred_at = "2024-01-02 03:04:05"
 
-    alert_subject, _ = send_email.build_outage_alert_message(service_name, occurred_at)
-    recovery_subject, _ = send_email.build_outage_recovery_message(service_name, occurred_at)
+    alert_subject, _ = send_email.build_outage_alert_message(
+        service_name, occurred_at)
+    recovery_subject, _ = send_email.build_outage_recovery_message(
+        service_name, occurred_at)
 
-    assert alert_subject == f"故障告警 | {service_name}"
-    assert recovery_subject == f"故障恢复 | {service_name}"
+    assert alert_subject == f"Outage Alert | {service_name}"
+    assert recovery_subject == f"Outage Recovery | {service_name}"
 
 
 def test_send_email_uses_ssl_when_configured(monkeypatch):
@@ -189,7 +196,7 @@ def test_send_email_uses_ssl_when_configured(monkeypatch):
 
     send_email.send_email("Subject", "Body")
 
-    assert PROJECT_SMTP_CALLS, "应该创建 SMTP_SSL 连接"
+    assert PROJECT_SMTP_CALLS, "SMTP_SSL connection should have been created"
     smtp_instance = PROJECT_SMTP_CALLS[0]
     assert isinstance(smtp_instance, DummySMTPSSL)
     assert smtp_instance.started_tls is False
@@ -209,14 +216,15 @@ def test_send_email_supports_plain_connection(monkeypatch):
     monkeypatch.setattr(send_email.smtplib, "SMTP", DummySMTP)
 
     class FailSSL:
+
         def __init__(self, *args, **kwargs):
-            pytest.fail("不应使用 SMTP_SSL")
+            pytest.fail("SMTP_SSL should not be used here")
 
     monkeypatch.setattr(send_email.smtplib, "SMTP_SSL", FailSSL)
 
     send_email.send_email("Subject", "Body")
 
-    assert PROJECT_SMTP_CALLS, "应该创建纯文本 SMTP 连接"
+    assert PROJECT_SMTP_CALLS, "Plain SMTP connection should have been created"
     smtp_instance = PROJECT_SMTP_CALLS[0]
     assert isinstance(smtp_instance, DummySMTP)
     assert smtp_instance.started_tls is False
@@ -245,7 +253,9 @@ def test_send_email_logs_authentication_error(monkeypatch, caplog):
     _patch_mail_configuration(monkeypatch, send_email)
 
     class AuthFailSMTP(DummySMTP):
-        def login(self, username, password):  # noqa: D401 - 与父类签名保持一致
+
+        def login(self, username,
+                  password):  # noqa: D401 - keep signature identical to parent
             raise smtplib.SMTPAuthenticationError(535, b"Auth failed")
 
     monkeypatch.setattr(send_email.smtplib, "SMTP", AuthFailSMTP)
@@ -254,7 +264,7 @@ def test_send_email_logs_authentication_error(monkeypatch, caplog):
         with pytest.raises(smtplib.SMTPAuthenticationError):
             send_email.send_email("Subject", "Body")
 
-    assert "SMTP 身份验证失败" in caplog.text
+    assert "SMTP authentication failed" in caplog.text
     assert "mail.smtp.authentication_error" in caplog.text
 
 
@@ -264,6 +274,7 @@ def test_send_email_logs_smtp_exception(monkeypatch, caplog):
     _patch_mail_configuration(monkeypatch, send_email)
 
     class SendFailSMTP(DummySMTP):
+
         def sendmail(self, from_addr, to_addrs, message):  # noqa: D401
             raise smtplib.SMTPException("send failed")
 
@@ -273,7 +284,7 @@ def test_send_email_logs_smtp_exception(monkeypatch, caplog):
         with pytest.raises(smtplib.SMTPException):
             send_email.send_email("Subject", "Body")
 
-    assert "SMTP 通信异常" in caplog.text
+    assert "SMTP communication error" in caplog.text
     assert "mail.smtp.communication_error" in caplog.text
 
 
@@ -289,7 +300,7 @@ def test_read_mail_configuration_bootstraps_placeholder(tmp_path, monkeypatch):
         configuration.read_mail_configuration()
 
     message = str(excinfo.value)
-    assert "缺少真实 SMTP 配置" in message
+    assert "real SMTP settings" in message
     assert "README" in message
 
     assert config_dir.is_dir()
@@ -345,14 +356,16 @@ def test_send_email_supports_minimal_env_configuration(monkeypatch):
     monkeypatch.setattr(send_email.smtplib, "SMTP", DummySMTP)
 
     class FailSSL:
-        def __init__(self, *args, **kwargs):  # noqa: D401 - 与 SMTP_SSL 接口保持一致
-            pytest.fail("不应使用 SMTP_SSL")
+
+        def __init__(self, *args,
+                     **kwargs):  # noqa: D401 - align with SMTP_SSL interface
+            pytest.fail("SMTP_SSL should not be used here")
 
     monkeypatch.setattr(send_email.smtplib, "SMTP_SSL", FailSSL)
 
     send_email.send_email("Subject", "Body")
 
-    assert PROJECT_SMTP_CALLS, "应该创建 SMTP 连接"
+    assert PROJECT_SMTP_CALLS, "SMTP connection should have been created"
     smtp_instance = PROJECT_SMTP_CALLS[0]
     assert isinstance(smtp_instance, DummySMTP)
     assert smtp_instance.started_tls is False

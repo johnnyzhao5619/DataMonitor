@@ -1,4 +1,8 @@
-"""监控状态机定义。"""
+# -*- codeing = utf-8 -*-
+# @Create: 2023-02-16 3:37 p.m.
+# @Update: 2025-10-24 11:53 p.m.
+# @Author: John Zhao
+"""Monitoring state machine definitions."""
 
 from __future__ import annotations
 
@@ -14,7 +18,7 @@ from configuration import MonitorItem
 
 
 class MonitorState(Enum):
-    """描述监控执行后的业务状态。"""
+    """Describe the business state produced by a monitor run."""
 
     HEALTHY = "healthy"
     RECOVERED = "recovered"
@@ -34,33 +38,41 @@ class MonitorState(Enum):
     def display_text(self) -> str:
         translate = QtCore.QCoreApplication.translate
         return {
-            MonitorState.HEALTHY: translate("MonitorState", "服务正常"),
-            MonitorState.RECOVERED: translate("MonitorState", "服务恢复"),
-            MonitorState.OUTAGE: translate("MonitorState", "服务异常"),
-            MonitorState.OUTAGE_ONGOING: translate("MonitorState", "服务持续异常"),
+            MonitorState.HEALTHY:
+            translate("MonitorState", "Service healthy"),
+            MonitorState.RECOVERED:
+            translate("MonitorState", "Service recovered"),
+            MonitorState.OUTAGE:
+            translate("MonitorState", "Service outage"),
+            MonitorState.OUTAGE_ONGOING:
+            translate("MonitorState", "Service outage ongoing"),
         }[self]
 
     @property
     def csv_label(self) -> str:
         translate = QtCore.QCoreApplication.translate
         return {
-            MonitorState.HEALTHY: translate("MonitorState", "正常"),
-            MonitorState.RECOVERED: translate("MonitorState", "恢复"),
-            MonitorState.OUTAGE: translate("MonitorState", "异常"),
-            MonitorState.OUTAGE_ONGOING: translate("MonitorState", "持续异常"),
+            MonitorState.HEALTHY:
+            translate("MonitorState", "Healthy"),
+            MonitorState.RECOVERED:
+            translate("MonitorState", "Recovered"),
+            MonitorState.OUTAGE:
+            translate("MonitorState", "Outage"),
+            MonitorState.OUTAGE_ONGOING:
+            translate("MonitorState", "Outage ongoing"),
         }[self]
 
     @property
     def status_bar_text(self) -> str:
         translate = QtCore.QCoreApplication.translate
         if self in (MonitorState.HEALTHY, MonitorState.RECOVERED):
-            return translate("MonitorState", ">>>运行中...")
-        return translate("MonitorState", "服务异常")
+            return translate("MonitorState", ">>>Running...")
+        return translate("MonitorState", "Service outage detected")
 
 
 @dataclass(frozen=True)
 class NotificationMessage:
-    """描述待发送的通知内容。"""
+    """Describe the contents of a notification to be delivered."""
 
     channel: str
     subject: str
@@ -70,11 +82,12 @@ class NotificationMessage:
 
 @dataclass(frozen=True)
 class NotificationTemplates:
-    """用于构建不同状态对应的通知文案。"""
+    """Provide builders for notifications associated with monitor states."""
 
     channel: str
     build_outage: Callable[[str, _dt.datetime, Optional[str]], Tuple[str, str]]
-    build_recovery: Callable[[str, _dt.datetime, Optional[str]], Tuple[str, str]]
+    build_recovery: Callable[[str, _dt.datetime, Optional[str]], Tuple[str,
+                                                                       str]]
 
 
 @dataclass(frozen=True)
@@ -94,7 +107,7 @@ class MonitorEvent:
 
 
 class MonitorStateMachine:
-    """根据监控结果驱动状态切换，并产生日志/通知信息。"""
+    """Drive state transitions from monitor results and emit log/notification data."""
 
     def __init__(self, monitor: MonitorItem, templates: NotificationTemplates):
         self._monitor = monitor
@@ -103,12 +116,12 @@ class MonitorStateMachine:
 
     @property
     def monitor(self) -> MonitorItem:
-        """返回当前绑定的监控项。"""
+        """Return the monitor currently bound to this machine."""
 
         return self._monitor
 
     def update_monitor(self, monitor: MonitorItem) -> None:
-        """更新状态机绑定的监控项信息。"""
+        """Update the monitor information attached to the state machine."""
 
         self._monitor = monitor
 
@@ -164,9 +177,8 @@ class MonitorStateMachine:
             is_status_change=success != previous_success,
         )
 
-    def _build_context(
-        self, state: MonitorState, local_time: _dt.datetime
-    ) -> Dict[str, object]:
+    def _build_context(self, state: MonitorState,
+                       local_time: _dt.datetime) -> Dict[str, object]:
         timestamp_text = local_time.strftime("%Y-%m-%d %H:%M:%S")
         return {
             "service_name": self._monitor.name,
@@ -180,17 +192,15 @@ class MonitorStateMachine:
         }
 
     def _build_notification(
-        self, state: MonitorState, local_time: _dt.datetime
-    ) -> Optional[NotificationMessage]:
+            self, state: MonitorState,
+            local_time: _dt.datetime) -> Optional[NotificationMessage]:
         recipients = self._monitor.normalised_email()
         if state is MonitorState.OUTAGE:
             subject, body = self._templates.build_outage(
-                self._monitor.name, local_time, self._monitor.language
-            )
+                self._monitor.name, local_time, self._monitor.language)
         elif state is MonitorState.RECOVERED:
             subject, body = self._templates.build_recovery(
-                self._monitor.name, local_time, self._monitor.language
-            )
+                self._monitor.name, local_time, self._monitor.language)
         else:
             return None
 
@@ -202,21 +212,24 @@ class MonitorStateMachine:
         )
 
     def _build_message(self, context: Dict[str, object]) -> str:
-        return configuration.render_template(
-            "ui", "status_line", context, language=self._monitor.language
-        )
+        return configuration.render_template("ui",
+                                             "status_line",
+                                             context,
+                                             language=self._monitor.language)
 
     def _build_log_action(self, context: Dict[str, object]) -> str:
-        return configuration.render_template(
-            "log", "action_line", context, language=self._monitor.language
-        )
+        return configuration.render_template("log",
+                                             "action_line",
+                                             context,
+                                             language=self._monitor.language)
 
     def _build_log_detail(self, context: Dict[str, object]) -> str:
-        return configuration.render_template(
-            "log", "detail_line", context, language=self._monitor.language
-        )
+        return configuration.render_template("log",
+                                             "detail_line",
+                                             context,
+                                             language=self._monitor.language)
 
     def _build_status_bar_message(self, state: MonitorState) -> str:
         if state in (MonitorState.HEALTHY, MonitorState.RECOVERED):
             return MonitorState.HEALTHY.status_bar_text
-        return f"{self._monitor.name}{MonitorState.OUTAGE.status_bar_text}"
+        return f"{self._monitor.name} {MonitorState.OUTAGE.status_bar_text}"
