@@ -246,7 +246,7 @@ TEMPLATE_DEFAULTS: Dict[str, Dict[str, TemplateResource]] = {
         "status_line":
         TemplateResource(
             "Template.ui",
-            "Time: {event_timestamp} --> Status: {service_name} {status_label}",
+            "Time: {event_timestamp} --> Status: {service_name}{status_label}",
         ),
     },
     "log": {
@@ -258,7 +258,7 @@ TEMPLATE_DEFAULTS: Dict[str, Dict[str, TemplateResource]] = {
         "detail_line":
         TemplateResource(
             "Template.log",
-            ">>>{event_timestamp}: {service_name} {status_label}",
+            ">>>{event_timestamp}: {service_name}{status_label}",
         ),
         "record_entry":
         TemplateResource(
