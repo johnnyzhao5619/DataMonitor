@@ -1,17 +1,17 @@
 """Collection of controller modules."""
 
-from PyQt5 import QtCore
+from PySide6 import QtCore
 
 
 class ControllerEventBus(QtCore.QObject):
     """Unified event bus for cross-controller communication."""
 
-    logMessage = QtCore.pyqtSignal(str)
-    statusMessage = QtCore.pyqtSignal(str, int)
-    monitoringToggled = QtCore.pyqtSignal(bool)
-    timezoneChanged = QtCore.pyqtSignal(int)
-    languageChanged = QtCore.pyqtSignal(str)
-    themeChanged = QtCore.pyqtSignal(str)
+    logMessage = QtCore.Signal(str)
+    statusMessage = QtCore.Signal(str, int)
+    monitoringToggled = QtCore.Signal(bool)
+    timezoneChanged = QtCore.Signal(int)
+    languageChanged = QtCore.Signal(str)
+    themeChanged = QtCore.Signal(str)
 
     def __init__(self, parent: QtCore.QObject | None = None) -> None:
         super().__init__(parent)

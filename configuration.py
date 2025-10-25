@@ -105,6 +105,7 @@ _DEFAULT_LOG_DATEFMT = "%Y-%m-%d %H:%M:%S"
 _DEFAULT_LOG_FILENAME = "system.log"
 _DEFAULT_LOG_MAX_BYTES = 10 * 1024 * 1024
 _DEFAULT_LOG_BACKUP_COUNT = 5
+_DEFAULT_LOG_DIRECTORY_NAME = "Log"
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 APPLICATION_HOME_NAME = "data_monitor"
@@ -551,6 +552,14 @@ def _normalise_directory(
     return normalised
 
 
+def _resolve_log_directory(raw_value: object, *, base_home: Path) -> Path:
+    text = str(raw_value).strip() if raw_value is not None else ""
+    if text:
+        normalised = _normalise_directory(text, base_dir=base_home)
+        return Path(normalised).resolve()
+    return (base_home / _DEFAULT_LOG_DIRECTORY_NAME).resolve()
+
+
 def _parse_log_level(value: object, *, default: str = "INFO") -> tuple[str, int]:
     text = str(value).strip() if value is not None else ""
     if not text:
@@ -603,6 +612,19 @@ def _parse_size_value(value: object, *, default: int = _DEFAULT_LOG_MAX_BYTES) -
         raise ValueError(f"未知的日志大小单位: {unit}")
     size = int(number * factor)
     return max(size, 0)
+
+
+def _format_size_token(size: int) -> str:
+    if size <= 0:
+        return "0B"
+
+    for unit, factor in (("GB", 1024 ** 3), ("MB", 1024 ** 2), ("KB", 1024)):
+        value = size / factor
+        if value >= 1:
+            if abs(value - round(value)) < 1e-6:
+                return f"{int(round(value))}{unit}"
+            return f"{value:.2f}{unit}"
+    return f"{size}B"
 
 
 def _parse_bool_option(value: object, *, default: bool = True) -> bool:
@@ -734,13 +756,16 @@ def get_logging_settings() -> LoggingSettings:
     log_format = _option("log_format", _DEFAULT_LOG_FORMAT).strip() or _DEFAULT_LOG_FORMAT
     log_datefmt = _option("log_datefmt", _DEFAULT_LOG_DATEFMT).strip() or _DEFAULT_LOG_DATEFMT
 
+    base_home = Path(get_logdir()).resolve()
+    raw_directory = _option("log_directory", "")
+    directory_path = _resolve_log_directory(raw_directory, base_home=base_home)
+
     raw_filename = _option("log_filename", _DEFAULT_LOG_FILENAME).strip() or _DEFAULT_LOG_FILENAME
     file_path = Path(raw_filename)
-    if not file_path.is_absolute():
-        log_root = Path(get_logdir()).resolve()
-        file_path = (log_root / "Log" / file_path).resolve()
-    else:
+    if file_path.is_absolute():
         file_path = file_path.resolve()
+    else:
+        file_path = (directory_path / file_path).resolve()
 
     return LoggingSettings(
         level_name=level_name,
@@ -752,6 +777,93 @@ def get_logging_settings() -> LoggingSettings:
         datefmt=log_datefmt,
         console=console_enabled,
     )
+
+
+def get_logging_preferences() -> Dict[str, object]:
+    settings = get_logging_settings()
+    parser, _ = _load_config_parser()
+    section = "Logging"
+    filename = _DEFAULT_LOG_FILENAME
+    directory = settings.file_path.parent
+    if parser.has_section(section):
+        raw_filename = parser.get(section, "log_filename", fallback="").strip()
+        if raw_filename:
+            filename = raw_filename
+
+    max_mb = round(settings.max_bytes / (1024 ** 2), 2)
+    return {
+        "level": settings.level_name,
+        "max_size_mb": max_mb,
+        "backup_count": settings.backup_count,
+        "console": settings.console,
+        "directory": str(directory),
+        "filename": filename,
+        "format": settings.fmt,
+        "datefmt": settings.datefmt or "",
+    }
+
+
+def set_logging_preferences(
+    *,
+    level: object,
+    max_size: object,
+    backup_count: object,
+    console: object,
+    directory: object,
+    filename: object,
+    fmt: Optional[object] = None,
+    datefmt: Optional[object] = None,
+) -> LoggingSettings:
+    level_name, _ = _parse_log_level(level)
+    max_bytes = _parse_size_value(max_size, default=_DEFAULT_LOG_MAX_BYTES)
+    backup_value = _parse_int_option(
+        backup_count,
+        default=_DEFAULT_LOG_BACKUP_COUNT,
+        minimum=0,
+    )
+    console_enabled = _parse_bool_option(console, default=True)
+
+    base_home = Path(get_logdir()).resolve()
+    directory_text = str(directory).strip() if directory is not None else ""
+    if directory_text:
+        normalised_directory = _normalise_directory(directory_text, base_dir=base_home)
+    else:
+        normalised_directory = _normalise_directory(base_home / _DEFAULT_LOG_DIRECTORY_NAME)
+
+    filename_text = str(filename).strip() if filename is not None else ""
+    if not filename_text:
+        filename_text = _DEFAULT_LOG_FILENAME
+
+    fmt_text = str(fmt).strip() if fmt is not None else ""
+    if not fmt_text:
+        fmt_text = _DEFAULT_LOG_FORMAT
+
+    datefmt_text = str(datefmt).strip() if datefmt is not None else ""
+
+    parser, config_path = _load_config_parser(ensure_dir=True)
+    section = "Logging"
+    changed = False
+    if _set_config_value(parser, section, "log_level", level_name):
+        changed = True
+    if _set_config_value(parser, section, "log_max_size", _format_size_token(max_bytes)):
+        changed = True
+    if _set_config_value(parser, section, "log_backup_count", str(backup_value)):
+        changed = True
+    if _set_config_value(parser, section, "log_console", "true" if console_enabled else "false"):
+        changed = True
+    if _set_config_value(parser, section, "log_directory", normalised_directory):
+        changed = True
+    if _set_config_value(parser, section, "log_filename", filename_text):
+        changed = True
+    if _set_config_value(parser, section, "log_format", fmt_text):
+        changed = True
+    if _set_config_value(parser, section, "log_datefmt", datefmt_text):
+        changed = True
+
+    if changed or not config_path.exists():
+        _write_config_parser(parser, config_path)
+
+    return get_logging_settings()
 
 
 def configure_logging(
@@ -1594,6 +1706,11 @@ def writeconfig(configDir: str) -> None:
     info.set("Logging", "log_level", "info")
     log_root = config_dir.parent
     info.set("Logging", "log_file", _normalise_directory(log_root))
+    info.set(
+        "Logging",
+        "log_directory",
+        _normalise_directory(log_root / _DEFAULT_LOG_DIRECTORY_NAME),
+    )
     info.set("Logging", "log_filename", _DEFAULT_LOG_FILENAME)
     info.set("Logging", "log_max_size", "10MB")
     info.set("Logging", "log_backup_count", str(_DEFAULT_LOG_BACKUP_COUNT))

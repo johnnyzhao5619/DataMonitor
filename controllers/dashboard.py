@@ -5,7 +5,7 @@ from __future__ import annotations
 import threading
 from typing import Dict, Optional, Tuple
 
-from PyQt5 import QtCore
+from PySide6 import QtCore
 
 import configuration
 from configuration import SUPPORTED_MONITOR_TYPES

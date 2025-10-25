@@ -7,18 +7,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Callable, Dict, Optional, Tuple
 
-try:
-    from PyQt5 import QtCore
-except ModuleNotFoundError:  # pragma: no cover - 兼容无 GUI 环境
-    class _FallbackCoreApplication:
-        @staticmethod
-        def translate(_context: str, text: str) -> str:
-            return text
-
-    class _FallbackQtCore:
-        QCoreApplication = _FallbackCoreApplication
-
-    QtCore = _FallbackQtCore()  # type: ignore[assignment]
+from PySide6 import QtCore
 
 import configuration
 from configuration import MonitorItem

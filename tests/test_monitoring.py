@@ -142,6 +142,9 @@ def test_state_machine_respects_template_overrides(tmp_path, monkeypatch):
     config_dir.mkdir(parents=True, exist_ok=True)
     template_path = config_dir / configuration.TEMPLATE_CONFIG_NAME
     template_path.write_text(templates_content, encoding="utf-8")
+    configuration._LANGUAGE_CACHE = None
+    configuration.set_language(configuration.DEFAULT_LANGUAGE)
+    configuration.get_template_manager().reload()
 
     monitor = configuration.MonitorItem(
         name="ServiceA",
@@ -165,7 +168,6 @@ def test_state_machine_respects_template_overrides(tmp_path, monkeypatch):
     base_time = datetime.datetime(2023, 1, 1, 8, 30, 0)
 
     event = machine.transition(False, base_time, base_time)
-
     assert event.message == "[2023-01-01 08:30:00] ServiceA::服务异常"
     assert event.log_action == "ACTION ServiceA GET"
     assert event.log_detail == "DETAIL 异常 @ 2023-01-01 08:30:00"

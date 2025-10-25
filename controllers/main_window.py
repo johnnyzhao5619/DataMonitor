@@ -5,10 +5,11 @@ from __future__ import annotations
 import datetime
 from typing import Optional, TYPE_CHECKING
 
-from PyQt5 import QtCore, QtWidgets
-from PyQt5.QtWidgets import QMessageBox
+from PySide6 import QtCore, QtWidgets, QtGui
+from PySide6.QtWidgets import QMessageBox
 
 import configuration
+from datamonitor import __version__ as APP_VERSION
 
 from . import ControllerEventBus
 from .dashboard import DashboardController
@@ -78,7 +79,8 @@ class MainWindowController(QtCore.QObject):
             self.status.showMessage(self.tr('>>初始化...'), 4000)
 
         if hasattr(self.window, "setWindowTitle"):
-            self.window.setWindowTitle(self.tr('Monitor Everything v1.0'))
+            base_title = self.tr('Monitor Everything')
+            self.window.setWindowTitle(f"{base_title} v{APP_VERSION}")
 
         self.events = ControllerEventBus(self)
 
@@ -131,7 +133,9 @@ class MainWindowController(QtCore.QObject):
     def _append_log_message(self, message: str) -> None:
         self.ui.monitorBrowser.append(message)
         cursor = self.ui.monitorBrowser.textCursor()
-        self.ui.monitorBrowser.moveCursor(cursor.End)
+        cursor.movePosition(QtGui.QTextCursor.End)
+        self.ui.monitorBrowser.setTextCursor(cursor)
+        self.ui.monitorBrowser.ensureCursorVisible()
         QtWidgets.QApplication.processEvents()
 
     def _show_status_message(self, message: str, timeout: int) -> None:
@@ -172,16 +176,16 @@ class MainWindowController(QtCore.QObject):
             "Ctrl+1": "monitor",
             "Ctrl+2": "configuration",
             "Ctrl+3": "preferences",
-            "Ctrl+4": "reports",
+            "Ctrl+4": "documentation",
+            "Ctrl+5": "reports",
         }
-        try:
-            from PyQt5 import QtGui as _QtGui  # type: ignore
-        except Exception:  # pragma: no cover - 测试桩环境不提供 QtGui
-            _QtGui = None
-        key_sequence = getattr(_QtGui, "QKeySequence", None)
+        shortcut_cls = getattr(QtGui, "QShortcut", None)
+        key_sequence = getattr(QtGui, "QKeySequence", None)
+        if shortcut_cls is None or key_sequence is None:
+            return shortcuts
         for sequence, nav_id in mapping.items():
             sequence_value = key_sequence(sequence) if callable(key_sequence) else sequence
-            shortcut = QtWidgets.QShortcut(sequence_value, self.window)
+            shortcut = shortcut_cls(sequence_value, self.window)
             shortcut.setContext(QtCore.Qt.ApplicationShortcut)
             shortcut.activated.connect(
                 lambda _checked=False, value=nav_id: self._handle_navigation_request(value)
@@ -196,6 +200,8 @@ class MainWindowController(QtCore.QObject):
             self.show_configuration()
         elif nav_id == "preferences":
             self.show_preferences()
+        elif nav_id == "documentation":
+            self.show_documentation()
         elif nav_id == "reports":
             self.show_reports()
 
@@ -227,6 +233,13 @@ class MainWindowController(QtCore.QObject):
     def show_preferences(self) -> None:
         self.ui.show_preferences_page()
         self.events.statusMessage.emit(self.tr('>>设置中心'), 3000)
+
+    def show_documentation(self) -> None:
+        reload_docs = getattr(self.ui.documentationPage, "reload_content", None)
+        if callable(reload_docs):
+            reload_docs()
+        self.ui.show_documentation_page()
+        self.events.statusMessage.emit(self.tr('>>文档中心'), 3000)
 
     def show_reports(self) -> None:
         self.ui.show_reports_page()
@@ -299,7 +312,7 @@ class MainWindowController(QtCore.QObject):
 
     # --- 时钟 ---------------------------------------------------------
     def update_clock(self) -> None:
-        utc_time = datetime.datetime.utcnow()
+        utc_time = datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
         current_time = utc_time + datetime.timedelta(hours=self._time_zone)
         self.ui.localTimeLabel.setText(current_time.strftime('%Y-%m-%d %H:%M:%S'))
         self.ui.utcTimeLabel.setText(utc_time.strftime('%Y-%m-%d %H:%M:%S'))

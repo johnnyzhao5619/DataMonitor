@@ -7,8 +7,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-pytest.importorskip("PyQt5")
-from PyQt5 import QtCore
+pytest.importorskip("PySide6")
+from PySide6 import QtCore
 
 from main_frame import toolsetWindow
 from ui.views.configuration import ConfigWizard
@@ -28,16 +28,18 @@ def test_main_window_layout_structure(qtbot):
 
     assert ui.navigationBar.active_id() == "monitor"
 
-    assert ui.contentStack.count() == 4
+    assert ui.contentStack.count() == 5
     assert ui.monitor_view_index == 0
     assert ui.config_view_index == 1
     assert ui.preferences_view_index == 2
-    assert ui.report_view_index == 3
+    assert ui.documentation_view_index == 3
+    assert ui.report_view_index == 4
 
     assert isinstance(ui.contentStack.widget(ui.monitor_view_index), MonitorDashboard)
     assert isinstance(ui.configWizard, ConfigWizard)
     assert ui.contentStack.widget(ui.config_view_index).objectName() == "configurationWorkspace"
     assert ui.contentStack.widget(ui.preferences_view_index).objectName() == "preferencesPage"
+    assert ui.contentStack.widget(ui.documentation_view_index).objectName() == "documentationPage"
     assert ui.contentStack.widget(ui.report_view_index).objectName() == "reportsPlaceholder"
 
     assert ui.reportPlaceholderLabel.objectName() == "reportsPlaceholderLabel"
@@ -61,6 +63,11 @@ def test_navigation_updates_stack_and_highlight(qtbot):
     assert received and received[-1] == "preferences"
     assert window.ui.contentStack.currentIndex() == window.ui.preferences_view_index
     assert window.ui.navigationBar.active_id() == "preferences"
+
+    qtbot.mouseClick(window.ui.navigationBar.documentationButton, QtCore.Qt.LeftButton)
+    assert received and received[-1] == "documentation"
+    assert window.ui.contentStack.currentIndex() == window.ui.documentation_view_index
+    assert window.ui.navigationBar.active_id() == "documentation"
 
     qtbot.mouseClick(window.ui.navigationBar.reportButton, QtCore.Qt.LeftButton)
     assert received and received[-1] == "reports"

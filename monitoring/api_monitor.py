@@ -6,8 +6,6 @@
 
 import logging
 
-import configuration
-
 from . import http_probe
 from . import network_probe
 
@@ -35,6 +33,7 @@ def monitor_post(url, payload=None, *, headers=None, timeout=None):
         headers=headers,
         timeout=timeout,
     )
+
 
 def monitor_server(address, timeout=None):
     protocol, host, port, suffix = address

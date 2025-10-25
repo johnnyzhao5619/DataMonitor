@@ -7,7 +7,7 @@ from dataclasses import asdict
 from typing import Dict, List, Optional
 from urllib.parse import urlsplit
 
-from PyQt5 import QtCore, QtWidgets
+from PySide6 import QtCore, QtWidgets
 
 import configuration
 from monitoring import send_email
@@ -41,8 +41,8 @@ class ConfigurationWorkspace(QtWidgets.QWidget):
 class ConfigWizard(QtWidgets.QWidget):
     """配置界面，负责展示与编辑监控项。"""
 
-    monitorsSaved = QtCore.pyqtSignal(list)
-    requestReload = QtCore.pyqtSignal()
+    monitorsSaved = QtCore.Signal(list)
+    requestReload = QtCore.Signal()
 
     def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
         super().__init__(parent)
@@ -478,7 +478,7 @@ class ConfigWizard(QtWidgets.QWidget):
             self.recoveryPreview.clear()
             return
         record = self._monitors[row]
-        now = _dt.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+        now = _dt.datetime.now(_dt.UTC).strftime("%Y-%m-%d %H:%M:%S UTC")
         service_name = record.get("name") or self.tr("未命名服务")
         alert_subject, alert_body = send_email.build_outage_alert_message(service_name, now)
         recovery_subject, recovery_body = send_email.build_outage_recovery_message(service_name, now)

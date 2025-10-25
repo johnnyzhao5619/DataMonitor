@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from typing import Optional
 
-from PyQt5 import QtCore, QtWidgets
+from PySide6 import QtCore, QtWidgets
 
 import configuration
 
@@ -119,11 +119,13 @@ class PreferencesController(QtCore.QObject):
         self._translator: Optional[JsonTranslator] = None
         self._current_language = configuration.get_language()
         self._time_zone = self._read_config_timezone()
+        self._logging_snapshot: Optional[dict[str, object]] = None
 
     # --- 初始化 -----------------------------------------------------
     def setup(self) -> None:
         self._initialise_theme_selector()
         self._initialise_language_selector()
+        self._initialise_logging_controls()
         self._update_timezone_display()
         self._event_bus.timezoneChanged.emit(self._time_zone)
         self._event_bus.languageChanged.emit(self._current_language)
@@ -239,12 +241,14 @@ class PreferencesController(QtCore.QObject):
             self.ui.configWizard,
             getattr(self.ui, "preferencesPage", None),
             getattr(self.ui, "timezoneDisplay", None),
+            getattr(self.ui, "loggingGroup", None),
+            getattr(self.ui, "logMaxSizeSuffix", None),
         ):
             if widget is None:
                 continue
             app.style().unpolish(widget)
             app.style().polish(widget)
-            widget.update()
+            self.theme_manager.refresh_widget(widget)
 
     def _persist_theme_preference(self, theme, *, force: bool = False) -> None:
         metadata = theme.metadata
@@ -313,6 +317,167 @@ class PreferencesController(QtCore.QObject):
         selected_code = selector.itemData(selector.currentIndex())
         if isinstance(selected_code, str) and selected_code:
             self._apply_language(selected_code, persist=False, notify=False)
+
+    # --- 日志配置 ---------------------------------------------------
+    def _initialise_logging_controls(self) -> None:
+        level_combo = self.ui.logLevelCombo
+        level_combo.blockSignals(True)
+        level_combo.clear()
+        for level in ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"):
+            level_combo.addItem(level, level)
+        level_combo.blockSignals(False)
+
+        self.ui.saveLoggingButton.setEnabled(False)
+
+        level_combo.currentTextChanged.connect(self._on_logging_field_changed)
+        self.ui.logDirectoryEdit.textEdited.connect(self._on_logging_field_changed)
+        self.ui.logDirectoryBrowse.clicked.connect(self._choose_log_directory)
+        self.ui.logFileEdit.textEdited.connect(self._on_logging_field_changed)
+        self.ui.logMaxSizeSpin.valueChanged.connect(self._on_logging_field_changed)
+        self.ui.logBackupSpin.valueChanged.connect(self._on_logging_field_changed)
+        self.ui.logConsoleCheck.toggled.connect(self._on_logging_field_changed)
+        self.ui.logFormatEdit.textEdited.connect(self._on_logging_field_changed)
+        self.ui.logDatefmtEdit.textEdited.connect(self._on_logging_field_changed)
+        self.ui.saveLoggingButton.clicked.connect(self.save_logging_preferences)
+
+        self._load_logging_preferences()
+
+    def _load_logging_preferences(self) -> None:
+        try:
+            preferences = configuration.get_logging_preferences()
+        except Exception as exc:
+            QtWidgets.QMessageBox.warning(
+                self.window,
+                self.tr("读取失败"),
+                str(exc),
+            )
+            preferences = {
+                "level": "INFO",
+                "max_size_mb": 10.0,
+                "backup_count": 5,
+                "console": True,
+                "directory": str((Path(configuration.get_logdir()).resolve() / "Log")),
+                "filename": "system.log",
+                "format": "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+                "datefmt": "%Y-%m-%d %H:%M:%S",
+            }
+
+        with QtCore.QSignalBlocker(self.ui.logLevelCombo):
+            index = self.ui.logLevelCombo.findData(preferences["level"])
+            if index < 0:
+                self.ui.logLevelCombo.addItem(preferences["level"], preferences["level"])
+                index = self.ui.logLevelCombo.count() - 1
+            self.ui.logLevelCombo.setCurrentIndex(index)
+
+        with QtCore.QSignalBlocker(self.ui.logDirectoryEdit):
+            self.ui.logDirectoryEdit.setText(str(preferences["directory"]))
+
+        with QtCore.QSignalBlocker(self.ui.logFileEdit):
+            self.ui.logFileEdit.setText(preferences["filename"])
+
+        with QtCore.QSignalBlocker(self.ui.logMaxSizeSpin):
+            self.ui.logMaxSizeSpin.setValue(float(preferences["max_size_mb"]))
+
+        with QtCore.QSignalBlocker(self.ui.logBackupSpin):
+            self.ui.logBackupSpin.setValue(int(preferences["backup_count"]))
+
+        with QtCore.QSignalBlocker(self.ui.logConsoleCheck):
+            self.ui.logConsoleCheck.setChecked(bool(preferences["console"]))
+
+        with QtCore.QSignalBlocker(self.ui.logFormatEdit):
+            self.ui.logFormatEdit.setText(preferences["format"])
+
+        with QtCore.QSignalBlocker(self.ui.logDatefmtEdit):
+            self.ui.logDatefmtEdit.setText(preferences["datefmt"])  # type: ignore[arg-type]
+
+        self._logging_snapshot = self._normalise_logging_values(self._current_logging_values())
+        self._update_logging_dirty_state()
+
+    def _current_logging_values(self) -> dict[str, object]:
+        return {
+            "level": self.ui.logLevelCombo.currentText().strip().upper(),
+            "directory": self.ui.logDirectoryEdit.text().strip(),
+            "filename": self.ui.logFileEdit.text().strip(),
+            "max_size": round(float(self.ui.logMaxSizeSpin.value()), 2),
+            "backup": int(self.ui.logBackupSpin.value()),
+            "console": bool(self.ui.logConsoleCheck.isChecked()),
+            "format": self.ui.logFormatEdit.text().strip(),
+            "datefmt": self.ui.logDatefmtEdit.text().strip(),
+        }
+
+    def _normalise_logging_values(self, values: dict[str, object]) -> dict[str, object]:
+        normalised = dict(values)
+        normalised["level"] = str(normalised.get("level", "INFO")).upper()
+        normalised["directory"] = str(normalised.get("directory", "")).strip()
+        normalised["filename"] = str(normalised.get("filename", "")).strip()
+        normalised["max_size"] = round(float(normalised.get("max_size", 0.0)), 2)
+        normalised["backup"] = int(normalised.get("backup", 0))
+        normalised["console"] = bool(normalised.get("console", True))
+        normalised["format"] = str(normalised.get("format", "")).strip()
+        normalised["datefmt"] = str(normalised.get("datefmt", "")).strip()
+        return normalised
+
+    def _update_logging_dirty_state(self) -> None:
+        current = self._normalise_logging_values(self._current_logging_values())
+        dirty = self._logging_snapshot is None or current != self._logging_snapshot
+        self.ui.saveLoggingButton.setEnabled(dirty)
+
+    def _on_logging_field_changed(self, *_args) -> None:
+        self._update_logging_dirty_state()
+
+    def save_logging_preferences(self) -> None:
+        values = self._current_logging_values()
+        size_value = float(values["max_size"])
+        if size_value < 0:
+            QtWidgets.QMessageBox.warning(
+                self.window,
+                self.tr("保存失败"),
+                self.tr("日志大小不能为负数"),
+            )
+            return
+
+        size_token = "0B" if size_value == 0 else f"{format(size_value, 'g')}MB"
+        try:
+            configuration.set_logging_preferences(
+                level=values["level"],
+                max_size=size_token,
+                backup_count=values["backup"],
+                console=values["console"],
+                directory=values["directory"],
+                filename=values["filename"],
+                fmt=values["format"],
+                datefmt=values["datefmt"],
+            )
+            configuration.configure_logging(replace_existing=True)
+        except Exception as exc:
+            QtWidgets.QMessageBox.critical(
+                self.window,
+                self.tr("保存失败"),
+                str(exc),
+            )
+            self._event_bus.statusMessage.emit(
+                self.tr("日志配置保存失败: {error}").format(error=exc),
+                6000,
+            )
+            return
+
+        self._logging_snapshot = self._normalise_logging_values(values)
+        self._update_logging_dirty_state()
+        message = self.tr("日志配置已保存")
+        self._event_bus.statusMessage.emit(message, 4000)
+
+    def _choose_log_directory(self) -> None:
+        current = self.ui.logDirectoryEdit.text().strip() or str(
+            (Path(configuration.get_logdir()).resolve() / "Log")
+        )
+        directory = QtWidgets.QFileDialog.getExistingDirectory(
+            self.window,
+            self.tr("Select Log Directory"),
+            current,
+        )
+        if directory:
+            self.ui.logDirectoryEdit.setText(directory)
+        self._on_logging_field_changed()
 
     def on_language_changed(self, index: int) -> None:
         code = self.ui.languageSelector.itemData(index)

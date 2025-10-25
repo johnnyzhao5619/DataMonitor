@@ -11,8 +11,8 @@ if str(PROJECT_ROOT) not in sys.path:
 
 import configuration
 
-pytest.importorskip("PyQt5")
-from PyQt5 import QtWidgets
+pytest.importorskip("PySide6")
+from PySide6 import QtWidgets
 
 from ui.theme import ThemeManager, workspace_dark, workspace_light
 
@@ -39,7 +39,9 @@ def test_theme_manager_registers_external_definitions(tmp_path, monkeypatch, qtb
     }
     (theme_dir / "custom.json").write_text(json.dumps(payload), encoding="utf-8")
 
-    app = qtbot.qapp or QtWidgets.QApplication.instance()
+    _ = qtbot  # ensure QApplication fixture is active
+    app = QtWidgets.QApplication.instance()
+    assert app is not None
     manager = ThemeManager(app)
     manager.register_many((workspace_light, workspace_dark))
 

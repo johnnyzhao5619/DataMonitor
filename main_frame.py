@@ -4,7 +4,7 @@ from importlib import import_module
 from typing import TYPE_CHECKING
 
 import configuration
-from PyQt5 import QtWidgets
+from PySide6 import QtWidgets
 
 from controllers import MainWindowController
 from ui.main_window import MainWindowUI
@@ -24,11 +24,6 @@ def _load_theme_resources() -> tuple["ThemeManager", tuple["ThemeDefinition", ..
         dark_theme = getattr(theme_module, "workspace_dark")
         builtin = (light_theme, dark_theme)
     return ThemeManager, tuple(builtin)
-
-
-class _HeadlessStatusBar:
-    def showMessage(self, *_args, **_kwargs):
-        return None
 
 
 class ToolsetWindow(QtWidgets.QMainWindow):
@@ -65,7 +60,7 @@ def main() -> None:
     app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
     window = ToolsetWindow()
     window.show()
-    app.exec_()
+    app.exec()
 
 
 if __name__ == "__main__":

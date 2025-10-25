@@ -429,6 +429,13 @@
           }
         },
         {
+          "source": ">>文档中心",
+          "translations": {
+            "en_US": ">> Documentation",
+            "zh_CN": ">>文档中心"
+          }
+        },
+        {
           "source": "English",
           "translations": {
             "en_US": "English",
@@ -436,10 +443,10 @@
           }
         },
         {
-          "source": "Monitor Everything v1.0",
+        "source": "Monitor Everything",
           "translations": {
-            "en_US": "Monitor Everything v1.0",
-            "zh_CN": "全局监控 v1.0"
+            "en_US": "Monitor Everything",
+            "zh_CN": "全局监控"
           }
         },
         {
@@ -792,6 +799,13 @@
           }
         },
         {
+          "source": "Documentation",
+          "translations": {
+            "en_US": "Documentation",
+            "zh_CN": "文档"
+          }
+        },
+        {
           "source": "Reports",
           "translations": {
             "en_US": "Reports",
@@ -843,6 +857,132 @@
           "translations": {
             "en_US": "Select Language",
             "zh_CN": "选择语言"
+          }
+        },
+        {
+          "source": "Logging Settings",
+          "translations": {
+            "en_US": "Logging Settings",
+            "zh_CN": "日志配置"
+          }
+        },
+        {
+          "source": "Configure the log destination, rotation policy, and formatting for application output.",
+          "translations": {
+            "en_US": "Configure the log destination, rotation policy, and formatting for application output.",
+            "zh_CN": "配置日志保存位置、滚动策略与格式。"
+          }
+        },
+        {
+          "source": "Log Level",
+          "translations": {
+            "en_US": "Log Level",
+            "zh_CN": "日志级别"
+          }
+        },
+        {
+          "source": "Log Directory",
+          "translations": {
+            "en_US": "Log Directory",
+            "zh_CN": "日志目录"
+          }
+        },
+        {
+          "source": "Log File Name",
+          "translations": {
+            "en_US": "Log File Name",
+            "zh_CN": "日志文件名"
+          }
+        },
+        {
+          "source": "Browse",
+          "translations": {
+            "en_US": "Browse",
+            "zh_CN": "浏览"
+          }
+        },
+        {
+          "source": "e.g. system.log",
+          "translations": {
+            "en_US": "e.g. system.log",
+            "zh_CN": "例如 system.log"
+          }
+        },
+        {
+          "source": "Max Log Size",
+          "translations": {
+            "en_US": "Max Log Size",
+            "zh_CN": "单个日志大小上限"
+          }
+        },
+        {
+          "source": "MB",
+          "translations": {
+            "en_US": "MB",
+            "zh_CN": "MB"
+          }
+        },
+        {
+          "source": "Backup Files",
+          "translations": {
+            "en_US": "Backup Files",
+            "zh_CN": "保留文件数"
+          }
+        },
+        {
+          "source": "Enable Console Output",
+          "translations": {
+            "en_US": "Enable Console Output",
+            "zh_CN": "启用控制台输出"
+          }
+        },
+        {
+          "source": "Log Format",
+          "translations": {
+            "en_US": "Log Format",
+            "zh_CN": "日志格式"
+          }
+        },
+        {
+          "source": "Leave empty to use default format",
+          "translations": {
+            "en_US": "Leave empty to use default format",
+            "zh_CN": "留空使用默认格式"
+          }
+        },
+        {
+          "source": "Date Format",
+          "translations": {
+            "en_US": "Date Format",
+            "zh_CN": "日期格式"
+          }
+        },
+        {
+          "source": "Leave empty to use default date format",
+          "translations": {
+            "en_US": "Leave empty to use default date format",
+            "zh_CN": "留空使用默认日期格式"
+          }
+        },
+        {
+          "source": "Set size to 0 to disable rotation. Changes take effect immediately after saving.",
+          "translations": {
+            "en_US": "Set size to 0 to disable rotation. Changes take effect immediately after saving.",
+            "zh_CN": "将大小设为 0 可禁用滚动。保存后立即生效。"
+          }
+        },
+        {
+          "source": "Save Logging Settings",
+          "translations": {
+            "en_US": "Save Logging Settings",
+            "zh_CN": "保存日志设置"
+          }
+        },
+        {
+          "source": "Select Log Directory",
+          "translations": {
+            "en_US": "Select Log Directory",
+            "zh_CN": "选择日志目录"
           }
         }
       ]
@@ -911,6 +1051,116 @@
           "translations": {
             "en_US": "Set Time Zone",
             "zh_CN": "输入时区"
+          }
+        },
+        {
+          "source": "读取失败",
+          "translations": {
+            "en_US": "Load Failed",
+            "zh_CN": "读取失败"
+          }
+        },
+        {
+          "source": "保存失败",
+          "translations": {
+            "en_US": "Save Failed",
+            "zh_CN": "保存失败"
+          }
+        },
+        {
+          "source": "日志配置保存失败: {error}",
+          "translations": {
+            "en_US": "Failed to save logging settings: {error}",
+            "zh_CN": "日志配置保存失败: {error}"
+          }
+        },
+        {
+          "source": "日志配置已保存",
+          "translations": {
+            "en_US": "Logging settings saved",
+            "zh_CN": "日志配置已保存"
+          }
+        },
+        {
+          "source": "日志大小不能为负数",
+          "translations": {
+            "en_US": "Log size cannot be negative",
+            "zh_CN": "日志大小不能为负数"
+          }
+        },
+        {
+          "source": "Select Log Directory",
+          "translations": {
+            "en_US": "Select Log Directory",
+            "zh_CN": "选择日志目录"
+          }
+        }
+      ]
+    },
+    {
+      "name": "DocumentationPage",
+      "messages": [
+        {
+          "source": "License Overview",
+          "translations": {
+            "en_US": "License Overview",
+            "zh_CN": "许可概览"
+          }
+        },
+        {
+          "source": "DataMonitor 使用 Apache License 2.0 发布。以下内容展示完整许可文本，并说明在二次分发或商业部署时需要保留的版权与许可证条款。",
+          "translations": {
+            "en_US": "DataMonitor is distributed under the Apache License 2.0. The following text shows the full license and clarifies the attribution and licensing terms required for redistribution or commercial deployments.",
+            "zh_CN": "DataMonitor 使用 Apache License 2.0 发布。以下内容展示完整许可文本，并说明在二次分发或商业部署时需要保留的版权与许可证条款。"
+          }
+        },
+        {
+          "source": "User Manual",
+          "translations": {
+            "en_US": "User Manual",
+            "zh_CN": "用户手册"
+          }
+        },
+        {
+          "source": "Chinese",
+          "translations": {
+            "en_US": "Chinese",
+            "zh_CN": "中文"
+          }
+        },
+        {
+          "source": "English",
+          "translations": {
+            "en_US": "English",
+            "zh_CN": "英语"
+          }
+        },
+        {
+          "source": "File not found: {path}",
+          "translations": {
+            "en_US": "File not found: {path}",
+            "zh_CN": "文件未找到: {path}"
+          }
+        },
+        {
+          "source": "Failed to load {path}: {error}",
+          "translations": {
+            "en_US": "Failed to load {path}: {error}",
+            "zh_CN": "加载 {path} 失败: {error}"
+          }
+        },
+        {
+          "source": "当前显示简体中文用户手册。",
+          "translations": {
+            "en_US": "Displaying the Simplified Chinese manual.",
+            "zh_CN": "当前显示简体中文用户手册。"
+          }
+        },
+        {
+          "source": "Displaying the English user manual.",
+          "translations": {
+            "en_US": "Displaying the English user manual.",
+            "zh_CN": "当前显示英文用户手册。"
           }
         }
       ]

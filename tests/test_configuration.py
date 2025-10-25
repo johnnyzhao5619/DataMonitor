@@ -514,3 +514,102 @@ def test_configure_logging_installs_handlers(tmp_path, monkeypatch):
     assert matching_handlers == []
 
     configuration.reset_logging_configuration()
+
+
+def test_get_logging_preferences_returns_user_values(tmp_path, monkeypatch):
+    monkeypatch.setenv(configuration.LOG_DIR_ENV, str(tmp_path))
+    config_dir = tmp_path / "Config"
+    configuration.writeconfig(str(config_dir))
+    config_path = config_dir / "Config.ini"
+
+    parser = configparser.RawConfigParser()
+    parser.read(config_path, encoding="utf-8")
+    parser.set("Logging", "log_level", "WARNING")
+    parser.set("Logging", "log_filename", "events.log")
+    parser.set("Logging", "log_directory", str((tmp_path / "AltLogs").resolve()))
+    parser.set("Logging", "log_max_size", "5MB")
+    parser.set("Logging", "log_backup_count", "7")
+    parser.set("Logging", "log_console", "false")
+    parser.set("Logging", "log_format", "%(message)s")
+    parser.set("Logging", "log_datefmt", "%H:%M")
+    with config_path.open("w", encoding="utf-8") as handle:
+        parser.write(handle)
+
+    prefs = configuration.get_logging_preferences()
+
+    assert prefs["level"] == "WARNING"
+    assert prefs["filename"] == "events.log"
+    assert Path(prefs["directory"]).resolve() == (tmp_path / "AltLogs").resolve()
+    assert prefs["backup_count"] == 7
+    assert prefs["console"] is False
+    assert prefs["format"] == "%(message)s"
+    assert prefs["datefmt"] == "%H:%M"
+    assert pytest.approx(prefs["max_size_mb"], rel=1e-3) == 5.0
+
+
+def test_set_logging_preferences_updates_config(tmp_path, monkeypatch):
+    monkeypatch.setenv(configuration.LOG_DIR_ENV, str(tmp_path))
+    config_dir = tmp_path / "Config"
+    configuration.writeconfig(str(config_dir))
+    config_path = config_dir / "Config.ini"
+
+    custom_dir = (tmp_path / "alt_storage").resolve()
+
+    settings = configuration.set_logging_preferences(
+        level="ERROR",
+        max_size="12.5MB",
+        backup_count=3,
+        console=False,
+        directory=str(custom_dir),
+        filename="alerts.log",
+        fmt="%(levelname)s|%(message)s",
+        datefmt="%H:%M:%S",
+    )
+
+    assert settings.level_name == "ERROR"
+    assert settings.console is False
+    assert settings.backup_count == 3
+    assert settings.file_path == (custom_dir / "alerts.log").resolve()
+    assert settings.fmt == "%(levelname)s|%(message)s"
+    assert settings.datefmt == "%H:%M:%S"
+    assert settings.max_bytes == pytest.approx(12.5 * 1024 * 1024, rel=1e-3)
+
+    parser = configparser.RawConfigParser()
+    parser.read(config_path, encoding="utf-8")
+    assert parser.get("Logging", "log_level") == "ERROR"
+    assert parser.get("Logging", "log_filename") == "alerts.log"
+    assert Path(parser.get("Logging", "log_directory")).resolve() == custom_dir
+    assert parser.get("Logging", "log_backup_count") == "3"
+    assert parser.get("Logging", "log_console") == "false"
+    assert parser.get("Logging", "log_format") == "%(levelname)s|%(message)s"
+    assert parser.get("Logging", "log_datefmt") == "%H:%M:%S"
+    settings = configuration.configure_logging(replace_existing=True)
+    assert settings.level == logging.ERROR
+    assert settings.console is False
+    assert settings.file_path == (custom_dir / "alerts.log").resolve()
+    assert settings.max_bytes == pytest.approx(12.5 * 1024 * 1024, rel=1e-3)
+    assert settings.backup_count == 3
+    assert settings.fmt == "%(levelname)s|%(message)s"
+    assert settings.datefmt == "%H:%M:%S"
+
+    root_logger = logging.getLogger()
+    file_handlers = [
+        handler for handler in root_logger.handlers if isinstance(handler, RotatingFileHandler)
+    ]
+    assert len(file_handlers) == 1
+    handler = file_handlers[0]
+    assert handler.baseFilename == str(settings.file_path)
+    assert handler.maxBytes == settings.max_bytes
+    assert handler.backupCount == settings.backup_count
+    assert handler.formatter._fmt == settings.fmt  # type: ignore[attr-defined]
+    assert handler.formatter.datefmt == settings.datefmt  # type: ignore[attr-defined]
+
+    matching_handlers = [
+        handler
+        for handler in root_logger.handlers
+        if getattr(getattr(handler, "formatter", None), "_fmt", None) == settings.fmt
+        and not isinstance(handler, RotatingFileHandler)
+    ]
+    assert matching_handlers == []
+
+    configuration.reset_logging_configuration()

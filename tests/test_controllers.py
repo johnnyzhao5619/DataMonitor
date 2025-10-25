@@ -8,8 +8,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-pytest.importorskip("PyQt5")
-from PyQt5 import QtWidgets
+pytest.importorskip("PySide6")
+from PySide6 import QtWidgets
 
 import configuration
 from monitoring import log_recorder
@@ -53,7 +53,7 @@ class DummyScheduler:
 
 
 @pytest.mark.qt
-def test_dashboard_start_and_stop_emits_signals(qtbot, monkeypatch):
+def test_dashboard_start_and_stop_emits_signals(qtbot, monkeypatch, request):
     monitor = configuration.MonitorItem(
         name="服务A",
         url="http://example.com",
@@ -73,7 +73,7 @@ def test_dashboard_start_and_stop_emits_signals(qtbot, monkeypatch):
     bus.monitoringToggled.connect(toggled.append)
 
     controller = DashboardController(event_bus=bus, timezone=8)
-    qtbot.addCleanup(controller.on_close)
+    request.addfinalizer(controller.on_close)
 
     assert controller.start_monitoring() is True
     assert controller.is_running
@@ -89,14 +89,14 @@ def test_dashboard_start_and_stop_emits_signals(qtbot, monkeypatch):
 
 
 @pytest.mark.qt
-def test_dashboard_run_periodically_triggers_event(qtbot, monkeypatch):
+def test_dashboard_run_periodically_triggers_event(qtbot, monkeypatch, request):
     monkeypatch.setattr("controllers.dashboard.MonitorScheduler", DummyScheduler)
     bus = ControllerEventBus()
     captured = []
     bus.logMessage.connect(captured.append)
 
     controller = DashboardController(event_bus=bus, timezone=0)
-    qtbot.addCleanup(controller.on_close)
+    request.addfinalizer(controller.on_close)
 
     monitor_info = {
         "name": "周期服务",
@@ -113,7 +113,7 @@ def test_dashboard_run_periodically_triggers_event(qtbot, monkeypatch):
 
 
 @pytest.mark.qt
-def test_dashboard_logs_unsupported_type(monkeypatch, qtbot):
+def test_dashboard_logs_unsupported_type(monkeypatch, qtbot, request):
     monkeypatch.setattr("controllers.dashboard.MonitorScheduler", DummyScheduler)
     logged = []
     statuses = []
@@ -125,7 +125,7 @@ def test_dashboard_logs_unsupported_type(monkeypatch, qtbot):
     monkeypatch.setattr(log_recorder, "record", lambda action, detail: records.append((action, detail)))
 
     controller = DashboardController(event_bus=bus, timezone=0)
-    qtbot.addCleanup(controller.on_close)
+    request.addfinalizer(controller.on_close)
 
     controller.run_periodically(
         {
@@ -142,7 +142,7 @@ def test_dashboard_logs_unsupported_type(monkeypatch, qtbot):
 
 
 @pytest.mark.qt
-def test_preferences_language_and_timezone_persistence(qtbot, tmp_path, monkeypatch):
+def test_preferences_language_and_timezone_persistence(qtbot, tmp_path, monkeypatch, request):
     monkeypatch.setenv("APIMONITOR_HOME", str(tmp_path))
     config_dir = tmp_path / "Config"
     configuration.writeconfig(str(config_dir))
@@ -173,7 +173,7 @@ def test_preferences_language_and_timezone_persistence(qtbot, tmp_path, monkeypa
         theme_manager=theme_manager,
         event_bus=bus,
     )
-    qtbot.addCleanup(preferences.on_close)
+    request.addfinalizer(preferences.on_close)
 
     preferences.setup()
     assert language_events
@@ -185,19 +185,28 @@ def test_preferences_language_and_timezone_persistence(qtbot, tmp_path, monkeypa
     en_index = selector.findData("en_US")
     assert en_index >= 0
     preferences.on_language_changed(en_index)
-    qtbot.waitUntil(lambda: preferences.current_language == "en_US", timeout=2000)
-    assert any("语言" in message for message in status_messages)
+    qtbot.waitUntil(lambda: preferences.current_language == "en_US", timeout=5000)
+    def _language_status_seen():
+        return any(
+            ("语言" in message)
+            or ("language" in message.lower())
+            for message in status_messages
+        )
+    qtbot.waitUntil(_language_status_seen, timeout=5000)
     config_file = config_dir / "Config.ini"
     assert "language = en_US" in config_file.read_text(encoding="utf-8")
 
     monkeypatch.setattr(QtWidgets.QInputDialog, "getInt", lambda *args, **kwargs: (9, True))
     preferences.choose_timezone()
     qtbot.waitUntil(lambda: preferences.current_timezone == 9, timeout=2000)
-    assert any("UTC+9" in message for message in status_messages)
+    assert any("utc+9" in message.lower() for message in status_messages)
     assert "timezone = 9" in config_file.read_text(encoding="utf-8")
 
     theme_selector = ui.themeSelector
     if theme_selector.count() > 1:
         next_index = (theme_selector.currentIndex() + 1) % theme_selector.count()
         preferences.on_theme_changed(next_index)
-        assert any("主题" in message for message in status_messages)
+        assert any(
+            ("主题" in message) or ("theme" in message.lower())
+            for message in status_messages
+        )

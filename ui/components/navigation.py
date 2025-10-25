@@ -3,13 +3,22 @@ from __future__ import annotations
 
 from typing import Dict, Iterable, Optional
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PySide6 import QtCore, QtGui, QtWidgets
+
+NAVIGATION_ORDER = ("monitor", "configuration", "preferences", "documentation", "reports")
+NAVIGATION_LABELS = {
+    "monitor": "Monitor",
+    "configuration": "Configuration",
+    "preferences": "Preferences",
+    "documentation": "Documentation",
+    "reports": "Reports",
+}
 
 
 class NavigationBar(QtWidgets.QFrame):
     """用于在主界面中切换视图的缩略导航栏。"""
 
-    navigationTriggered = QtCore.pyqtSignal(str)
+    navigationTriggered = QtCore.Signal(str)
 
     def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
         super().__init__(parent)
@@ -32,17 +41,14 @@ class NavigationBar(QtWidgets.QFrame):
 
         layout.addSpacing(12)
 
-        self.monitorButton = self._create_nav_button("monitor")
-        layout.addWidget(self.monitorButton)
-
-        self.configButton = self._create_nav_button("configuration")
-        layout.addWidget(self.configButton)
-
-        self.preferencesButton = self._create_nav_button("preferences")
-        layout.addWidget(self.preferencesButton)
-
-        self.reportButton = self._create_nav_button("reports")
-        layout.addWidget(self.reportButton)
+        for nav_id in NAVIGATION_ORDER:
+            button = self._create_nav_button(nav_id)
+            layout.addWidget(button)
+            setattr(self, f"{nav_id}Button", button)
+            if nav_id == "configuration":
+                self.configButton = button  # backward compatibility for legacy tests
+            elif nav_id == "reports":
+                self.reportButton = button  # expose singular alias used in tests
 
         layout.addStretch(1)
 
@@ -85,7 +91,6 @@ class NavigationBar(QtWidgets.QFrame):
 
     def retranslate_ui(self) -> None:
         self.titleLabel.setText(self.tr("Monitor Center"))
-        self.monitorButton.setText(self.tr("Monitor"))
-        self.configButton.setText(self.tr("Configuration"))
-        self.preferencesButton.setText(self.tr("Preferences"))
-        self.reportButton.setText(self.tr("Reports"))
+        for nav_id, button in self._buttons.items():
+            label = NAVIGATION_LABELS.get(nav_id, nav_id.title())
+            button.setText(self.tr(label))

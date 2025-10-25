@@ -1,8 +1,7 @@
 # -*- codeing = utf-8 -*-
-# @Time : 2023-03-29 3:56 p.m.
+# @Time : 2025-09-29 3:56 p.m.
 # @Author: weijiazhao
 # @File : send_email.py
-# @Software: PyCharm
 
 import datetime as _dt
 import logging
@@ -13,18 +12,7 @@ from email.mime.text import MIMEText
 from email.utils import formataddr, parseaddr
 from typing import Iterable, Mapping, Optional, Tuple
 
-try:
-    from PyQt5 import QtCore
-except ModuleNotFoundError:  # pragma: no cover - 提供兼容性
-    class _FallbackCoreApplication:
-        @staticmethod
-        def translate(_context: str, text: str) -> str:
-            return text
-
-    class _FallbackQtCore:
-        QCoreApplication = _FallbackCoreApplication
-
-    QtCore = _FallbackQtCore()  # type: ignore[assignment]
+from PySide6 import QtCore
 
 import configuration
 
@@ -247,4 +235,3 @@ def _event_context_presets(event: str) -> Mapping[str, str]:
             "time_label": _translate("恢复时间"),
         }
     raise KeyError(_translate("未知的邮件事件类型：{event}").format(event=event))
-

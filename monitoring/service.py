@@ -97,7 +97,10 @@ class MonitorScheduler:
         self._strategies: Dict[str, MonitorStrategy] = {}
         self._event_handler = event_handler or (lambda event: None)
         self._timezone_getter = timezone_getter or (lambda: 0)
-        self._clock = clock or _dt.datetime.utcnow
+        def _default_clock() -> _dt.datetime:
+            return _dt.datetime.now(_dt.UTC).replace(tzinfo=None)
+
+        self._clock = clock or _default_clock
         self._templates = templates or default_notification_templates()
         self._dispatcher = dispatcher or default_notification_dispatcher
         self._threads: list[threading.Thread] = []

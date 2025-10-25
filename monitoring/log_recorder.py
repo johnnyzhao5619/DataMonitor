@@ -39,7 +39,7 @@ def _now_with_timezone():
         timezone = int(configuration.get_timezone())
     except (TypeError, ValueError):
         timezone = 0
-    utc_now = datetime.datetime.utcnow()
+    utc_now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
     return utc_now + datetime.timedelta(hours=timezone)
 
 

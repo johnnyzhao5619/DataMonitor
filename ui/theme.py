@@ -9,7 +9,7 @@ from pathlib import Path
 from textwrap import dedent
 from typing import Callable, Iterable, Mapping, Optional
 
-from PyQt5 import QtGui, QtWidgets
+from PySide6 import QtGui, QtWidgets
 
 import configuration
 
@@ -321,7 +321,7 @@ class ThemeManager:
             widget.setPalette(palette)
             style.unpolish(widget)
             style.polish(widget)
-            widget.update()
+            self.refresh_widget(widget)
 
         return theme
 
@@ -399,6 +399,31 @@ class ThemeManager:
             first_key = self._order[0]
             return self._themes[first_key].tokens
         return workspace_light.tokens
+
+    # -- 工具方法 -----------------------------------------------------
+    @staticmethod
+    def refresh_widget(widget: QtWidgets.QWidget) -> None:
+        """刷新控件绘制，兼容视图类在 PySide6 中 update() 签名变更。"""
+
+        update_method = getattr(widget, "update", None)
+        if callable(update_method):
+            try:
+                update_method()
+                return
+            except TypeError:
+                pass
+
+        try:
+            QtWidgets.QWidget.update(widget)
+            return
+        except Exception:
+            pass
+
+        viewport_getter = getattr(widget, "viewport", None)
+        if callable(viewport_getter):
+            viewport = viewport_getter()
+            if viewport is not None:
+                viewport.update()
 
 
 def _coerce_bool(value: object) -> bool:
