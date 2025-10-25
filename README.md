@@ -135,6 +135,13 @@ mkdir -p resources/icons/datamonitor.iconset
 
 `build.py` 会优先读取 `resources/icons/datamonitor.icns` / `resources/icons/datamonitor.ico`（若存在），若不存在则回退到 `docs/` 中的文件。
 
+Authoritative PyInstaller spec is located at `build/DataMonitor.spec`. For
+reproducible builds prefer invoking PyInstaller with the venv Python:
+
+```bash
+python -m PyInstaller build/DataMonitor.spec --clean --noconfirm
+```
+
 
 ---
 

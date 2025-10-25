@@ -4,7 +4,10 @@ __pycache__/
 *$py.class
 *.so
 .Python
-build/
+# Keep build artifact directories ignored but allow tracked packaging specs and helpers
+build/dist/
+build/build/
+build/spec/
 develop-eggs/
 dist/
 downloads/
