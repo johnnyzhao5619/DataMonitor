@@ -1,4 +1,8 @@
-"""配置向导视图组件。"""
+# -*- codeing = utf-8 -*-
+# @Create: 2023-02-16 3:37 p.m.
+# @Update: 2025-10-24 12:05 a.m.
+# @Author: John Zhao
+"""Configuration wizard view components."""
 from __future__ import annotations
 
 import datetime as _dt
@@ -7,16 +11,18 @@ from dataclasses import asdict
 from typing import Dict, List, Optional
 from urllib.parse import urlsplit
 
-from PyQt5 import QtCore, QtWidgets
+from PySide6 import QtCore, QtWidgets
 
 import configuration
 from monitoring import send_email
 
 
 class ConfigurationWorkspace(QtWidgets.QWidget):
-    """承载配置向导的卡片化工作区。"""
+    """Card-style workspace that hosts the configuration wizard."""
 
-    def __init__(self, config_wizard: QtWidgets.QWidget, parent: Optional[QtWidgets.QWidget] = None) -> None:
+    def __init__(self,
+                 config_wizard: QtWidgets.QWidget,
+                 parent: Optional[QtWidgets.QWidget] = None) -> None:
         super().__init__(parent)
 
         layout = QtWidgets.QVBoxLayout(self)
@@ -39,10 +45,10 @@ class ConfigurationWorkspace(QtWidgets.QWidget):
 
 
 class ConfigWizard(QtWidgets.QWidget):
-    """配置界面，负责展示与编辑监控项。"""
+    """Configuration UI that displays and edits monitor entries."""
 
-    monitorsSaved = QtCore.pyqtSignal(list)
-    requestReload = QtCore.pyqtSignal()
+    monitorsSaved = QtCore.Signal(list)
+    requestReload = QtCore.Signal()
 
     def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
         super().__init__(parent)
@@ -54,7 +60,7 @@ class ConfigWizard(QtWidgets.QWidget):
         self._build_ui()
         self.retranslate_ui()
 
-    # UI 构建
+    # UI construction
     def _build_ui(self) -> None:
         layout = QtWidgets.QVBoxLayout(self)
         layout.setSpacing(16)
@@ -75,7 +81,8 @@ class ConfigWizard(QtWidgets.QWidget):
         list_container = QtWidgets.QVBoxLayout()
         list_container.setSpacing(8)
         self.monitorList = QtWidgets.QListWidget()
-        self.monitorList.currentRowChanged.connect(self._on_current_row_changed)
+        self.monitorList.currentRowChanged.connect(
+            self._on_current_row_changed)
         list_container.addWidget(self.monitorList, 1)
 
         list_button_layout = QtWidgets.QHBoxLayout()
@@ -176,29 +183,37 @@ class ConfigWizard(QtWidgets.QWidget):
         self._update_validation_state()
 
     def retranslate_ui(self) -> None:
-        self.titleLabel.setText(self.tr("配置向导 Configuration Wizard"))
+        self.titleLabel.setText(self.tr("Configuration Wizard"))
         self.hintLabel.setText(
-            self.tr("在左侧选择监控项，可新增、删除或修改配置，保存后立即写入配置文件。")
-        )
-        self.addButton.setText(self.tr("新增"))
-        self.removeButton.setText(self.tr("删除"))
-        self.nameLabel.setText(self.tr("名称 Name"))
-        self.urlLabel.setText(self.tr("地址 URL"))
-        self.urlEdit.setPlaceholderText(self.tr("请输入完整的服务地址，例如 https://example.com"))
-        self.typeLabel.setText(self.tr("类型 Type"))
-        self.intervalLabel.setText(self.tr("周期 Interval"))
-        self.intervalSpin.setSuffix(self.tr(" 秒"))
-        self.emailLabel.setText(self.tr("通知邮箱"))
-        self.emailEdit.setPlaceholderText(self.tr("可选，支持逗号分隔多个邮箱"))
+            self.
+            tr("Select a monitor on the left to add, delete, or edit it. Saving writes directly to the configuration file."
+               ))
+        self.addButton.setText(self.tr("Add"))
+        self.removeButton.setText(self.tr("Delete"))
+        self.nameLabel.setText(self.tr("Name"))
+        self.urlLabel.setText(self.tr("URL"))
+        self.urlEdit.setPlaceholderText(
+            self.tr(
+                "Enter a full service address, for example https://example.com"
+            ))
+        self.typeLabel.setText(self.tr("Type"))
+        self.intervalLabel.setText(self.tr("Interval"))
+        self.intervalSpin.setSuffix(self.tr(" s"))
+        self.emailLabel.setText(self.tr("Notification email"))
+        self.emailEdit.setPlaceholderText(
+            self.tr(
+                "Optional. Supports multiple addresses separated by commas"))
         self.payloadLabel.setText(self.tr("Payload"))
-        self.payloadEdit.setPlaceholderText(self.tr("可选，JSON 或 key=value 格式"))
+        self.payloadEdit.setPlaceholderText(
+            self.tr("Optional. JSON or key=value format"))
         self.headersLabel.setText(self.tr("Headers"))
-        self.headersEdit.setPlaceholderText(self.tr("可选，JSON 或 key=value 格式"))
-        self.saveButton.setText(self.tr("保存"))
-        self.revertButton.setText(self.tr("恢复配置"))
-        self.previewGroup.setTitle(self.tr("通知预览 Notification Preview"))
-        self.previewTabs.setTabText(0, self.tr("告警 Alert"))
-        self.previewTabs.setTabText(1, self.tr("恢复 Recovery"))
+        self.headersEdit.setPlaceholderText(
+            self.tr("Optional. JSON or key=value format"))
+        self.saveButton.setText(self.tr("Save"))
+        self.revertButton.setText(self.tr("Reload Configuration"))
+        self.previewGroup.setTitle(self.tr("Notification Preview"))
+        self.previewTabs.setTabText(0, self.tr("Alert"))
+        self.previewTabs.setTabText(1, self.tr("Recovery"))
 
         current_row = self.monitorList.currentRow()
         self._refresh_list()
@@ -210,7 +225,7 @@ class ConfigWizard(QtWidgets.QWidget):
         self._update_preview()
         self._update_validation_state()
 
-    # 数据交互
+    # Data interactions
     def load_monitors(self, monitors: List[Dict[str, object]]) -> None:
         self._monitors = []
         for item in monitors:
@@ -220,13 +235,20 @@ class ConfigWizard(QtWidgets.QWidget):
                 data = item  # type: ignore[assignment]
             else:
                 data = {
-                    "name": getattr(item, "name", ""),
-                    "url": getattr(item, "url", ""),
-                    "type": getattr(item, "type", getattr(item, "monitor_type", "")),
-                    "interval": getattr(item, "interval", 60),
-                    "email": getattr(item, "email", ""),
-                    "payload": getattr(item, "payload", None),
-                    "headers": getattr(item, "headers", None),
+                    "name":
+                    getattr(item, "name", ""),
+                    "url":
+                    getattr(item, "url", ""),
+                    "type":
+                    getattr(item, "type", getattr(item, "monitor_type", "")),
+                    "interval":
+                    getattr(item, "interval", 60),
+                    "email":
+                    getattr(item, "email", ""),
+                    "payload":
+                    getattr(item, "payload", None),
+                    "headers":
+                    getattr(item, "headers", None),
                 }
 
             type_value = data.get("type") or data.get("monitor_type") or ""
@@ -243,8 +265,10 @@ class ConfigWizard(QtWidgets.QWidget):
                 "payload": data.get("payload"),
                 "headers": data.get("headers"),
             }
-            record["_payload_text"] = self._serialise_mapping(record.get("payload"))
-            record["_headers_text"] = self._serialise_mapping(record.get("headers"))
+            record["_payload_text"] = self._serialise_mapping(
+                record.get("payload"))
+            record["_headers_text"] = self._serialise_mapping(
+                record.get("headers"))
             self._monitors.append(record)
 
         self._refresh_list()
@@ -259,8 +283,10 @@ class ConfigWizard(QtWidgets.QWidget):
     def get_monitors(self) -> List[Dict[str, object]]:
         result: List[Dict[str, object]] = []
         for record in self._monitors:
-            payload = self._parse_optional_mapping(record.get("_payload_text", ""))
-            headers = self._parse_optional_mapping(record.get("_headers_text", ""))
+            payload = self._parse_optional_mapping(
+                record.get("_payload_text", ""))
+            headers = self._parse_optional_mapping(
+                record.get("_headers_text", ""))
             item = {
                 "name": record.get("name", ""),
                 "url": record.get("url", ""),
@@ -275,7 +301,7 @@ class ConfigWizard(QtWidgets.QWidget):
             result.append(item)
         return result
 
-    # 列表维护
+    # List maintenance
     def _refresh_list(self) -> None:
         self.monitorList.blockSignals(True)
         self.monitorList.clear()
@@ -285,13 +311,13 @@ class ConfigWizard(QtWidgets.QWidget):
         self.monitorList.blockSignals(False)
 
     def _format_item_title(self, record: Dict[str, object]) -> str:
-        name = record.get("name") or self.tr("(未命名)")
+        name = record.get("name") or self.tr("(Unnamed)")
         mtype = record.get("type") or "?"
         return self.tr("{name} [{mtype}]").format(name=name, mtype=mtype)
 
     def _add_monitor(self) -> None:
         new_record = {
-            "name": self.tr("新监控项"),
+            "name": self.tr("New monitor"),
             "url": "",
             "type": next(iter(sorted(configuration.SUPPORTED_MONITOR_TYPES))),
             "interval": 60,
@@ -333,7 +359,8 @@ class ConfigWizard(QtWidgets.QWidget):
             self.urlEdit.setText(record.get("url", ""))
             mtype = record.get("type", "")
             if mtype:
-                index = self.typeCombo.findText(mtype, QtCore.Qt.MatchFixedString)
+                index = self.typeCombo.findText(mtype,
+                                                QtCore.Qt.MatchFixedString)
                 if index >= 0:
                     self.typeCombo.setCurrentIndex(index)
             self.intervalSpin.setValue(int(record.get("interval", 60)))
@@ -360,17 +387,17 @@ class ConfigWizard(QtWidgets.QWidget):
 
     def _set_form_enabled(self, enabled: bool) -> None:
         for widget in (
-            self.monitorList,
-            self.nameEdit,
-            self.urlEdit,
-            self.typeCombo,
-            self.intervalSpin,
-            self.emailEdit,
-            self.payloadEdit,
-            self.headersEdit,
-            self.saveButton,
-            self.revertButton,
-            self.previewTabs,
+                self.monitorList,
+                self.nameEdit,
+                self.urlEdit,
+                self.typeCombo,
+                self.intervalSpin,
+                self.emailEdit,
+                self.payloadEdit,
+                self.headersEdit,
+                self.saveButton,
+                self.revertButton,
+                self.previewTabs,
         ):
             widget.setEnabled(enabled)
 
@@ -390,15 +417,15 @@ class ConfigWizard(QtWidgets.QWidget):
         record["_headers_text"] = self.headersEdit.toPlainText().strip()
 
         self._payload_error = self._validate_mapping_text(
-            record["_payload_text"], self.tr("Payload")
-        )
+            record["_payload_text"], self.tr("Payload"))
         self._headers_error = self._validate_mapping_text(
-            record["_headers_text"], self.tr("Headers")
-        )
+            record["_headers_text"], self.tr("Headers"))
         if self._payload_error is None:
-            record["payload"] = self._parse_optional_mapping(record["_payload_text"])
+            record["payload"] = self._parse_optional_mapping(
+                record["_payload_text"])
         if self._headers_error is None:
-            record["headers"] = self._parse_optional_mapping(record["_headers_text"])
+            record["headers"] = self._parse_optional_mapping(
+                record["_headers_text"])
 
         item = self.monitorList.item(row)
         if item is not None:
@@ -412,7 +439,8 @@ class ConfigWizard(QtWidgets.QWidget):
         try:
             self._parse_optional_mapping(text)
         except ValueError as exc:
-            return self.tr("{label} 无法解析: {error}").format(label=label, error=exc)
+            return self.tr("{label} could not be parsed: {error}").format(
+                label=label, error=exc)
         return None
 
     def _update_validation_state(self) -> None:
@@ -422,34 +450,36 @@ class ConfigWizard(QtWidgets.QWidget):
             url = record.get("url", "").strip()
             if not name:
                 errors.append(
-                    self.tr("监控项 {index} 名称不能为空").format(index=index)
-                )
+                    self.tr("Monitor {index} name must not be empty").format(
+                        index=index))
             if not url:
                 errors.append(
-                    self.tr("监控项 {index} URL 不能为空").format(index=index)
-                )
+                    self.tr("Monitor {index} URL must not be empty").format(
+                        index=index))
             elif not self._has_valid_hostname(url):
                 errors.append(
-                    self.tr("监控项 {index} URL 缺少有效的主机名").format(index=index)
-                )
+                    self.tr("Monitor {index} URL must include a valid hostname"
+                            ).format(index=index))
             mtype = record.get("type", "").upper()
             if mtype not in configuration.SUPPORTED_MONITOR_TYPES:
-                allowed = ", ".join(sorted(configuration.SUPPORTED_MONITOR_TYPES))
+                allowed = ", ".join(
+                    sorted(configuration.SUPPORTED_MONITOR_TYPES))
                 errors.append(
-                    self.tr("监控项 {index} 类型必须为 {types} 之一").format(
-                        index=index, types=allowed
-                    )
-                )
+                    self.tr(
+                        "Monitor {index} type must be one of {types}").format(
+                            index=index, types=allowed))
             interval = int(record.get("interval", 0))
             if interval <= 0:
                 errors.append(
-                    self.tr("监控项 {index} 轮询周期必须大于 0").format(index=index)
-                )
+                    self.
+                    tr("Monitor {index} polling interval must be greater than 0"
+                       ).format(index=index))
             email = record.get("email", "").strip()
             if email and not self._validate_emails(email):
                 errors.append(
-                    self.tr("监控项 {index} 的通知邮箱格式不正确").format(index=index)
-                )
+                    self.tr(
+                        "Monitor {index} notification email address is invalid"
+                    ).format(index=index))
         if self._payload_error:
             errors.append(self._payload_error)
         if self._headers_error:
@@ -467,7 +497,8 @@ class ConfigWizard(QtWidgets.QWidget):
             address = address.strip()
             if not address:
                 continue
-            if "@" not in address or address.startswith("@") or address.endswith("@"):
+            if "@" not in address or address.startswith(
+                    "@") or address.endswith("@"):
                 return False
         return True
 
@@ -478,10 +509,12 @@ class ConfigWizard(QtWidgets.QWidget):
             self.recoveryPreview.clear()
             return
         record = self._monitors[row]
-        now = _dt.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
-        service_name = record.get("name") or self.tr("未命名服务")
-        alert_subject, alert_body = send_email.build_outage_alert_message(service_name, now)
-        recovery_subject, recovery_body = send_email.build_outage_recovery_message(service_name, now)
+        now = _dt.datetime.now(_dt.UTC).strftime("%Y-%m-%d %H:%M:%S UTC")
+        service_name = record.get("name") or self.tr("Unnamed service")
+        alert_subject, alert_body = send_email.build_outage_alert_message(
+            service_name, now)
+        recovery_subject, recovery_body = send_email.build_outage_recovery_message(
+            service_name, now)
         subject_prefix = self.tr("Subject")
         alert_preview = f"{subject_prefix}: {alert_subject}\n\n{alert_body}"
         recovery_preview = f"{subject_prefix}: {recovery_subject}\n\n{recovery_body}"
@@ -494,8 +527,9 @@ class ConfigWizard(QtWidgets.QWidget):
         monitors = self.get_monitors()
         self.monitorsSaved.emit(monitors)
 
-    # 工具方法
-    def _parse_optional_mapping(self, text: str) -> Optional[Dict[str, object]]:
+    # Helper methods
+    def _parse_optional_mapping(self,
+                                text: str) -> Optional[Dict[str, object]]:
         if not text:
             return None
         return configuration.parse_mapping_string(text)

@@ -1,30 +1,31 @@
-"""主界面与装配逻辑。"""
+# -*- codeing = utf-8 -*-
+# @Create: 2023-02-16 3:37 p.m.
+# @Update: 2025-10-24 12:05 a.m.
+# @Author: John Zhao
+"""Main window wiring and layout logic."""
 from __future__ import annotations
 
-from typing import Optional
+from typing import Dict, Optional
 
-from PyQt5 import QtCore, QtWidgets
+from PySide6 import QtCore, QtWidgets
 
 from .components.navigation import NavigationBar
 from .views.configuration import ConfigWizard, ConfigurationWorkspace
 from .views.dashboard import MonitorDashboard
 from .views.preferences import PreferencesPage
+from .views.documentation import DocumentationPage
 
 
 class MainWindowUI(QtCore.QObject):
-    """负责搭建主界面布局，并暴露关键控件。"""
-
-    monitor_view_index = 0
-    config_view_index = 1
-    preferences_view_index = 2
-    report_view_index = 3
-
-    navigationRequested = QtCore.pyqtSignal(str)
+    """Assemble the main interface layout and expose key widgets."""
+    navigationRequested = QtCore.Signal(str)
 
     def __init__(self) -> None:
         super().__init__()
         self._monitoring_active = False
         self._timezone_offset = 0
+        self._views: Dict[str, QtWidgets.QWidget] = {}
+        self._view_indexes: Dict[str, int] = {}
 
         self.central_widget: Optional[QtWidgets.QWidget] = None
         self.navigationBar: NavigationBar
@@ -35,6 +36,7 @@ class MainWindowUI(QtCore.QObject):
         self.contentStack: QtWidgets.QStackedWidget
         self.configWizard: ConfigWizard
         self.preferencesPage: PreferencesPage
+        self.documentationPage: DocumentationPage
         self.localTimeGroupBox: QtWidgets.QGroupBox
         self.localTimeLabel: QtWidgets.QLabel
         self.utcTimeGroupBox: QtWidgets.QGroupBox
@@ -45,6 +47,18 @@ class MainWindowUI(QtCore.QObject):
         self.themeSelector: QtWidgets.QComboBox
         self.languageLabel: QtWidgets.QLabel
         self.languageSelector: QtWidgets.QComboBox
+        self.loggingGroup: QtWidgets.QWidget
+        self.logLevelCombo: QtWidgets.QComboBox
+        self.logDirectoryEdit: QtWidgets.QLineEdit
+        self.logDirectoryBrowse: QtWidgets.QPushButton
+        self.logFileEdit: QtWidgets.QLineEdit
+        self.logMaxSizeSpin: QtWidgets.QDoubleSpinBox
+        self.logMaxSizeSuffix: QtWidgets.QLabel
+        self.logBackupSpin: QtWidgets.QSpinBox
+        self.logConsoleCheck: QtWidgets.QCheckBox
+        self.logFormatEdit: QtWidgets.QLineEdit
+        self.logDatefmtEdit: QtWidgets.QLineEdit
+        self.saveLoggingButton: QtWidgets.QPushButton
         self.timezoneHeading: QtWidgets.QLabel
         self.timezoneDisplay: QtWidgets.QLabel
         self.reportPlaceholderLabel: QtWidgets.QLabel
@@ -106,15 +120,18 @@ class MainWindowUI(QtCore.QObject):
         splitter.setStretchFactor(1, 1)
 
         monitor_page = MonitorDashboard()
-        self.contentStack.addWidget(monitor_page)
+        self._register_view("monitor", monitor_page)
 
         self.configWizard = ConfigWizard()
         configuration_page = ConfigurationWorkspace(self.configWizard)
         configuration_page.setObjectName("configurationWorkspace")
-        self.contentStack.addWidget(configuration_page)
+        self._register_view("configuration", configuration_page)
 
         self.preferencesPage = PreferencesPage()
-        self.contentStack.addWidget(self.preferencesPage)
+        self._register_view("preferences", self.preferencesPage)
+
+        self.documentationPage = DocumentationPage()
+        self._register_view("documentation", self.documentationPage)
 
         reports_placeholder = QtWidgets.QFrame()
         reports_placeholder.setObjectName("reportsPlaceholder")
@@ -126,7 +143,13 @@ class MainWindowUI(QtCore.QObject):
         self.reportPlaceholderLabel.setAlignment(QtCore.Qt.AlignCenter)
         placeholder_layout.addWidget(self.reportPlaceholderLabel)
         placeholder_layout.addStretch(1)
-        self.contentStack.addWidget(reports_placeholder)
+        self._register_view("reports", reports_placeholder)
+
+        self.monitor_view_index = self._view_indexes["monitor"]
+        self.config_view_index = self._view_indexes["configuration"]
+        self.preferences_view_index = self._view_indexes["preferences"]
+        self.documentation_view_index = self._view_indexes["documentation"]
+        self.report_view_index = self._view_indexes["reports"]
 
         self.localTimeGroupBox = monitor_page.localTimeGroupBox
         self.localTimeLabel = monitor_page.localTimeLabel
@@ -140,87 +163,94 @@ class MainWindowUI(QtCore.QObject):
         self.themeSelector = self.preferencesPage.themeSelector
         self.languageLabel = self.preferencesPage.languageLabel
         self.languageSelector = self.preferencesPage.languageSelector
+        self.loggingGroup = self.preferencesPage.loggingGroup
+        self.logLevelCombo = self.preferencesPage.logLevelCombo
+        self.logDirectoryEdit = self.preferencesPage.logDirectoryEdit
+        self.logDirectoryBrowse = self.preferencesPage.logDirectoryBrowse
+        self.logFileEdit = self.preferencesPage.logFileEdit
+        self.logMaxSizeSpin = self.preferencesPage.logMaxSizeSpin
+        self.logMaxSizeSuffix = self.preferencesPage.logMaxSizeSuffix
+        self.logBackupSpin = self.preferencesPage.logBackupSpin
+        self.logConsoleCheck = self.preferencesPage.logConsoleCheck
+        self.logFormatEdit = self.preferencesPage.logFormatEdit
+        self.logDatefmtEdit = self.preferencesPage.logDatefmtEdit
+        self.saveLoggingButton = self.preferencesPage.saveLoggingButton
 
-        self.navigationBar.navigationTriggered.connect(self.navigationRequested.emit)
+        self.navigationBar.navigationTriggered.connect(
+            self.navigationRequested.emit)
 
         self.retranslate_ui()
         self.show_monitor_page()
 
-    # 导航方法
+    # Navigation helpers
     def show_monitor_page(self) -> None:
-        self.contentStack.setCurrentIndex(self.monitor_view_index)
-        self.navigationBar.set_active("monitor")
+        self._show_view("monitor")
 
     def show_configuration_page(self) -> None:
-        self.contentStack.setCurrentIndex(self.config_view_index)
-        self.navigationBar.set_active("configuration")
+        self._show_view("configuration")
 
     def show_preferences_page(self) -> None:
-        self.contentStack.setCurrentIndex(self.preferences_view_index)
-        self.navigationBar.set_active("preferences")
+        self._show_view("preferences")
+
+    def show_documentation_page(self) -> None:
+        self._show_view("documentation")
 
     def show_reports_page(self) -> None:
-        self.contentStack.setCurrentIndex(self.report_view_index)
-        self.navigationBar.set_active("reports")
+        self._show_view("reports")
 
     def update_monitoring_controls(self, running: bool) -> None:
         self._monitoring_active = running
         self.toggleMonitoringButton.setText(
-            self.tr("Stop") if running else self.tr("Start")
-        )
-        self._status_text = (
-            self.tr("Running")
-            if self._monitoring_active
-            else self.tr("Standby")
-        )
+            self.tr("Stop") if running else self.tr("Start"))
+        self._status_text = (self.tr("Running") if self._monitoring_active else
+                             self.tr("Standby"))
 
     def set_timezone_hint(self, timezone: int) -> None:
         self._timezone_offset = timezone
         self.timezoneDisplay.setText(
-            self.tr("Current Timezone: UTC{offset:+d}").format(offset=timezone)
-        )
+            self.tr("Current Timezone: UTC{offset:+d}").format(
+                offset=timezone))
 
     def retranslate_ui(self) -> None:
         self.commandBar.setToolTip(self.tr("Global Actions"))
         self.toggleMonitoringButton.setText(
-            self.tr("Stop")
-            if self._monitoring_active
-            else self.tr("Start")
-        )
-        self._status_text = (
-            self.tr("Running")
-            if self._monitoring_active
-            else self.tr("Standby")
-        )
+            self.tr("Stop") if self._monitoring_active else self.tr("Start"))
+        self._status_text = (self.tr("Running") if self._monitoring_active else
+                             self.tr("Standby"))
         self.reloadConfigButton.setText(self.tr("Reload"))
         self.exitButton.setText(self.tr("Exit"))
 
         self.navigationBar.retranslate_ui()
-
-        self.preferencesPage.retranslate_ui()
         self.timezoneDisplay.setText(
-            self.tr("Current Timezone: UTC{offset:+d}").format(offset=self._timezone_offset)
-        )
+            self.tr("Current Timezone: UTC{offset:+d}").format(
+                offset=self._timezone_offset))
 
-        monitor_page = self.contentStack.widget(self.monitor_view_index)
-        if isinstance(monitor_page, MonitorDashboard):
-            monitor_page.retranslate_ui()
-        configuration_page = self.contentStack.widget(self.config_view_index)
-        if isinstance(configuration_page, ConfigurationWorkspace):
-            configuration_page.retranslate_ui()
+        for widget in self._views.values():
+            retranslate = getattr(widget, "retranslate_ui", None)
+            if callable(retranslate):
+                retranslate()
 
         self.reportPlaceholderLabel.setText(
-            self.tr("Reports and alerts view under construction. Stay tuned!")
-        )
+            self.tr("Reports and alerts view under construction. Stay tuned!"))
 
     def current_status_text(self) -> str:
         if not self._status_text:
-            self._status_text = (
-                self.tr("Running")
-                if self._monitoring_active
-                else self.tr("Standby")
-            )
+            self._status_text = (self.tr("Running") if self._monitoring_active
+                                 else self.tr("Standby"))
         return self._status_text
+
+    # ------------------------------------------------------------------
+    def _register_view(self, nav_id: str, widget: QtWidgets.QWidget) -> None:
+        index = self.contentStack.addWidget(widget)
+        self._views[nav_id] = widget
+        self._view_indexes[nav_id] = index
+
+    def _show_view(self, nav_id: str) -> None:
+        index = self._view_indexes.get(nav_id)
+        if index is None:
+            return
+        self.contentStack.setCurrentIndex(index)
+        self.navigationBar.set_active(nav_id)
 
 
 __all__ = [
@@ -230,4 +260,5 @@ __all__ = [
     "ConfigWizard",
     "ConfigurationWorkspace",
     "PreferencesPage",
+    "DocumentationPage",
 ]

@@ -1,17 +1,18 @@
 # -*- codeing = utf-8 -*-
-# @Time : 2023/4/10 0:56
-# @Author: weijia
-# @File : icmp_probe.py
-# @Software: PyCharm
+# @Create: 2023-03-29 3:23 p.m.
+# @Update: 2025-10-24 11:53 p.m.
+# @Author: John Zhao
 
 import time, struct
 import socket, select
 from contextlib import closing
 
+
 class IcmpProbe:
     # Send the raw ICMP packet through a socket.
     def raw_socket(self, dst_addr, imcp_packet):
-        rawsocket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.getprotobyname("icmp"))
+        rawsocket = socket.socket(socket.AF_INET, socket.SOCK_RAW,
+                                  socket.getprotobyname("icmp"))
         send_request_ping_time = time.time()
         rawsocket.sendto(imcp_packet, (dst_addr, 80))
         return send_request_ping_time, closing(rawsocket)
@@ -32,22 +33,31 @@ class IcmpProbe:
         return answer
 
     # Resolve the destination host address from a hostname.
-    def get_host_address(self,host):
+    def get_host_address(self, host):
         dst_addr = socket.gethostbyname(host)
         return dst_addr
 
     # Construct an ICMP echo request packet.
-    def request_ping(self, data_type, data_code, data_checksum, data_ID, data_Sequence, payload_body):
+    def request_ping(self, data_type, data_code, data_checksum, data_ID,
+                     data_Sequence, payload_body):
         # Pack the supplied fields into a binary structure.
-        imcp_packet = struct.pack('>BBHHH32s', data_type, data_code, data_checksum, data_ID, data_Sequence,payload_body)
+        imcp_packet = struct.pack('>BBHHH32s', data_type, data_code,
+                                  data_checksum, data_ID, data_Sequence,
+                                  payload_body)
         # Calculate the checksum based on the initial packet.
         icmp_chesksum = self.chesksum(imcp_packet)
         # Insert the checksum and rebuild the packet bytes.
-        imcp_packet = struct.pack('>BBHHH32s', data_type, data_code, icmp_chesksum, data_ID, data_Sequence,payload_body)
+        imcp_packet = struct.pack('>BBHHH32s', data_type, data_code,
+                                  icmp_chesksum, data_ID, data_Sequence,
+                                  payload_body)
         return imcp_packet
 
     # Process reply packets by unpacking and validating them.
-    def reply_ping(self, send_request_ping_time, rawsocket, data_Sequence, timeout=3):
+    def reply_ping(self,
+                   send_request_ping_time,
+                   rawsocket,
+                   data_Sequence,
+                   timeout=3):
         while True:
             # Wait for the raw socket to become readable within the timeout window.
             what_ready = select.select([rawsocket], [], [], timeout)
@@ -63,7 +73,8 @@ class IcmpProbe:
             # Extract the ICMP header from the response payload.
             icmpHeader = received_packet[20:28]
             # Decode the header fields into their native values.
-            type, code, r_checksum, packet_id, sequence = struct.unpack(">BBHHH", icmpHeader)
+            type, code, r_checksum, packet_id, sequence = struct.unpack(
+                ">BBHHH", icmpHeader)
             if type == 0 and sequence == data_Sequence:
                 return time_received - send_request_ping_time
             # Update the remaining timeout budget and abort if it is exhausted.
@@ -81,10 +92,13 @@ class IcmpProbe:
         payload_body = b'abcdefghijklmnopqrstuvwabcdefghi'
 
         # Build the binary representation of the ping request.
-        icmp_packet = self.request_ping(data_type, data_code, data_checksum, data_ID, data_Sequence, payload_body)
+        icmp_packet = self.request_ping(data_type, data_code, data_checksum,
+                                        data_ID, data_Sequence, payload_body)
         # Open the raw socket context and send the packet through it.
-        send_request_ping_time, rawsocket_context = self.raw_socket(address, icmp_packet)
-        if not hasattr(rawsocket_context, "__enter__") or not hasattr(rawsocket_context, "__exit__"):
+        send_request_ping_time, rawsocket_context = self.raw_socket(
+            address, icmp_packet)
+        if not hasattr(rawsocket_context, "__enter__") or not hasattr(
+                rawsocket_context, "__exit__"):
             rawsocket_context = closing(rawsocket_context)
 
         with rawsocket_context as rawsocket:
@@ -92,7 +106,8 @@ class IcmpProbe:
             reply_kwargs = {}
             if timeout is not None:
                 reply_kwargs["timeout"] = timeout
-            times = self.reply_ping(send_request_ping_time, rawsocket, data_Sequence, **reply_kwargs)
+            times = self.reply_ping(send_request_ping_time, rawsocket,
+                                    data_Sequence, **reply_kwargs)
         if times > 0:
             return_time = int(times * 1000)
             return return_time

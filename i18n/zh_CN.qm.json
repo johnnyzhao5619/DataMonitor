@@ -66,8 +66,9 @@
       ">>报表/告警视图预览": ">>报表/告警视图预览",
       ">>配置模式": ">>配置模式",
       ">>设置中心": ">>设置中心",
+      ">>文档中心": ">>文档中心",
       "English": "英语",
-      "Monitor Everything v1.0": "全局监控 v1.0",
+      "Monitor Everything": "全局监控",
       "{index}. {name} --- 类型: {monitor_type} --- 地址: {url} --- 周期: {interval}秒": "{index}. {name} --- 类型: {monitor_type} --- 地址: {url} --- 周期: {interval}秒",
       "保存失败": "保存失败",
       "保存失败: {error}": "保存失败: {error}",
@@ -123,6 +124,7 @@
       "Monitor": "监控",
       "Configuration": "配置",
       "Preferences": "设置",
+      "Documentation": "文档",
       "Reports": "报表"
     },
     "PreferencesPage": {
@@ -131,7 +133,25 @@
       "Theme": "主题",
       "Select Theme": "选择主题",
       "Language": "语言",
-      "Select Language": "选择语言"
+      "Select Language": "选择语言",
+      "Logging Settings": "日志配置",
+      "Configure the log destination, rotation policy, and formatting for application output.": "配置日志保存位置、滚动策略与格式。",
+      "Log Level": "日志级别",
+      "Log Directory": "日志目录",
+      "Browse": "浏览",
+      "Log File Name": "日志文件名",
+      "e.g. system.log": "例如 system.log",
+      "Max Log Size": "单个日志大小上限",
+      "MB": "MB",
+      "Backup Files": "保留文件数",
+      "Enable Console Output": "启用控制台输出",
+      "Log Format": "日志格式",
+      "Leave empty to use default format": "留空使用默认格式",
+      "Date Format": "日期格式",
+      "Leave empty to use default date format": "留空使用默认日期格式",
+      "Set size to 0 to disable rotation. Changes take effect immediately after saving.": "将大小设为 0 可禁用滚动。保存后立即生效。",
+      "Save Logging Settings": "保存日志设置",
+      "Select Log Directory": "选择日志目录"
     },
     "PreferencesController": {
       "English": "英语",
@@ -142,7 +162,24 @@
       "本地时间 Local Time(时区 Time Zone: {zone})": "本地时间（时区: {zone}）",
       "简体中文": "简体中文",
       "请输入所在时区(整数):": "请输入所在时区(整数):",
-      "输入时区": "输入时区"
+      "输入时区": "输入时区",
+      "读取失败": "读取失败",
+      "保存失败": "保存失败",
+      "日志配置保存失败: {error}": "日志配置保存失败: {error}",
+      "日志配置已保存": "日志配置已保存",
+      "日志大小不能为负数": "日志大小不能为负数",
+      "Select Log Directory": "选择日志目录"
+    },
+    "DocumentationPage": {
+      "License Overview": "许可概览",
+      "DataMonitor 使用 Apache License 2.0 发布。以下内容展示完整许可文本，并说明在二次分发或商业部署时需要保留的版权与许可证条款。": "DataMonitor 使用 Apache License 2.0 发布。以下内容展示完整许可文本，并说明在二次分发或商业部署时需要保留的版权与许可证条款。",
+      "User Manual": "用户手册",
+      "Chinese": "中文",
+      "English": "英语",
+      "File not found: {path}": "文件未找到: {path}",
+      "Failed to load {path}: {error}": "加载 {path} 失败: {error}",
+      "当前显示简体中文用户手册。": "当前显示简体中文用户手册。",
+      "Displaying the English user manual.": "当前显示英文用户手册。"
     },
     "Template.log": {
       ">>>{event_timestamp}: {service_name}{status_label}": ">>>{event_timestamp}: {service_name}{status_label}",

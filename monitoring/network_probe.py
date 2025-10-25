@@ -1,5 +1,8 @@
 # -*- codeing = utf-8 -*-
-"""网络连通性探测工具函数。"""
+# @Create: 2023-02-16 3:37 p.m.
+# @Update: 2025-10-24 11:53 p.m.
+# @Author: John Zhao
+"""Network connectivity probing helpers."""
 
 import logging
 import math
@@ -12,12 +15,11 @@ from contextlib import closing
 
 from .icmp_probe import IcmpProbe
 
-
 LOGGER = logging.getLogger(__name__)
 
 
 def _subprocess_ping(host: str, timeout: float) -> bool:
-    """使用系统 ping 命令进行兜底探测。成功返回 True。"""
+    """Use the system ping command as a fallback probe; return True on success."""
 
     timeout = max(float(timeout), 0.0)
     if os.name == "nt":
@@ -28,9 +30,8 @@ def _subprocess_ping(host: str, timeout: float) -> bool:
         ping_cmd = ["ping", "-c", "1", "-W", str(wait_seconds), host]
 
     if shutil.which(ping_cmd[0]) is None:
-        LOGGER.warning(
-            "monitor.ping.subprocess.command_missing command=%s", ping_cmd[0]
-        )
+        LOGGER.warning("monitor.ping.subprocess.command_missing command=%s",
+                       ping_cmd[0])
         return False
 
     try:
@@ -38,7 +39,8 @@ def _subprocess_ping(host: str, timeout: float) -> bool:
         LOGGER.info("monitor.ping.subprocess.success host=%s", host)
         return True
     except subprocess.CalledProcessError as exc:
-        LOGGER.warning("monitor.ping.subprocess.failure host=%s error=%s", host, exc)
+        LOGGER.warning("monitor.ping.subprocess.failure host=%s error=%s",
+                       host, exc)
         return False
 
 
@@ -49,25 +51,26 @@ def check_socket_connectivity(host: str, port: int, timeout: float) -> bool:
         LOGGER.info("monitor.socket.success host=%s port=%s", host, port)
         return True
     except OSError as exc:
-        LOGGER.warning(
-            "monitor.socket.offline host=%s port=%s error=%s", host, port, exc
-        )
+        LOGGER.warning("monitor.socket.offline host=%s port=%s error=%s", host,
+                       port, exc)
         return False
 
 
-def perform_ping_probe(host: str, timeout: float, *, attempts: int = 3) -> bool:
+def perform_ping_probe(host: str,
+                       timeout: float,
+                       *,
+                       attempts: int = 3) -> bool:
     try:
         resolved_timeout = max(float(timeout), 0.0)
     except (TypeError, ValueError):
-        LOGGER.warning(
-            "monitor.ping.raw.invalid_timeout host=%s timeout=%s", host, timeout
-        )
+        LOGGER.warning("monitor.ping.raw.invalid_timeout host=%s timeout=%s",
+                       host, timeout)
         resolved_timeout = 0.0
 
-    per_attempt_timeout = (
-        resolved_timeout / attempts if resolved_timeout > 0 and attempts else 0.0
-    )
-    sleep_interval = min(per_attempt_timeout, 0.7) if per_attempt_timeout > 0 else 0.0
+    per_attempt_timeout = (resolved_timeout / attempts
+                           if resolved_timeout > 0 and attempts else 0.0)
+    sleep_interval = min(per_attempt_timeout,
+                         0.7) if per_attempt_timeout > 0 else 0.0
     remaining_budget = resolved_timeout
 
     try:
@@ -97,11 +100,9 @@ def perform_ping_probe(host: str, timeout: float, *, attempts: int = 3) -> bool:
                 payload_body,
             )
             send_request_ping_time, rawsocket_resource = ping.raw_socket(
-                dst_addr, icmp_packet
-            )
+                dst_addr, icmp_packet)
             if not hasattr(rawsocket_resource, "__enter__") or not hasattr(
-                rawsocket_resource, "__exit__"
-            ):
+                    rawsocket_resource, "__exit__"):
                 rawsocket_resource = closing(rawsocket_resource)
 
             attempt_timeout = per_attempt_timeout
@@ -130,7 +131,8 @@ def perform_ping_probe(host: str, timeout: float, *, attempts: int = 3) -> bool:
                 if sleep_interval > 0 and remaining_budget > 0:
                     sleep_duration = min(sleep_interval, remaining_budget)
                     time.sleep(sleep_duration)
-                    remaining_budget = max(0.0, remaining_budget - sleep_duration)
+                    remaining_budget = max(0.0,
+                                           remaining_budget - sleep_duration)
             else:
                 status.append(False)
                 LOGGER.warning(
@@ -147,9 +149,8 @@ def perform_ping_probe(host: str, timeout: float, *, attempts: int = 3) -> bool:
             LOGGER.warning("monitor.ping.raw.failure host=%s", host)
         return success
     except (PermissionError, OSError) as exc:
-        LOGGER.warning(
-            "monitor.ping.raw.permission_denied host=%s error=%s", host, exc
-        )
+        LOGGER.warning("monitor.ping.raw.permission_denied host=%s error=%s",
+                       host, exc)
         return _subprocess_ping(host, timeout)
     except Exception as exc:  # pragma: no cover - defensive safeguard
         LOGGER.warning("monitor.ping.raw.error host=%s error=%s", host, exc)
@@ -158,7 +159,8 @@ def perform_ping_probe(host: str, timeout: float, *, attempts: int = 3) -> bool:
 
 def perform_icmp_probe(host: str, timeout: float) -> bool:
     try:
-        with socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP) as sock:
+        with socket.socket(socket.AF_INET, socket.SOCK_RAW,
+                           socket.IPPROTO_ICMP) as sock:
             dummy_packet = b"\x08\x00}\x4b\x00\x00\x00\x00PingData"
             sock.sendto(dummy_packet, (host, 0))
             sock.settimeout(timeout)
@@ -166,9 +168,8 @@ def perform_icmp_probe(host: str, timeout: float) -> bool:
             LOGGER.info("monitor.icmp.success host=%s", host)
             return True
     except PermissionError as exc:
-        LOGGER.warning(
-            "monitor.icmp.permission_denied host=%s error=%s", host, exc
-        )
+        LOGGER.warning("monitor.icmp.permission_denied host=%s error=%s", host,
+                       exc)
     except (socket.timeout, socket.error) as exc:
         LOGGER.warning("monitor.icmp.failure host=%s error=%s", host, exc)
     return False
@@ -179,4 +180,3 @@ __all__ = [
     "perform_icmp_probe",
     "perform_ping_probe",
 ]
-

@@ -66,8 +66,9 @@
       ">>报表/告警视图预览": ">> Reports/alerts preview",
       ">>配置模式": ">> Configuration",
       ">>设置中心": ">> Preferences",
+      ">>文档中心": ">> Documentation",
       "English": "English",
-      "Monitor Everything v1.0": "Monitor Everything v1.0",
+      "Monitor Everything": "Monitor Everything",
       "{index}. {name} --- 类型: {monitor_type} --- 地址: {url} --- 周期: {interval}秒": "{index}. {name} --- Type: {monitor_type} --- URL: {url} --- Interval: {interval}s",
       "保存失败": "Save Failed",
       "保存失败: {error}": "Save failed: {error}",
@@ -123,6 +124,7 @@
       "Monitor": "Monitor",
       "Configuration": "Configuration",
       "Preferences": "Preferences",
+      "Documentation": "Documentation",
       "Reports": "Reports"
     },
     "PreferencesPage": {
@@ -131,7 +133,25 @@
       "Theme": "Theme",
       "Select Theme": "Select Theme",
       "Language": "Language",
-      "Select Language": "Select Language"
+      "Select Language": "Select Language",
+      "Logging Settings": "Logging Settings",
+      "Configure the log destination, rotation policy, and formatting for application output.": "Configure the log destination, rotation policy, and formatting for application output.",
+      "Log Level": "Log Level",
+      "Log Directory": "Log Directory",
+      "Browse": "Browse",
+      "Log File Name": "Log File Name",
+      "e.g. system.log": "e.g. system.log",
+      "Max Log Size": "Max Log Size",
+      "MB": "MB",
+      "Backup Files": "Backup Files",
+      "Enable Console Output": "Enable Console Output",
+      "Log Format": "Log Format",
+      "Leave empty to use default format": "Leave empty to use default format",
+      "Date Format": "Date Format",
+      "Leave empty to use default date format": "Leave empty to use default date format",
+      "Set size to 0 to disable rotation. Changes take effect immediately after saving.": "Set size to 0 to disable rotation. Changes take effect immediately after saving.",
+      "Save Logging Settings": "Save Logging Settings",
+      "Select Log Directory": "Select Log Directory"
     },
     "PreferencesController": {
       "English": "English",
@@ -142,7 +162,24 @@
       "本地时间 Local Time(时区 Time Zone: {zone})": "Local Time (Time Zone: {zone})",
       "简体中文": "Simplified Chinese",
       "请输入所在时区(整数):": "Enter your time zone (integer):",
-      "输入时区": "Set Time Zone"
+      "输入时区": "Set Time Zone",
+      "读取失败": "Load Failed",
+      "保存失败": "Save Failed",
+      "日志配置保存失败: {error}": "Failed to save logging settings: {error}",
+      "日志配置已保存": "Logging settings saved",
+      "日志大小不能为负数": "Log size cannot be negative",
+      "Select Log Directory": "Select Log Directory"
+    },
+    "DocumentationPage": {
+      "License Overview": "License Overview",
+      "DataMonitor 使用 Apache License 2.0 发布。以下内容展示完整许可文本，并说明在二次分发或商业部署时需要保留的版权与许可证条款。": "DataMonitor is distributed under the Apache License 2.0. The following text shows the full license and clarifies the attribution and licensing terms required for redistribution or commercial deployments.",
+      "User Manual": "User Manual",
+      "Chinese": "Chinese",
+      "English": "English",
+      "File not found: {path}": "File not found: {path}",
+      "Failed to load {path}: {error}": "Failed to load {path}: {error}",
+      "当前显示简体中文用户手册。": "Displaying the Simplified Chinese manual.",
+      "Displaying the English user manual.": "Displaying the English user manual."
     },
     "Template.log": {
       ">>>{event_timestamp}: {service_name}{status_label}": ">>>{event_timestamp}: {service_name}{status_label}",

@@ -34,23 +34,24 @@ def _load_catalog():
 
 def test_translation_files_match_catalog():
     languages, contexts = _load_catalog()
-    assert languages, "catalog.json 必须定义语言列表"
+    assert languages, "catalog.json must define a language list"
 
     for language in languages:
         path = PROJECT_ROOT / "i18n" / f"{language}.qm.json"
-        assert path.is_file(), f"缺少翻译文件: {path.name}"
+        assert path.is_file(), f"Missing translation file: {path.name}"
         payload = json.loads(path.read_text(encoding="utf-8"))
         assert payload.get("language") == language
         messages = payload.get("messages", {})
-        assert set(messages) == set(contexts), "上下文集合不一致"
+        assert set(messages) == set(contexts), "Context sets do not match"
         for context_name, source_map in contexts.items():
             translations = messages[context_name]
-            assert set(translations) == set(source_map), f"{context_name} 键集合不一致"
+            assert set(translations) == set(
+                source_map), f"{context_name} key sets do not match"
             for source, per_language in source_map.items():
                 value = translations[source]
                 expected = per_language[language]
                 assert value == expected
-                assert value, f"{context_name}:{source} 在 {language} 中为空"
+                assert value, f"{context_name}:{source} is empty for {language}"
 
 
 def test_mail_templates_render_in_each_language(tmp_path, monkeypatch):
@@ -63,9 +64,10 @@ def test_mail_templates_render_in_each_language(tmp_path, monkeypatch):
     }
     per_language_context = {
         "zh_CN": {
-            "status_action": "告警",
-            "event_description": "监控检测到服务不可达",
-            "time_label": "发生时间",
+            "status_action": "Alert (Simplified Chinese)",
+            "event_description":
+            "Monitoring detected the service is unreachable",
+            "time_label": "Event time",
         },
         "en_US": {
             "status_action": "Alert",
@@ -78,25 +80,32 @@ def test_mail_templates_render_in_each_language(tmp_path, monkeypatch):
     mail_resources = configuration.TEMPLATE_DEFAULTS["mail"]
 
     for language in languages:
-        config_context = {**base_context, **per_language_context.get(language, {})}
-        monkeypatch.setattr(configuration, "_LANGUAGE_CACHE", language, raising=False)
+        config_context = {
+            **base_context,
+            **per_language_context.get(language, {})
+        }
+        monkeypatch.setattr(configuration,
+                            "_LANGUAGE_CACHE",
+                            language,
+                            raising=False)
         configuration.get_template_manager().reload()
         subject_resource = mail_resources["alert_subject"]
         expected_subject_template = catalog_map[subject_resource.context][
-            subject_resource.source
-        ][language]
-        rendered_subject = configuration.render_template(
-            "mail", "alert_subject", config_context, language=language
-        )
-        assert rendered_subject == expected_subject_template.format(**config_context)
+            subject_resource.source][language]
+        rendered_subject = configuration.render_template("mail",
+                                                         "alert_subject",
+                                                         config_context,
+                                                         language=language)
+        assert rendered_subject == expected_subject_template.format(
+            **config_context)
 
         body_resource = mail_resources["alert_body"]
-        expected_body_template = catalog_map[body_resource.context][body_resource.source][
-            language
-        ]
-        rendered_body = configuration.render_template(
-            "mail", "alert_body", config_context, language=language
-        )
+        expected_body_template = catalog_map[body_resource.context][
+            body_resource.source][language]
+        rendered_body = configuration.render_template("mail",
+                                                      "alert_body",
+                                                      config_context,
+                                                      language=language)
         assert rendered_body == expected_body_template.format(**config_context)
 
 
@@ -104,15 +113,18 @@ def test_main_window_report_placeholder_translated():
     languages, contexts = _load_catalog()
     source = "Reports and alerts view under construction. Stay tuned!"
 
-    assert "MainWindowUI" in contexts, "缺少 MainWindowUI 上下文"
+    assert "MainWindowUI" in contexts, "Missing MainWindowUI context"
     translations = contexts["MainWindowUI"].get(source)
-    assert translations is not None, "缺少报表占位文案"
+    assert translations is not None, "Missing reports placeholder text"
 
     expected = {
         "en_US": source,
-        "zh_CN": "报表与告警视图建设中，敬请期待",
+        "zh_CN":
+        "Reports and alerts view under construction (Simplified Chinese)",
     }
     for language in languages:
-        assert language in translations, f"{language} 缺少报表占位翻译"
-        assert translations[language] == expected.get(language, translations[language])
-        assert translations[language], f"{language} 的报表占位翻译为空"
+        assert language in translations, f"Missing reports placeholder for {language}"
+        assert translations[language] == expected.get(language,
+                                                      translations[language])
+        assert translations[
+            language], f"Reports placeholder translation is empty for {language}"
