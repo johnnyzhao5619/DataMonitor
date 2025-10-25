@@ -1,12 +1,12 @@
-# DataMonitor v1.1.0
+# DataMonitor v1.2.0
 
-DataMonitor is a PySide6 desktop console that lets operations and SRE teams configure HTTP/API/server monitors without writing bespoke scripts. Version **1.1.0** focuses on consolidating configuration, tightening the UI/UX, and simplifying release management.
+DataMonitor is a PySide6 desktop console that lets operations and SRE teams configure HTTP/API/server monitors without writing bespoke scripts. Version **1.2.0** streamlines release management (centralised version module), refreshes bilingual manuals, and polishes the monitor configuration workflow.
 
 ![Workspace UX](docs/ui_overview.svg)
 
 ---
 
-## Highlights (v1.1.0)
+## Highlights (v1.2.0)
 
 - Centralised version metadata (`datamonitor/__version__`) consumed by the UI and documentation.
 - Refined bilingual user manuals with step-by-step monitor, mail, and template workflows.
