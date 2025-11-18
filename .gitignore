@@ -5,7 +5,8 @@ __pycache__/
 *.so
 .Python
 # Keep build artifact directories ignored but allow tracked packaging specs and helpers
-build/dist/
+build/
+dist/
 build/build/
 build/spec/
 build/DataMonitor/
@@ -53,6 +54,13 @@ env/
 ENV/
 .env
 .venv
+.venv*
+.venv_build/
+.venv_build2/
+
+# Explicit common venv names (some CI/tools create these)
+.venv/
+.env/
 
 # 项目特定
 Config/

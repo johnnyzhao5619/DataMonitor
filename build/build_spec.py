@@ -1,15 +1,24 @@
 from PyInstaller.building.api import BUNDLE, COLLECT, EXE, PYZ
 from PyInstaller.building.build_main import Analysis
+import os
+
+# Resolve project root safely (spec may be executed without __file__)
+if '__file__' in globals():
+    spec_dir = os.path.dirname(__file__)
+else:
+    spec_dir = os.path.join(os.getcwd(), 'build')
+
+BASE_DIR = os.path.abspath(os.path.join(spec_dir, '..'))
 
 # 定义程序基本信息
 block_cipher = None
 
 # 收集资源文件
 data_files = [
-    ('data_monitor/Config/*', 'data_monitor/Config'),
-    ('i18n/*', 'i18n'),
-    ('docs/*', 'docs'),
-    ('resources/icons/*', 'resources/icons'),
+    (os.path.join(BASE_DIR, 'data_monitor', 'Config'), 'data_monitor/Config'),
+    (os.path.join(BASE_DIR, 'i18n'), 'i18n'),
+    (os.path.join(BASE_DIR, 'docs'), 'docs'),
+    (os.path.join(BASE_DIR, 'resources', 'icons'), 'resources/icons'),
 ]
 
 # 主程序规范
@@ -68,10 +77,19 @@ coll = COLLECT(
 )
 
 # 为 macOS 创建 .app 包
+# macOS bundle: prefer resources/icons/datamonitor.icns
+icns_path = os.path.join(BASE_DIR, 'resources', 'icons', 'datamonitor.icns')
+if not os.path.exists(icns_path):
+    docs_icns = os.path.join(BASE_DIR, 'docs', 'datamonitor.icns')
+    if os.path.exists(docs_icns):
+        icns_path = docs_icns
+    else:
+        icns_path = None
+
 app = BUNDLE(
     coll,
     name='DataMonitor.app',
-    icon=None,
+    icon=icns_path,
     bundle_identifier='com.johnnyzhao.datamonitor',
     version='1.2.0',
 )
