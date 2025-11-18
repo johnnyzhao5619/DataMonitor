@@ -5,7 +5,8 @@ __pycache__/
 *.so
 .Python
 # Keep build artifact directories ignored but allow tracked packaging specs and helpers
-build/dist/
+build/
+dist/
 build/build/
 build/spec/
 build/DataMonitor/

@@ -24,6 +24,35 @@ if exist "dist" rmdir /s /q dist
 if exist "build\build" rmdir /s /q build\build
 if exist "build\dist" rmdir /s /q build\dist
 
+REM Ensure Windows .ico exists (generate from PNG if needed)
+if not exist "resources\icons\datamonitor.ico" (
+    echo datamonitor.ico not found, attempting to generate from PNG...
+    REM Ensure Pillow is installed to run the icon generator
+    python -c "import PIL" >nul 2>&1
+    if errorlevel 1 (
+        echo Pillow not found. Installing Pillow...
+        python -m pip install Pillow >nul 2>&1
+        if errorlevel 1 (
+            echo Failed to install Pillow. Icon generation will be skipped.
+        ) else (
+            python tools\gen_ico.py >nul 2>&1
+            if errorlevel 1 (
+                echo Failed to generate datamonitor.ico. Make sure PNG exists in resources\icons
+            ) else (
+                echo Generated resources\icons\datamonitor.ico
+            )
+        )
+    ) else (
+        REM Pillow already installed, try generate icon directly
+        python tools\gen_ico.py >nul 2>&1
+        if errorlevel 1 (
+            echo Failed to generate datamonitor.ico. Make sure PNG exists in resources\icons
+        ) else (
+            echo Generated resources\icons\datamonitor.ico
+        )
+    )
+)
+
 REM Build using the Windows spec file
 echo.
 echo Running PyInstaller...
