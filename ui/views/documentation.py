@@ -33,21 +33,66 @@ class DocumentationPage(QtWidgets.QWidget):
     # Resolve resource paths at runtime so this works when frozen by PyInstaller
     @staticmethod
     def _project_root() -> Path:
+        # Keep for backward-compat but prefer more robust lookup via
+        # _find_resource when locating individual files.
         if getattr(sys, "frozen", False):
             return Path(getattr(sys, "_MEIPASS", Path.cwd()))
         return Path(__file__).resolve().parents[2]
 
     @classmethod
+    def _find_resource(cls, *parts: str) -> Path:
+        """Search common locations for a resource when running frozen.
+
+        Checks sys._MEIPASS, the executable parent, current working
+        directory, and common PyInstaller internal directories.
+        Returns the first existing Path found or a best-effort Path.
+        """
+        name = Path(*parts)
+        candidates: list[Path] = []
+        if getattr(sys, "frozen", False):
+            meipass = Path(getattr(sys, "_MEIPASS", ""))
+            if meipass:
+                candidates.append(meipass)
+            exe_parent = Path(sys.executable).resolve().parent
+            candidates.append(exe_parent)
+            # Some PyInstaller one-folder layouts extract internals
+            # into a sibling or child _internal directory — check common
+            # patterns as well.
+            candidates.append(exe_parent / "_internal")
+            candidates.append(Path.cwd())
+        else:
+            candidates.append(Path(__file__).resolve().parents[2])
+
+        # Try each candidate; return first match
+        for base in candidates:
+            candidate = base.joinpath(name)
+            if candidate.exists():
+                return candidate
+
+        # As a last resort, try searching upward from cwd for the file
+        cur = Path.cwd()
+        for _ in range(4):
+            candidate = cur.joinpath(name)
+            if candidate.exists():
+                return candidate
+            cur = cur.parent
+
+        # Not found — return a plausible path (first candidate joined)
+        if candidates:
+            return candidates[0].joinpath(name)
+        return name
+
+    @classmethod
     def _license_path(cls) -> Path:
-        return cls._project_root() / "LICENSE"
+        return cls._find_resource("LICENSE")
 
     @classmethod
     def _manual_zh_path(cls) -> Path:
-        return cls._project_root() / "docs" / "manual_zh.md"
+        return cls._find_resource("docs", "manual_zh.md")
 
     @classmethod
     def _manual_en_path(cls) -> Path:
-        return cls._project_root() / "docs" / "manual_en.md"
+        return cls._find_resource("docs", "manual_en.md")
 
     def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
         super().__init__(parent)
