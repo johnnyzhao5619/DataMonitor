@@ -54,6 +54,7 @@ env/
 ENV/
 .env
 .venv
+.venv*
 
 # 项目特定
 Config/
