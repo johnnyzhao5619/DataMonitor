@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import sys
 from typing import Optional
 
 from PySide6 import QtWidgets
@@ -29,11 +30,24 @@ th, td { border: 1px solid #d0d0d0; padding: 4px 8px; }
 class DocumentationPage(QtWidgets.QWidget):
     """Displays license summary and a language-aware user manual."""
 
-    _LICENSE_PATH = Path(__file__).resolve().parents[2] / "LICENSE"
-    _MANUAL_ZH_PATH = Path(
-        __file__).resolve().parents[2] / "docs" / "manual_zh.md"
-    _MANUAL_EN_PATH = Path(
-        __file__).resolve().parents[2] / "docs" / "manual_en.md"
+    # Resolve resource paths at runtime so this works when frozen by PyInstaller
+    @staticmethod
+    def _project_root() -> Path:
+        if getattr(sys, "frozen", False):
+            return Path(getattr(sys, "_MEIPASS", Path.cwd()))
+        return Path(__file__).resolve().parents[2]
+
+    @classmethod
+    def _license_path(cls) -> Path:
+        return cls._project_root() / "LICENSE"
+
+    @classmethod
+    def _manual_zh_path(cls) -> Path:
+        return cls._project_root() / "docs" / "manual_zh.md"
+
+    @classmethod
+    def _manual_en_path(cls) -> Path:
+        return cls._project_root() / "docs" / "manual_en.md"
 
     def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
         super().__init__(parent)
@@ -79,7 +93,8 @@ class DocumentationPage(QtWidgets.QWidget):
         self.manualView.setObjectName("manualView")
         self.manualView.setOpenExternalLinks(True)
         self.manualView.setReadOnly(True)
-        self.manualView.document().setDefaultStyleSheet(_MARKDOWN_STYLESHEET)
+        # We'll inline the stylesheet into the generated HTML for
+        # consistent rendering across Qt versions.
         manual_layout.addWidget(self.manualView, 1)
         layout.addWidget(self.manualGroup, 2)
 
@@ -87,19 +102,42 @@ class DocumentationPage(QtWidgets.QWidget):
         self.retranslate_ui()
 
     def reload_content(self) -> None:
-        self.licenseView.setPlainText(self._load_text(self._LICENSE_PATH))
+        self.licenseView.setPlainText(self._load_text(self._license_path()))
         manual_path = self._manual_path_for_language()
         manual_text = self._load_text(manual_path)
         if manual_path.suffix.lower() == ".md":
-            self.manualView.setMarkdown(manual_text)
+            # Convert Markdown -> HTML for more consistent rendering across
+            # platforms/Qt versions. Use Python-Markdown if available.
+            try:
+                import markdown as _md
+
+                html_body = _md.markdown(
+                    manual_text,
+                    extensions=["extra", "fenced_code", "tables"],
+                )
+                # Embed CSS into the HTML head to avoid relying on
+                # Qt's document().setDefaultStyleSheet, which can vary
+                # between Qt versions.
+                css = _MARKDOWN_STYLESHEET
+                full_html = ("<html><head><meta charset='utf-8'><style>" +
+                             css + "</style></head>"
+                             f"<body>{html_body}</body></html>")
+                self.manualView.setHtml(full_html)
+            except Exception:
+                # Fallback: if markdown package not available or conversion
+                # fails, let QTextBrowser attempt to render Markdown directly
+                try:
+                    self.manualView.setMarkdown(manual_text)
+                except Exception:
+                    self.manualView.setPlainText(manual_text)
         else:
             self.manualView.setPlainText(manual_text)
 
     def _manual_path_for_language(self) -> Path:
         language = configuration.get_language()
         if language == "zh_CN":
-            return self._MANUAL_ZH_PATH
-        return self._MANUAL_EN_PATH
+            return self._manual_zh_path()
+        return self._manual_en_path()
 
     def _load_text(self, path: Path) -> str:
         try:
