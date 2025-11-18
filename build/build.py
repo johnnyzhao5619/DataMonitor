@@ -178,15 +178,23 @@ def build_app():
                         src_img = Image.open(src).convert('RGBA')
                         for size, name in sizes:
                             out = iconset_dir / name
-                            src_img.resize((size, size), Image.LANCZOS).save(out)
+                            src_img.resize((size, size),
+                                           Image.LANCZOS).save(out)
 
                         # run iconutil if available
                         if shutil.which('iconutil'):
-                            subprocess.run(['iconutil', '-c', 'icns', str(iconset_dir), '-o', str(icns_path)], check=False)
+                            subprocess.run([
+                                'iconutil', '-c', 'icns',
+                                str(iconset_dir), '-o',
+                                str(icns_path)
+                            ],
+                                           check=False)
                             if icns_path.exists():
                                 print(f'Generated {icns_path} using iconutil')
                         else:
-                            print('iconutil not found; cannot convert .iconset to .icns automatically')
+                            print(
+                                'iconutil not found; cannot convert .iconset to .icns automatically'
+                            )
                     except Exception as e:
                         print('Failed to generate .icns:', e)
 
