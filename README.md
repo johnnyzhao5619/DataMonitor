@@ -1,14 +1,16 @@
-# DataMonitor v1.2.0
+# DataMonitor v1.1.0
 
-DataMonitor is a PySide6 desktop console that lets operations and SRE teams configure HTTP/API/server monitors without writing bespoke scripts. Version **1.2.0** streamlines release management (centralised version module), refreshes bilingual manuals, and polishes the monitor configuration workflow.
+DataMonitor is a PySide6 desktop console that lets operations and SRE teams configure HTTP/API/server monitors without writing bespoke scripts. Version **1.1.0** introduces PySide6 migration, improved internationalization, and enhanced security features.
 
 ---
 
-## Highlights (v1.2.0)
+## Highlights (v1.1.0)
 
-- Refined bilingual user manuals with step-by-step monitor, mail, and template workflows.
-- PySide6-only GUI stack with controller/event-bus architecture.
-- Template-driven notification system and per-monitor recipient overrides.
+- Migrated from PyQt5 to PySide6 (Qt for Python with LGPL v3 licensing)
+- Core monitoring module runs independently with no UI dependency
+- Improved internationalization with bundled language-pack build tool
+- Enhanced security with environment variables and external credential file support
+- Apache License 2.0 with comprehensive compliance documentation
 
 ---
 
@@ -51,14 +53,14 @@ Use `python -c "import configuration; configuration.writeconfig('<path>')"` to b
 
 Each `[MonitorX]` section in `Config.ini` maps to a monitor:
 
-| Field | Description |
-| --- | --- |
-| `name` | Friendly label shown in UI, logs, and mail subjects. |
-| `url` | Absolute HTTP/HTTPS URL or `host:port/path` for SERVER monitors. |
-| `type` | One of `GET`, `POST`, `SERVER`. |
-| `interval` | Polling interval (seconds). |
-| `email` | Optional comma-separated recipients overriding the global list. |
-| `payload` / `headers` | Optional JSON dictionaries for POST/custom requests. |
+| Field                 | Description                                                      |
+| --------------------- | ---------------------------------------------------------------- |
+| `name`                | Friendly label shown in UI, logs, and mail subjects.             |
+| `url`                 | Absolute HTTP/HTTPS URL or `host:port/path` for SERVER monitors. |
+| `type`                | One of `GET`, `POST`, `SERVER`.                                  |
+| `interval`            | Polling interval (seconds).                                      |
+| `email`               | Optional comma-separated recipients overriding the global list.  |
+| `payload` / `headers` | Optional JSON dictionaries for POST/custom requests.             |
 
 The Configuration wizard mirrors these fields and writes to the same file.
 
@@ -117,31 +119,65 @@ To bump a release:
 2. Regenerate or review documentation that mentions the version (README, CHANGELOG).
 3. Commit with a message such as `chore: bump version to vX.Y.Z`.
 
-## Icons & Packaging
+## Building Executables
 
-Project icon resources should live in `resources/icons/` (preferred) so packaging and CI know
-where生成源图与生成的 `.ico`/`.icns`。把 `datamonitor_logo_icon.png`（建议 1024×1024）放到该目录，使用下列命令生成目标图：
+DataMonitor can be packaged into standalone executables for Windows, macOS, and Linux using PyInstaller.
+
+### Prerequisites
 
 ```bash
-# 生成 Windows .ico（脚本优先查找 resources/icons/）
-python -m pip install --user Pillow
-python tools/gen_ico.py
-
-# macOS 下生成 .icns（使用系统自带工具）
-rm -rf resources/icons/datamonitor.iconset resources/icons/datamonitor.icns
-mkdir -p resources/icons/datamonitor.iconset
-# 使用 sips 生成多尺寸，然后 iconutil 打包为 .icns（参考 docs/icons.md）
+pip install pyinstaller
 ```
 
-`build.py` 会优先读取 `resources/icons/datamonitor.icns` / `resources/icons/datamonitor.ico`（若存在），若不存在则回退到 `docs/` 中的文件。
+### Windows Build
 
-Authoritative PyInstaller spec is located at `build/DataMonitor.spec`. For
-reproducible builds prefer invoking PyInstaller with the venv Python:
+On a Windows machine, run:
+
+```cmd
+build\build_windows.bat
+```
+
+Or manually:
+
+```cmd
+python -m PyInstaller build\DataMonitor_Windows.spec --clean --noconfirm
+```
+
+The executable will be created in `dist\DataMonitor\DataMonitor.exe`
+
+### macOS Build
+
+On a macOS machine, run:
 
 ```bash
 python -m PyInstaller build/DataMonitor.spec --clean --noconfirm
 ```
 
+The application bundle will be created in `dist/DataMonitor.app`
+
+### Linux Build
+
+On a Linux machine, run:
+
+```bash
+python -m PyInstaller build/DataMonitor.spec --clean --noconfirm
+```
+
+The executable will be created in `dist/DataMonitor/DataMonitor`
+
+**Note**: PyInstaller does not support cross-compilation. You must build on the target platform.
+
+For detailed build instructions, troubleshooting, and release procedures, see `build/BUILD_INSTRUCTIONS.md`.
+
+### Icons & Resources
+
+Project icon resources are located in `resources/icons/`:
+
+- `datamonitor.ico` - Windows icon (256x256)
+- `datamonitor.icns` - macOS icon bundle
+- `datamonitor_logo_icon.png` - Source PNG (1024x1024)
+
+The build scripts automatically use the appropriate icon for each platform.
 
 ---
 

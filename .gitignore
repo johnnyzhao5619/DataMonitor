@@ -8,7 +8,12 @@ __pycache__/
 build/dist/
 build/build/
 build/spec/
-build/
+build/DataMonitor/
+# But allow build scripts and spec files
+!build/*.py
+!build/*.bat
+!build/*.spec
+!build/*.md
 develop-eggs/
 dist/
 downloads/
