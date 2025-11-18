@@ -2,7 +2,6 @@
 # Allow newer PySide6 compatible with newer Python (e.g. Python 3.13+)
 PySide6>=6.10.0
 requests==2.31.0
-
 # Bundling / build tools
 # PyInstaller used to create executables
 PyInstaller==6.16.0

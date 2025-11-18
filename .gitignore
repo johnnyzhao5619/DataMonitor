@@ -55,6 +55,12 @@ ENV/
 .env
 .venv
 .venv*
+.venv_build/
+.venv_build2/
+
+# Explicit common venv names (some CI/tools create these)
+.venv/
+.env/
 
 # 项目特定
 Config/
