@@ -9,12 +9,11 @@ from pathlib import Path
 import sys
 from typing import Optional
 
-from PySide6 import QtWidgets
+from PySide6 import QtWidgets, QtGui
 
 import configuration
 
 _MARKDOWN_STYLESHEET = """
-body { font-family: "Segoe UI", "Microsoft YaHei", sans-serif; font-size: 13px; color: #2b2b2b; }
 h1 { font-size: 22px; margin: 12px 0 8px; }
 h2 { font-size: 18px; margin: 10px 0 6px; }
 h3 { font-size: 16px; margin: 8px 0 4px; }
@@ -33,21 +32,78 @@ class DocumentationPage(QtWidgets.QWidget):
     # Resolve resource paths at runtime so this works when frozen by PyInstaller
     @staticmethod
     def _project_root() -> Path:
+        # Keep for backward-compat but prefer more robust lookup via
+        # _find_resource when locating individual files.
         if getattr(sys, "frozen", False):
             return Path(getattr(sys, "_MEIPASS", Path.cwd()))
         return Path(__file__).resolve().parents[2]
 
     @classmethod
+    def _find_resource(cls, *parts: str) -> Path:
+        """Search common locations for a resource when running frozen.
+
+        Checks sys._MEIPASS, the executable parent, current working
+        directory, and common PyInstaller internal directories.
+        Returns the first existing Path found or a best-effort Path.
+        """
+        name = Path(*parts)
+        candidates: list[Path] = []
+        if getattr(sys, "frozen", False):
+            meipass = Path(getattr(sys, "_MEIPASS", ""))
+            if meipass:
+                candidates.append(meipass)
+            exe_parent = Path(sys.executable).resolve().parent
+            candidates.append(exe_parent)
+            # Some PyInstaller one-folder layouts extract internals
+            # into a sibling or child _internal directory — check common
+            # patterns as well.
+            candidates.append(exe_parent / "_internal")
+            candidates.append(Path.cwd())
+        else:
+            candidates.append(Path(__file__).resolve().parents[2])
+
+        # Try each candidate; return first match
+        for base in candidates:
+            candidate = base.joinpath(name)
+            if candidate.exists():
+                return candidate
+
+        # As a last resort, try searching upward from cwd for the file
+        cur = Path.cwd()
+        for _ in range(4):
+            candidate = cur.joinpath(name)
+            if candidate.exists():
+                return candidate
+            cur = cur.parent
+
+        # Not found — return a plausible path (first candidate joined)
+        if candidates:
+            return candidates[0].joinpath(name)
+        return name
+
+    @classmethod
     def _license_path(cls) -> Path:
-        return cls._project_root() / "LICENSE"
+        # Prefer a relative path from the project root when running from
+        # a source checkout. This makes the LICENSE resolution predictable
+        # during development and when running from the repository.
+        try:
+            rel = Path(__file__).resolve().parents[2] / "LICENSE"
+            if rel.exists():
+                return rel
+        except Exception:
+            pass
+
+        # Fall back to the runtime resource lookup which handles frozen
+        # executables (sys._MEIPASS, exe parent, _internal, etc.).
+        return cls._find_resource("LICENSE")
 
     @classmethod
     def _manual_zh_path(cls) -> Path:
-        return cls._project_root() / "docs" / "manual_zh.md"
+        return cls._find_resource("docs", "manual_zh.md")
 
     @classmethod
     def _manual_en_path(cls) -> Path:
-        return cls._project_root() / "docs" / "manual_en.md"
+        return cls._find_resource("docs", "manual_en.md")
 
     def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
         super().__init__(parent)
@@ -117,8 +173,8 @@ class DocumentationPage(QtWidgets.QWidget):
                 )
                 # Embed CSS into the HTML head to avoid relying on
                 # Qt's document().setDefaultStyleSheet, which can vary
-                # between Qt versions.
-                css = _MARKDOWN_STYLESHEET
+                # between Qt versions and to adapt to light/dark themes.
+                css = self._generate_css()
                 full_html = ("<html><head><meta charset='utf-8'><style>" +
                              css + "</style></head>"
                              f"<body>{html_body}</body></html>")
@@ -164,6 +220,57 @@ class DocumentationPage(QtWidgets.QWidget):
             self.manualSummaryLabel.setText(
                 self.tr("Displaying the English user manual."))
         self.reload_content()
+
+    @classmethod
+    def _generate_css(cls) -> str:
+        """Generate a small CSS stylesheet that adapts to the current
+        QApplication palette so the manual renders nicely in both
+        light and dark themes.
+        """
+        try:
+            app = QtWidgets.QApplication.instance()
+            if app is None:
+                return _MARKDOWN_STYLESHEET
+            pal = app.palette()
+            # Prefer the document/base background and text role
+            bg_col = pal.color(QtGui.QPalette.Base)
+            text_col = pal.color(QtGui.QPalette.Text)
+            link_col = pal.color(QtGui.QPalette.Link)
+
+            def to_hex(c: QtGui.QColor) -> str:
+                return "#{:02x}{:02x}{:02x}".format(c.red(), c.green(), c.blue())
+
+            bg = to_hex(bg_col)
+            text = to_hex(text_col)
+            link = to_hex(link_col)
+
+            # Compute a gentle code/pre background depending on brightness
+            lum = (0.299 * bg_col.red() + 0.587 * bg_col.green() + 0.114 * bg_col.blue())
+            if lum < 128:
+                code_bg = "#2b2b2b"
+                hr_color = "rgba(255,255,255,0.12)"
+            else:
+                code_bg = "#f4f4f4"
+                hr_color = "rgba(0,0,0,0.12)"
+
+            return (
+                f"body {{ font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif; "
+                f"font-size: 13px; color: {text}; background: {bg}; }}"
+                f"h1 {{ font-size: 22px; margin: 12px 0 8px; }}"
+                f"h2 {{ font-size: 18px; margin: 10px 0 6px; }}"
+                f"h3 {{ font-size: 16px; margin: 8px 0 4px; }}"
+                f"p {{ margin: 6px 0; line-height: 1.5; }}"
+                f"ul, ol {{ margin: 6px 0 6px 22px; }}"
+                f"a {{ color: {link}; }}"
+                f"hr {{ border: 0; height: 1px; background: {hr_color}; margin: 18px 0; }}"
+                f"code {{ font-family: 'JetBrains Mono', monospace; background-color: {code_bg}; "
+                f"padding: 2px 4px; border-radius: 3px; }}"
+                f"pre {{ background-color: {code_bg}; padding: 8px; border-radius: 4px; overflow: auto; }}"
+                f"table {{ border-collapse: collapse; margin: 8px 0; }}"
+                f"th, td {{ border: 1px solid rgba(0,0,0,0.08); padding: 4px 8px; }}"
+            )
+        except Exception:
+            return _MARKDOWN_STYLESHEET
 
 
 __all__ = ["DocumentationPage"]

@@ -19,6 +19,8 @@ data_files = [
     (os.path.join(BASE_DIR, 'i18n'), 'i18n'),
     (os.path.join(BASE_DIR, 'docs'), 'docs'),
     (os.path.join(BASE_DIR, 'resources', 'icons'), 'resources/icons'),
+    # Include the repository LICENSE so the packaged app can display it at runtime
+    (os.path.join(BASE_DIR, 'LICENSE'), 'LICENSE'),
 ]
 
 # 主程序规范
