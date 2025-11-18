@@ -7,4 +7,4 @@
 __all__ = ["__version__"]
 
 # Bump this value when preparing a new release.
-__version__ = "1.2.4"
+__version__ = "1.2.5"
