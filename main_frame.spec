@@ -2,11 +2,11 @@
 
 block_cipher = None
 a = Analysis(
-    ['main_frame.py','monitor.py','configuration.py','GUI_windows_v2.py','log_recorder.py','my_ping.py','parse_data.py','send_email.py'],
+    ['main_frame.py','monitor.py','configuration.py','gui.py','log_recorder.py','my_ping.py','parse_data.py','send_email.py','config_dialog.py'],
     pathex=[],
     binaries=[],
     datas=[],
-    hiddenimports=[],
+    hiddenimports=['PyQt5.QtCore', 'PyQt5.QtGui', 'PyQt5.QtWidgets'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

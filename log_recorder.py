@@ -29,9 +29,18 @@ def record_to_log(action: str, log: str) -> None:
     if not os.path.exists(folder):
         os.makedirs(folder)
 
-    log_message = f""">>{local_time}(Timezone: {timezone})
-    >>Action:{action}
-    {log}\n"""
+    template = configuration.get_template(
+        'log_line',
+        ">>{time}(Timezone: {timezone})\n>>Action:{action}\n{log}\n")
+    try:
+        log_message = template.format(time=local_time,
+                                      timezone=timezone,
+                                      action=action,
+                                      log=log)
+    except Exception:
+        log_message = f""">>{local_time}(Timezone: {timezone})
+>>Action:{action}
+{log}\n"""
     with open(f"{folder}/log-{local_time.strftime('%Y%m%d')}.txt",
               'a',
               encoding='gb18030',

@@ -4,28 +4,41 @@
 # @File : main_frame.py
 
 from PyQt5 import QtWidgets
-from PyQt5.QtWidgets import QInputDialog
 import threading
 import datetime
 import os
 import time
 import sys
 from typing import List, Dict, Tuple
+import json
+from collections import deque
 
-from GUI_windows_v2 import MainWindow
+from gui import MainWindow
 import configuration
 import parse_data
 import monitor
 import send_email
 import log_recorder
+from config_dialog import ConfigDialog
 
 switch_status = True
-printf = []
+printf = deque(maxlen=1000)
+printf_lock = threading.Lock()
+
+
+def push_log(message: str) -> None:
+    with printf_lock:
+        printf.append(message)
+
+
+def pop_all_logs() -> list:
+    with printf_lock:
+        logs = list(printf)
+        printf.clear()
+    return logs
 
 
 class monitor_window(QtWidgets.QMainWindow, MainWindow):
-    global switch_status
-    global printf
 
     def __init__(self) -> None:
         """
@@ -40,20 +53,40 @@ class monitor_window(QtWidgets.QMainWindow, MainWindow):
         :return: None
         """
         super().__init__()
+        configuration.ensure_defaults()
         self.setupUi(self)
         self.status = self.statusBar()
-        self.status.showMessage('>>Initializing...', 2000)
+        self.status.showMessage('Initializing...', 2000)
+        self.stop_event = threading.Event()
+        self.threads = []
+        self.debug = os.getenv("API_MONITOR_DEBUG", "0") == "1"
 
         title: List[str, str] = configuration.read_general()
 
         self.setWindowTitle(f'{title[0]} - v{title[1]}')
         self.switchButton.clicked.connect(self.start_monitor)
-        self.configButton.clicked.connect(self.configuration)
-        self.locationButton.clicked.connect(self.set_location)
+        self.reloadConfigButton.clicked.connect(self.reload_configuration)
+        self.clearLogButton.clicked.connect(self.clear_logs)
+        self.copyLogButton.clicked.connect(self.copy_logs)
+        self.settingsButton.clicked.connect(self.open_settings)
         # auto_update: int = configuration.read_log_settings()
         # if auto_update == 1:
         #     self.get_expected_targets()
         self.read_config()
+        self._init_window_size()
+
+    def _init_window_size(self) -> None:
+        """
+        Set initial window size based on available screen geometry to improve
+        cross-resolution experience.
+        """
+        screen = QtWidgets.QApplication.primaryScreen()
+        if not screen:
+            return
+        geom = screen.availableGeometry()
+        target_width = max(720, int(geom.width() * 0.6))
+        target_height = max(500, int(geom.height() * 0.6))
+        self.resize(target_width, target_height)
 
     def get_expected_targets(self) -> None:
         """
@@ -75,18 +108,60 @@ class monitor_window(QtWidgets.QMainWindow, MainWindow):
                 ip_address +
                 f":6265/PSA/Services/GetExpectedTargets?region=China.{region.split('-')[0]}&format=XML&filter=All"
             )
-            result: Tuple[int, str] = monitor.monitor_get(
-                self.parse_network_address(url))
-            expected_num: int = parse_data.parse_expected_targets(result[1])
+            parsed_address = self.parse_network_address(url)
+            result = monitor.monitor_get(parsed_address)
+            if not result[0]:
+                push_log(
+                    f"{region} - Expected Targets fetch failed: {result[1]}")
+                continue
+            expected_num: int = parse_data.parse_expected_targets(
+                result[1].get('body', ''))
             configuration.set_targetnum(region, expected_num)
 
-            # Log/Output————————————————————————————————
-            printf.append(f"{region} - Expected Targets is {expected_num}")
+            push_log(f"{region} - Expected Targets is {expected_num}")
             # entry to Log
             log_recorder.record_to_log(
                 "Get Expected Targets",
                 f"{region} Expected Target Signal Number is {expected_num}")
         return
+
+    def reload_configuration(self) -> None:
+        """
+        Reload monitor list from configuration with basic validation.
+        """
+        try:
+            self.read_config()
+            title: List[str, str] = configuration.read_general()
+            self.setWindowTitle(f'{title[0]} - v{title[1]}')
+            self.status.showMessage('Configuration reloaded', 2000)
+        except Exception as exc:  # noqa: BLE001
+            push_log(f"Reload configuration failed: {exc}")
+            self.status.showMessage('Reload configuration failed', 4000)
+
+    def open_settings(self) -> None:
+        """
+        Open settings dialog and reload configuration if saved.
+        """
+        dlg = ConfigDialog(self)
+        if dlg.exec_() == QtWidgets.QDialog.Accepted:
+            self.reload_configuration()
+
+    def clear_logs(self) -> None:
+        """
+        Clear UI log output and pending buffered logs.
+        """
+        self.monitorBrowser.clear()
+        with printf_lock:
+            printf.clear()
+        self.status.showMessage('Logs cleared', 1500)
+
+    def copy_logs(self) -> None:
+        """
+        Copy all logs from the browser to clipboard.
+        """
+        text = self.monitorBrowser.toPlainText()
+        QtWidgets.QApplication.clipboard().setText(text)
+        self.status.showMessage('Logs copied to clipboard', 1500)
 
     def read_config(self) -> None:
         """
@@ -96,7 +171,7 @@ class monitor_window(QtWidgets.QMainWindow, MainWindow):
         :return: None
         """
         monitor_list: List[Dict[str, str]] = configuration.read_monitor_list()
-        printf.append(f"Read {len(monitor_list)} Monitor Items as following:")
+        push_log(f"Read {len(monitor_list)} Monitor Items as following:")
         log_recorder.record_to_log("Start Monitor",
                                    f"Read {len(monitor_list)} Monitor Items")
         for i in range(len(monitor_list)):
@@ -105,8 +180,7 @@ class monitor_window(QtWidgets.QMainWindow, MainWindow):
             interval: str = monitor_list[i]['interval']
             mtype: str = monitor_list[i]['type']
 
-            # Log/Output————————————————————————————————
-            printf.append(
+            push_log(
                 f"{i+1}.{name} - Type:{mtype} - url:{url} - Interval:{interval}s"
             )
             # entry to Log
@@ -127,47 +201,34 @@ class monitor_window(QtWidgets.QMainWindow, MainWindow):
         """
         global switch_status
         if switch_status is True:
+            # ensure previous threads fully stopped before new run
+            self._stop_threads()
+            self.stop_event = threading.Event()
             monitor_list: List[Dict[str,
                                     str]] = configuration.read_monitor_list()
-            self.run_with_threads(len(monitor_list), monitor_list)
+            self.run_with_threads(len(monitor_list), monitor_list,
+                                  self.stop_event)
 
-            self.switchButton.setText('Close')
-            self.status.showMessage('>>>Runing...')
+            self.switchButton.setText('Stop')
+            self.status.showMessage('Monitoring...')
             switch_status = False
         elif switch_status is False:
-            sys.exit()
+            self.status.showMessage('Stopping...', 2000)
+            self._stop_threads()
+            self.switchButton.setText('Monitor')
+            self.status.showMessage('Stopped', 2000)
+            switch_status = True
 
-    def configuration(self) -> None:
+    def _stop_threads(self) -> None:
         """
-        Open the configuration file for the monitor list in the default text
-        editor of the system.
-
-        This function will open the configuration file specified in the
-        configuration file in the default text editor of the system. The user
-        can then edit the configuration file to change the monitor items.
-
-        :return: None
+        Signal all monitor threads to stop and wait for exit.
         """
-        dir: str = f'{configuration.get_log_dir()}Config/MonitorList.ini'
-        # dir2: str = f'./mail_sample/OutageNotificationMailSample.html'
-        print(dir)
-        command = f'start "" "{dir}"'
-        os.system(command)
-
-    def set_location(self) -> None:
-        """
-        Opens a dialog box to let the user set the time zone, then update the
-        time zone displayed in the local time group box and save the time zone
-        to the configuration file.
-
-        :return: None
-        """
-        time_zone: int = int(configuration.get_timezone())
-        time_zone, ok = QInputDialog.getInt(
-            self, "Enter time zone", "Please enter your time zone (integer):",
-            time_zone, -12, 14, 1)
-        self.localTimeGroupBox.setTitle(f'Local Time(Time Zone:{time_zone})')
-        configuration.set_timezone(time_zone)
+        if not self.threads:
+            return
+        self.stop_event.set()
+        for t in self.threads:
+            t.join(timeout=5.0)
+        self.threads = []
 
     def update_clock(self) -> None:
         """
@@ -181,37 +242,44 @@ class monitor_window(QtWidgets.QMainWindow, MainWindow):
 
         :return: None
         """
-        global printf
         time_zone: int = int(configuration.get_timezone())
         # current_time = QTime.currentTime().toString("Y-M-D hh:mm:ss")
         utc_time: datetime.datetime = datetime.datetime.utcnow()
         current_time: datetime.datetime = datetime.datetime.utcnow(
         ) + datetime.timedelta(hours=time_zone)
+        self.localTimeGroupBox.setTitle(
+            f'Local Time (UTC Offset: {time_zone})')
         self.localTimeLabel.setText(current_time.strftime('%Y-%m-%d %H:%M:%S'))
         self.utcTimeLabel.setText(utc_time.strftime('%Y-%m-%d %H:%M:%S'))
-        while len(printf) > 0:
-            for i in printf:
-                self.monitorBrowser.append(i)  # show information in monitor
-                self.cursot = self.monitorBrowser.textCursor()
+        logs = pop_all_logs()
+        for log in logs:
+            self.monitorBrowser.append(log)  # show information in monitor
+            self.cursot = self.monitorBrowser.textCursor()
+            if self.autoScrollCheckBox.isChecked():
                 self.monitorBrowser.moveCursor(self.cursot.End)
-            printf.clear()
+            else:
+                self.status.showMessage(
+                    'New logs available (auto scroll off)', 1500)
+        if logs:
             QtWidgets.QApplication.processEvents()
 
-    def perform_task(self, url: str, request_type: str, name: str,
-                     to_addrs: str) -> Tuple[bool, str]:
+    def perform_task(self, url: Dict[str, object], request_type: str,
+                     name: str, to_addrs: str,
+                     payload: object = "",
+                     headers: Dict[str, str] = None,
+                     use_json: bool = False) -> Tuple[bool, dict]:
         """
         Perform a request to the specified url with the specified request type.
 
         Args:
-            url (str): The url to request.
+            url (Dict[str, object]): 标准化后的地址信息。
             request_type (str): The type of request to make, one of "GET",
             "POST", or "SERVER".
             name (str): The name of the request.
             to_addrs (str): The email to send result to.
 
         Returns:
-            Tuple[bool, str]: A tuple  containing the result of the request as
-            a boolean and a string describing the result.
+            Tuple[bool, dict]: (是否成功, 详情字典)。
         """
 
         def handle_request(result: Tuple[bool, str]) -> None:
@@ -222,22 +290,20 @@ class monitor_window(QtWidgets.QMainWindow, MainWindow):
                 result (tuple[bool, str]): A tuple containing the result of the
                 request as a boolean and a string describing the result.
             """
-            print(f"{request_type.upper()}-Result: {result}")
-            # TODO: add logging logic if needed
-            log_recorder.record_to_log(request_type, f"Result: {result}")
+            if self.debug:
+                print(f"{request_type.upper()}-Result: {result}")
 
         # Dictionary mapping request types to functions
         request_functions = {
-            "GET": monitor.monitor_get,
-            "POST": lambda url: monitor.monitor_post(
-                url, "1"
-            ),  # Assuming "1" is a fixed parameter for POST requests
+            "GET": lambda addr: monitor.monitor_get(addr, headers),
+            "POST": lambda addr: monitor.monitor_post(addr, payload, headers,
+                                                      use_json),
             "SERVER": monitor.monitor_server
         }
 
         # Perform the request using the appropriate function
         request_func = request_functions.get(
-            request_type, lambda _: (False, "Unknown request type"))
+            request_type, lambda _: (False, {"message": "Unknown request type"}))
         result = request_func(url)
 
         # Handle the result
@@ -245,7 +311,7 @@ class monitor_window(QtWidgets.QMainWindow, MainWindow):
         return result
 
     # format url
-    def parse_network_address(self, address: str) -> Tuple[str, int, str]:
+    def parse_network_address(self, address: str) -> Dict[str, object]:
         """
         Parse a network address into its components.
 
@@ -253,30 +319,27 @@ class monitor_window(QtWidgets.QMainWindow, MainWindow):
             address (str): The network address to be parsed.
 
         Returns:
-            Tuple[str, int, str]: A tuple of (url, port, suffix) where url is the base URL,
-            port is the port number (default to 80 if not specified), and suffix is the path after the hostname.
+            Dict[str, object]: 标准化的地址信息（scheme/host/port/path/url）。
 
         """
-        # Remove protocol prefix
-        if address.startswith("http://"):
-            url_port_suffix = address[len("http://"):]
-        elif address.startswith("https://"):
-            url_port_suffix = address[len("https://"):]
-        else:
-            url_port_suffix = address
+        from urllib.parse import urlparse
 
-        # Split URL into base (with potential port) and suffix at the first '/'
-        url_with_port, *suffix_parts = url_port_suffix.split('/', 1)
-        suffix = suffix_parts[0] if suffix_parts else ''
+        if not address.startswith("http://") and not address.startswith(
+                "https://"):
+            address = "http://" + address
+        parsed = urlparse(address)
+        scheme = parsed.scheme or "http"
+        host = parsed.hostname or ""
+        port = parsed.port
+        path = parsed.path or ""
+        if parsed.query:
+            path = f"{path}?{parsed.query}"
 
-        # Extract port number if specified; otherwise, set it to None
-        url, *port_parts = url_with_port.split(':')
-        port = int(port_parts[0]) if port_parts else None
+        normalized = monitor._normalize_address((host, port, path, scheme))
+        return normalized
 
-        print('url:', url, '\nport:', port, '\nsuffix:', suffix)
-        return url, port, suffix
-
-    def run_periodically(self, monitor_info: Dict[str, str]) -> None:
+    def run_periodically(self, monitor_info: Dict[str, str],
+                         stop_event: threading.Event) -> None:
         """
         Run the monitoring process in a loop.
         Parameters:
@@ -288,10 +351,10 @@ class monitor_window(QtWidgets.QMainWindow, MainWindow):
             None
 
         """
-        time_zone = int(configuration.get_timezone())
         i = 1
         last_status = True
-        while True:
+        while not stop_event.is_set():
+            time_zone = int(configuration.get_timezone())
             timenow = datetime.datetime.utcnow() + datetime.timedelta(
                 hours=time_zone)
             # Get the configuration
@@ -300,11 +363,38 @@ class monitor_window(QtWidgets.QMainWindow, MainWindow):
             mtype = monitor_info['type']
             interval = int(monitor_info['interval'])
             to_addrs = monitor_info['email']
+            payload = monitor_info.get('payload', '')
+            headers = monitor_info.get('headers', {})
+            use_json = False
+            try:
+                # 如果 payload 是合法 JSON，则转为对象并标记为 JSON 请求
+                payload_obj = json.loads(payload)
+                payload = payload_obj
+                use_json = True
+            except Exception:
+                # 非 JSON 字符串，按原样发送
+                pass
+            if use_json and headers is not None and isinstance(headers, dict):
+                if not any(k.lower() == "content-type"
+                           for k in headers.keys()):
+                    headers = {**headers, "Content-Type": "application/json"}
 
             # format the url, port, suffix
             url = self.parse_network_address(url)
             # start the monitoring process, return value: bool, string
-            result = self.perform_task(url, mtype, name, to_addrs)
+            result = self.perform_task(url, mtype, name, to_addrs, payload,
+                                       headers, use_json)
+
+            # GET 类型增加数据解析校验（仅针对已支持的服务）
+            if result[0] and mtype == "GET" and name in ("NCTCOG", "CEVE"):
+                parse_ok, parse_label = parse_data.parse_data(
+                    name, result[1].get('body', '') if isinstance(
+                        result[1], dict) else '')
+                if not parse_ok:
+                    result = (False, {
+                        'message': f'Parse failed: {parse_label}',
+                        'url': url.get('url')
+                    })
 
             # when the result is True and the last status is True
             # the server/service is running well.
@@ -329,99 +419,84 @@ class monitor_window(QtWidgets.QMainWindow, MainWindow):
             elif result[0] is False and result[0] == last_status:
                 response_code = [4, 'Outage']
 
-            if type(result[1]).__name__ == 'list':
-                remark = len(result[1])
-                output = [timenow, name, mtype, url, interval,
-                          len(result[1])] + result[1]
-            else:
-                remark = result[1]
-                output = [timenow, name, mtype, url, interval, result[1]]
-
-            output = response_code + output
-            # output = response_code.append(output)
-            print(">>output:", output)
+            details = result[1] if isinstance(result[1], dict) else {}
+            remark = details.get('message') or details.get(
+                'status_code') or 'No detail'
+            content = details.get('body') or ''
+            output = [
+                response_code[0], response_code[1], timenow, name, mtype,
+                url.get('url'), interval, content, remark
+            ]
+            if self.debug:
+                print("debug output:", output)
 
             # process the result
             if response_code[0] == 1:
-                print(
-                    f"{i}: {timenow} - {name} - Status: Service/Server is running well"
-                )
                 # >>>Log and Output<<<
-                printf.append(
+                push_log(
                     f"{timenow} - {name} - Status: Service/Server Available, Remark: {remark}"
                 )
                 # record to log
                 log_recorder.record_to_log(
-                    f"{name}- Type: {mtype} - url: {url} - Interval: {interval} s",
+                    f"{name}- Type: {mtype} - url: {url.get('url')} - Interval: {interval} s",
                     f">>{timenow} - {name} - Service/Server Available, Remarks: {remark}\n"
                 )
                 log_recorder.save_to_csv(output, name)
 
             elif response_code[0] == 2:
-                send_email.send_email(
-                    f"{timenow}: The {name} service were restored!",
-                    f"{name} Service Restored\nRestored Time: {timenow}\nRemark: {remark}",
-                    to_addrs)
-                print(
-                    f"{i}: {timenow} - {name} - Status: Service/Server were restored"
-                )
+                subject, body = send_email.format_event_email(
+                    'restored', name, timenow, remark)
+                send_email.send_email(subject, body, to_addrs)
                 # >>>Log and Output<<<
-                printf.append(
+                push_log(
                     f"{timenow} - {name} - Status: Service/Server were restored, {remark}"
                 )
                 # record to log
                 log_recorder.record_to_log(
-                    f"{name} - Type: {mtype} - url: {url} - Interval: {interval}s",
+                    f"{name} - Type: {mtype} - url: {url.get('url')} - Interval: {interval}s",
                     f">>{timenow} - {name} - Service/Server were restored, Remarks: {remark}\n"
                 )
                 log_recorder.save_to_csv(output, name)
 
             elif response_code[0] == 3:
-                send_email.send_email(
-                    f"{timenow}: The {name} server outage!",
-                    f"{name} Outage\nTime: {timenow}\nRemark: {remark}",
-                    to_addrs)
-                print(
-                    f"{i}: {timenow} - {name} - Status: Service/Server Outage")
+                subject, body = send_email.format_event_email(
+                    'outage', name, timenow, remark)
+                send_email.send_email(subject, body, to_addrs)
                 # >>>Log and Output<<<
-                printf.append(
+                push_log(
                     f"{timenow} - {name} - Status: Service/Server Outage, {remark}"
                 )
                 # record to log
                 log_recorder.record_to_log(
-                    f"{name} - Type: {mtype} - url: {url} - Interval: {interval}s",
+                    f"{name} - Type: {mtype} - url: {url.get('url')} - Interval: {interval}s",
                     f">>{timenow} - {name} - Service/Server Outage, Remarks: {remark}\n"
                 )
                 log_recorder.save_to_csv(output, name)
 
             elif response_code[0] == 4:
-                send_email.send_email(
-                    f"{timenow}: The {name} server outage!",
-                    f"{name} Continuous Server/Service Outage\nSignal outage occurred: {timenow}\nRemark: {remark}",
-                    to_addrs)
-                print(
-                    f"\n{i}: {timenow} - {name} - Status: Continuous Server/Service Outage"
-                )
                 # >>>Log and Output<<<
-                printf.append(
+                push_log(
                     f"{timenow} - {name} - Status: Continuous Server/Service Outage, {remark}"
                 )
 
                 # record to log
                 log_recorder.record_to_log(
-                    f"{name} - Type: {mtype} - url: {url} - Interval: {interval}s",
+                    f"{name} - Type: {mtype} - url: {url.get('url')} - Interval: {interval}s",
                     f">>{timenow} - {name} - Continuous Server/Service Outage, Remarks: {remark}\n"
                 )
                 log_recorder.save_to_csv(output, name)
 
-            print(f"\nWaiting for {interval} s")
+            if self.debug:
+                print(f"debug waiting: {interval} s")
             i += 1
             last_status = result[0]
-            time.sleep(interval)
+            if stop_event.wait(interval):
+                break
 
     # Create threads for each monitor
     def run_with_threads(self, num_threads: int,
-                         monitor_list: List[Dict[str, str]]) -> None:
+                         monitor_list: List[Dict[str, str]],
+                         stop_event: threading.Event) -> None:
         """
         Create and start a thread for each monitor in the list.
 
@@ -433,38 +508,20 @@ class monitor_window(QtWidgets.QMainWindow, MainWindow):
         Returns:
             None
         """
+        self.threads = []
         for i in range(num_threads):
             monitor_info = monitor_list[i]
             t = threading.Thread(name=monitor_info['name'],
                                  target=self.run_periodically,
-                                 args=(monitor_info, ))
+                                 args=(monitor_info, stop_event))
             t.setDaemon(True)
             t.start()
+            self.threads.append(t)
 
 
 if __name__ == '__main__':
-    folder = os.path.expanduser('API Monitor/Log')
-    config_dir = os.path.expanduser("API Monitor/Config")
-    mailSampleDir = os.path.expanduser("API Monitor/MailSample")
-
-    print("folder:", folder)
-    print("config_dir:", config_dir)
-    print("mailSampleDir:", mailSampleDir)
-
-    # Determines if a folder exists
-    if not os.path.exists(folder):
-        os.makedirs(folder)
-    if not os.path.exists(mailSampleDir):
-        os.makedirs(mailSampleDir)
-        configuration.write_mailSample(mailSampleDir)
-    if not os.path.exists(config_dir):
-        os.makedirs(config_dir)
-        configuration.write_config(config_dir)
-    if not os.path.exists(str(config_dir + "/Config.ini")):
-        configuration.write_config(config_dir)
-    if not os.path.exists(str(config_dir + "/MonitorList.ini")):
-        configuration.write_monitor_list(config_dir)
-    time.sleep(2.9)
+    configuration.ensure_defaults()
+    time.sleep(0.1)
 
     app = QtWidgets.QApplication(sys.argv)
     mainWindow = monitor_window()

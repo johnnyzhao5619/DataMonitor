@@ -4,8 +4,23 @@
 # @File : configuration.py
 
 import configparser
+import json
+import os
 
 log_dir = './API Monitor/'
+TEMPLATE_SECTION = 'Templates'
+
+
+def _config_path(*parts: str) -> str:
+    """Build a path under the configured base directory."""
+    return os.path.join(log_dir, *parts)
+
+
+def _read_config(file_name: str) -> configparser.RawConfigParser:
+    """Helper to load a config file under Config/."""
+    cfg = configparser.RawConfigParser()
+    cfg.read(_config_path('Config', file_name))
+    return cfg
 
 
 def get_log_dir():
@@ -22,14 +37,24 @@ def get_log_dir():
 
 
 def get_mail_format():
-    pass
+    return get_mail_content('')
+
+
+def get_mail_content(mail_type: str) -> str:
+    """
+    读取邮件模板；缺失时返回空字符串，避免抛异常。
+    """
+    config = _read_config('Config.ini')
+    if not config.has_section('MailContent'):
+        return ''
+    if not config.has_option('MailContent', mail_type):
+        return ''
+    return config.get('MailContent', mail_type)
 
 
 def read_general():
     # log_dir = get_log_dir()
-    global log_dir
-    config = configparser.RawConfigParser()
-    config.read(log_dir + 'Config/Config.ini')
+    config = _read_config('Config.ini')
     appname = config.get('General', 'app_name')
     version = config.get('General', 'version')
     return appname, version
@@ -37,18 +62,14 @@ def read_general():
 
 def read_log_settings():
     # log_dir = get_log_dir()
-    global log_dir
-    config = configparser.RawConfigParser()
-    config.read(log_dir + 'Config/Config.ini')
+    config = _read_config('Config.ini')
     auto_update = config.get('Logging', 'auto_update_signal_num')
     return auto_update
 
 
 def read_monitor_list():
     # log_dir = get_log_dir()
-    global log_dir
-    config = configparser.RawConfigParser()
-    config.read(log_dir + 'Config/MonitorList.ini')
+    config = _read_config('MonitorList.ini')
     monitor_list = []
     total = config.get('MonitorNum', 'total')
     for i in range(int(total)):
@@ -59,6 +80,11 @@ def read_monitor_list():
             'format': config.get(f'Monitor{i+1}', 'format'),
             'interval': config.get(f'Monitor{i+1}', 'interval'),
             'email': config.get(f'Monitor{i+1}', 'email'),
+            'payload': config.get(f'Monitor{i+1}', 'payload')
+            if config.has_option(f'Monitor{i+1}', 'payload') else ''
+            ,
+            'headers': json.loads(config.get(f'Monitor{i+1}', 'headers'))
+            if config.has_option(f'Monitor{i+1}', 'headers') else {}
         }
         monitor_list.append(monitor_dir)
     return monitor_list
@@ -66,9 +92,7 @@ def read_monitor_list():
 
 def read_mail_configuration():
     # log_dir = get_log_dir()
-    global log_dir
-    config = configparser.RawConfigParser()
-    config.read(log_dir + 'Config/Config.ini')
+    config = _read_config('Config.ini')
     mailconfig = {
         'smtp_server': config.get('Mail', 'smtp_server'),
         'smtp_port': config.get('Mail', 'smtp_port'),
@@ -77,43 +101,34 @@ def read_mail_configuration():
         'from_addr': config.get('Mail', 'from_addr'),
         # 'to_addrs': config.get('Mail', 'to_addrs'),
     }
-    print("mailconfig:", mailconfig)
     return mailconfig
 
 
 def get_timezone():
     # log_dir = get_log_dir()
-    global log_dir
-    config = configparser.RawConfigParser()
-    config.read(log_dir + 'Config/Config.ini')
+    config = _read_config('Config.ini')
     return config.get('TimeZone', 'timezone')
 
 
 def get_server_ip():
     # log_dir = get_log_dir()
-    global log_dir
-    config = configparser.RawConfigParser()
-    config.read(log_dir + 'Config/Config.ini')
+    config = _read_config('Config.ini')
     server_list = config.items('Server_IP')
     return server_list
 
 
 def get_targetnum(target: str):
     # log_dir = get_log_dir()
-    global log_dir
-    config = configparser.RawConfigParser()
-    config.read(log_dir + 'Config/Config.ini')
+    config = _read_config('Config.ini')
     targetNumber = config.get('Region_Expected_Targets', target)
     return targetNumber
 
 
 def set_targetnum(target: str, num: str):
     # log_dir = get_log_dir()
-    global log_dir
-    config = configparser.RawConfigParser()
-    config.read(log_dir + 'Config/Config.ini')
+    config = _read_config('Config.ini')
     config.set('Region_Expected_Targets', target, num)
-    with open((log_dir + "Config/Config.ini"), "w") as f:
+    with open(_config_path("Config", "Config.ini"), "w") as f:
         config.write(f)
 
 
@@ -127,21 +142,27 @@ def set_timezone(timezone: str) -> None:
         None
     """
     # log_dir = get_log_dir()
-    global log_dir
-    config = configparser.RawConfigParser()
-    config.read(log_dir + 'Config/Config.ini')
-    config.set('TimeZone', 'timezone', timezone)
-    with open((log_dir + "Config/Config.ini"), "w") as f:
+    config = _read_config('Config.ini')
+    config.set('TimeZone', 'timezone', str(timezone))
+    with open(_config_path("Config", "Config.ini"), "w") as f:
         config.write(f)
 
 
 def get_mail_formate(mail_type: str):
-    # log_dir = get_log_dir()
-    global log_dir
-    config = configparser.RawConfigParser()
-    config.read(log_dir + 'Config/Config.ini')
-    mail_content = config.get('MailContent', mail_type)
-    return mail_content
+    """
+    兼容旧拼写，返回邮件模板内容。
+    """
+    return get_mail_content(mail_type)
+
+
+def get_template(key: str, default: str = "") -> str:
+    """
+    Read a configurable template string from the Templates section.
+    """
+    config = _read_config('Config.ini')
+    if config.has_option(TEMPLATE_SECTION, key):
+        return config.get(TEMPLATE_SECTION, key)
+    return default
 
 
 def write_mailSample(mailSampleDir: str):
@@ -189,7 +210,7 @@ def write_config(config_dir: str):
     info = configparser.ConfigParser()
     info.add_section("General")
     info.set("General", "app_name", "API Monitor")
-    info.set("General", "version", "1.1")
+    info.set("General", "version", "1.3")
 
     info.add_section("Logging")
     info.set("Logging", "log_level", "info")
@@ -218,12 +239,55 @@ def write_config(config_dir: str):
     info.add_section("Mail")
     info.set("Mail", "smtp_server", "smtp-mail.outlook.com")
     info.set("Mail", "smtp_port", "587")
-    info.set("Mail", "username", "support@traffictechservices.com")
+    info.set("Mail", "username", "psa.support@traffictechservices.com")
     info.set("Mail", "password", "")
-    info.set("Mail", "from_addr", "support@traffictechservices.com")
+    info.set("Mail", "from_addr", "psa.support@traffictechservices.com")
     # info.set("Mail", "to_addrs", "john.zhao@miovision.com")
     # info.set("Mail", "subject", "Outage Warning")
-    info.write(open((config_dir + "/Config.ini"), "w"))
+
+    info.add_section("Templates")
+    info.set("Templates", "outage_subject",
+             "{timestamp}: {service_name} outage detected")
+    info.set("Templates", "outage_body",
+             "{service_name} is unreachable at {timestamp}. Remark: {remark}")
+    info.set("Templates", "restored_subject",
+             "{timestamp}: {service_name} restored")
+    info.set("Templates", "restored_body",
+             "{service_name} recovered at {timestamp}. Remark: {remark}")
+    info.set("Templates", "log_line",
+             ">>{time} (Timezone: {timezone})\n>>Action:{action}\n{log}\n")
+
+    info.add_section("MailContent")
+    info.set("MailContent", "Outage", "")
+    info.set("MailContent", "Outage_Resolution", "")
+    info.set("MailContent", "Phase_Incomplete", "")
+    info.set("MailContent", "Phase_Incomplete_Resolution", "")
+    info.write(open(os.path.join(config_dir, "Config.ini"), "w"))
+
+
+def ensure_defaults() -> None:
+    """
+    Ensure base folders and default config files exist for first-time run.
+    """
+    base_dir = os.path.expanduser(log_dir)
+    config_dir = os.path.join(base_dir, "Config")
+    log_path = os.path.join(base_dir, "Log")
+    mail_dir = os.path.join(base_dir, "MailSample")
+
+    os.makedirs(log_path, exist_ok=True)
+    os.makedirs(config_dir, exist_ok=True)
+    os.makedirs(mail_dir, exist_ok=True)
+
+    config_path = os.path.join(config_dir, "Config.ini")
+    monitor_path = os.path.join(config_dir, "MonitorList.ini")
+    if not os.path.exists(config_path):
+        write_config(config_dir)
+    if not os.path.exists(monitor_path):
+        write_monitor_list(config_dir)
+    # seed mail samples when missing primary file
+    sample_file = os.path.join(mail_dir, "OutageNotificationMailSample.html")
+    if not os.path.exists(sample_file):
+        write_mailSample(mail_dir)
 
 
 def write_monitor_list(config_dir: str):
@@ -231,37 +295,30 @@ def write_monitor_list(config_dir: str):
     info.add_section("MonitorNum")
     info.set("MonitorNum", "total", "3")
     info.add_section("Monitor1")
-    info.set("Monitor1", "name", "For Test")
-    info.set("Monitor1", "url", "http://www.google.com")
+    info.set("Monitor1", "name", "Sample HTTP Server")
+    info.set("Monitor1", "url", "http://example.com")
     info.set("Monitor1", "type", "SERVER")
     info.set("Monitor1", "format", "HTTP")
     info.set("Monitor1", "interval", "60")
-    info.set("Monitor1", "email",
-             "john.zhao@miovision.com,support@traffictechservices.com")
+    info.set("Monitor1", "email", "user@example.com")
 
     info.add_section("Monitor2")
-    info.set("Monitor2", "name", "NCTCOG")
-    info.set(
-        "Monitor2", "url",
-        "nctcog.traffictechservices.com:5833/APhA/Services/GeoReferencedPredictions?username=john.monitor&password=tWXnIftK&latitude=27.944893&longitude=-82.511942&heading=270&bearingType=Compass&includeTopology=yes&asTurns=yes&includeAmber=no&returnJSON=yes&version=1.0.8"
-    )
+    info.set("Monitor2", "name", "Sample JSON API")
+    info.set("Monitor2", "url",
+             "api.example.com/v1/health?token=YOUR_TOKEN&returnJSON=yes")
     info.set("Monitor2", "type", "GET")
     info.set("Monitor2", "format", "JSON")
-    info.set("Monitor2", "interval", "900")
-    info.set("Monitor2", "email",
-             "john.zhao@miovision.com,support@traffictechservices.com")
+    info.set("Monitor2", "interval", "300")
+    info.set("Monitor2", "email", "user@example.com")
 
     info.add_section("Monitor3")
-    info.set("Monitor3", "name", "CEVE")
-    info.set(
-        "Monitor3", "url",
-        "ceve.traffictechservices.com:5833/APhA/Services/GeoReferencedPredictions?username=john.monitor&password=tWXnIftK&latitude=27.944893&longitude=-82.511942&heading=270&bearingType=Compass&includeTopology=yes&asTurns=yes&includeAmber=no&returnJSON=yes&version=1.0.8"
-    )
+    info.set("Monitor3", "name", "Sample XML API")
+    info.set("Monitor3", "url",
+             "xml.example.com/status?region=RegionA&format=xml")
     info.set("Monitor3", "type", "GET")
-    info.set("Monitor3", "format", "JSON")
-    info.set("Monitor3", "interval", "900")
-    info.set("Monitor3", "email",
-             "john.zhao@miovision.com,support@traffictechservices.com")
+    info.set("Monitor3", "format", "XML")
+    info.set("Monitor3", "interval", "300")
+    info.set("Monitor3", "email", "user@example.com")
 
     # info.add_section("Monitor2")
     # info.set("Monitor2", "name", "Wuxi Phase Continuity")
@@ -404,4 +461,74 @@ def write_monitor_list(config_dir: str):
     # info.set("Monitor15", "format", "XML")
     # info.set("Monitor15", "interval", "900")
     # info.set("Monitor15", "email", "johnnyzhao56192@gmail.com")
-    info.write(open((config_dir + "/MonitorList.ini"), "w"))
+    info.write(open(os.path.join(config_dir, "MonitorList.ini"), "w"))
+
+
+def save_general(app_name: str, version: str, timezone: str,
+                 log_level: str) -> None:
+    cfg = _read_config('Config.ini')
+    if not cfg.has_section('General'):
+        cfg.add_section('General')
+    cfg.set('General', 'app_name', app_name or 'API Monitor')
+    cfg.set('General', 'version', version or '1.3')
+    if not cfg.has_section('Logging'):
+        cfg.add_section('Logging')
+    cfg.set('Logging', 'log_level', log_level or 'info')
+    cfg.set('Logging', 'log_file', cfg.get('Logging', 'log_file',
+                                           fallback='./API Monitor/'))
+    if not cfg.has_section('TimeZone'):
+        cfg.add_section('TimeZone')
+    cfg.set('TimeZone', 'timezone', timezone)
+    with open(_config_path("Config", "Config.ini"), "w") as f:
+        cfg.write(f)
+
+
+def save_mail(smtp_server: str, smtp_port: str, username: str, password: str,
+              from_addr: str) -> None:
+    cfg = _read_config('Config.ini')
+    if not cfg.has_section('Mail'):
+        cfg.add_section('Mail')
+    cfg.set('Mail', 'smtp_server', smtp_server)
+    cfg.set('Mail', 'smtp_port', smtp_port)
+    cfg.set('Mail', 'username', username)
+    cfg.set('Mail', 'password', password)
+    cfg.set('Mail', 'from_addr', from_addr)
+    with open(_config_path("Config", "Config.ini"), "w") as f:
+        cfg.write(f)
+
+
+def save_templates(outage_subject: str, outage_body: str,
+                   restored_subject: str, restored_body: str,
+                   log_line: str) -> None:
+    cfg = _read_config('Config.ini')
+    if not cfg.has_section(TEMPLATE_SECTION):
+        cfg.add_section(TEMPLATE_SECTION)
+    cfg.set(TEMPLATE_SECTION, 'outage_subject', outage_subject)
+    cfg.set(TEMPLATE_SECTION, 'outage_body', outage_body)
+    cfg.set(TEMPLATE_SECTION, 'restored_subject', restored_subject)
+    cfg.set(TEMPLATE_SECTION, 'restored_body', restored_body)
+    cfg.set(TEMPLATE_SECTION, 'log_line', log_line)
+    with open(_config_path("Config", "Config.ini"), "w") as f:
+        cfg.write(f)
+
+
+def save_monitor_list(monitors: list) -> None:
+    info = configparser.ConfigParser()
+    info.add_section("MonitorNum")
+    info.set("MonitorNum", "total", str(len(monitors)))
+    for idx, item in enumerate(monitors, start=1):
+        sec = f"Monitor{idx}"
+        info.add_section(sec)
+        info.set(sec, "name", item.get('name', ''))
+        info.set(sec, "url", item.get('url', ''))
+        info.set(sec, "type", item.get('type', 'GET'))
+        info.set(sec, "format", item.get('format', 'HTTP'))
+        info.set(sec, "interval", str(item.get('interval', 60)))
+        info.set(sec, "email", item.get('email', ''))
+        payload = item.get('payload', '')
+        if payload != '':
+            info.set(sec, "payload", payload)
+        headers = item.get('headers', {})
+        info.set(sec, "headers", json.dumps(headers))
+    with open(_config_path("Config", "MonitorList.ini"), "w") as f:
+        info.write(f)
