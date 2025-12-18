@@ -1,24 +1,24 @@
-# DataMonitor v1.1.0
+# DataMonitor v1.3.0 (Tk UI)
 
-DataMonitor is a PySide6 desktop console that lets operations and SRE teams configure HTTP/API/server monitors without writing bespoke scripts. Version **1.1.0** introduces PySide6 migration, improved internationalization, and enhanced security features.
+DataMonitor is a Tkinter desktop console that lets operations and SRE teams configure HTTP, API, and server monitors without writing custom scripts. The Tk UI keeps business logic UI-agnostic, adds multi-workspace configuration folders, and streamlines packaging with a single PyInstaller spec.
 
 ---
 
-## Highlights (v1.1.0)
+## Highlights
 
-- Migrated from PyQt5 to PySide6 (Qt for Python with LGPL v3 licensing)
-- Core monitoring module runs independently with no UI dependency
-- Improved internationalization with bundled language-pack build tool
-- Enhanced security with environment variables and external credential file support
-- Apache License 2.0 with comprehensive compliance documentation
+- Tkinter shell with navigation, dashboard, configuration, documentation, and preferences views.
+- Multi-workspace support: switch Config/Log roots from Preferences and keep tenants isolated.
+- Safer mail delivery: no hard-coded recipients, environment and Config.ini driven only.
+- Improved scheduler robustness: interval validation, defensive logging, and clearer startup errors.
+- Cross-platform packaging through `build/build_spec.py` and `build/DataMonitor_Windows.spec`.
 
 ---
 
 ## Requirements
 
-- Python 3.9+
+- Python 3.9 or newer
 - Windows 10+, macOS 12+, or a mainstream Linux desktop
-- Dependencies declared in `requirements.txt` (`PySide6==6.7.3`, `requests==2.31.0`; `pytest` + `pytest-qt` for tests)
+- Dependencies from `requirements.txt`
 
 ---
 
@@ -28,100 +28,106 @@ DataMonitor is a PySide6 desktop console that lets operations and SRE teams conf
 git clone <repo-url> datamonitor
 cd datamonitor
 python -m venv .venv
-source .venv/bin/activate          # Windows: .venv\Scripts\Activate.ps1
+# Windows: .venv\Scripts\Activate.ps1
+# macOS/Linux: source .venv/bin/activate
 pip install -r requirements.txt
-python main_frame.py
+python -m tkui.app
 ```
 
-First launch generates `Config.ini` and `Templates.ini` under `<APIMONITOR_HOME>/Config/` (defaults to `data_monitor/Config/`). Visit **Preferences** to confirm timezone, language, theme, and log settings before starting monitors.
+On first launch the app creates `Config.ini`, `Templates.ini`, and `config.workspaces.json` in the working directory. Use **Preferences -> Configuration Workspace** to add or switch workspaces (each has its own Config and Log folders).
 
 ---
 
 ## Configuration Guide
 
+### Workspaces
+
+- `config.workspaces.json` sits beside the executable and tracks paths plus labels.
+- Each workspace contains its own `Config/` and `Log/` folders; switching isolates monitors and logs per tenant.
+- Use **Browse** in Preferences to add a workspace; removing a workspace leaves files on disk.
+
 ### Application home
 
-`APIMONITOR_HOME` (env var) controls where configuration and logs are stored. If unset, the project uses `<repo>/data_monitor/`.
+- `APIMONITOR_HOME` overrides the active workspace path.
+- Default is the current working directory when the app first runs.
+- Key files:
+  - `Config/Config.ini` - monitors, logging, mail.
+  - `Config/Templates.ini` - mail, UI, log templates.
+  - `Log/` - rolling logs and CSV exports.
 
-- `Config/Config.ini` – monitors, logging, and mail sections.
-- `Config/Templates.ini` – mail/UI/log templates.
-- `Log/` – rolling log files + CSV exports.
+Bootstrap a clean directory with:
 
-Use `python -c "import configuration; configuration.writeconfig('<path>')"` to bootstrap a clean directory.
+```bash
+python -c "import configuration; configuration.writeconfig('<path>')"
+```
 
 ### Monitor definitions
 
-Each `[MonitorX]` section in `Config.ini` maps to a monitor:
+Each `[MonitorX]` section in `Config.ini` maps to one monitor:
 
-| Field                 | Description                                                      |
-| --------------------- | ---------------------------------------------------------------- |
-| `name`                | Friendly label shown in UI, logs, and mail subjects.             |
-| `url`                 | Absolute HTTP/HTTPS URL or `host:port/path` for SERVER monitors. |
-| `type`                | One of `GET`, `POST`, `SERVER`.                                  |
-| `interval`            | Polling interval (seconds).                                      |
-| `email`               | Optional comma-separated recipients overriding the global list.  |
-| `payload` / `headers` | Optional JSON dictionaries for POST/custom requests.             |
-
-The Configuration wizard mirrors these fields and writes to the same file.
+| Field | Description |
+| ----- | ----------- |
+| `name` | Display label for UI, logs, mail subjects. |
+| `url` | Full HTTP/HTTPS URL or `host:port/path` for SERVER monitors. |
+| `type` | One of `GET`, `POST`, `SERVER`. |
+| `interval` | Polling interval in seconds (must be positive). |
+| `email` | Optional comma-separated recipients overriding global defaults. |
+| `payload` / `headers` | Optional JSON dictionaries for POST/custom requests. |
 
 ### Email credentials
 
-Resolution order (all fields required):
+Resolution order (all required):
 
-1. **Environment variables** (`MAIL_SMTP_SERVER`, `MAIL_SMTP_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM`, `MAIL_TO`).
-2. **External INI** – set `MAIL_CONFIG_PATH=/secure/mail.ini` referencing a `[Mail]` section.
-3. **Local Config.ini** – fallback; repository values are placeholders and must be replaced before production use.
+1. Environment variables: `MAIL_SMTP_SERVER`, `MAIL_SMTP_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM`, `MAIL_TO`.
+2. External INI: set `MAIL_CONFIG_PATH=/secure/mail.ini` with a `[Mail]` section.
+3. Local `Config.ini`: fallback; replace placeholders before production.
 
-Define `email = ...` inside individual monitors to override recipients for that task.
+You can override recipients per monitor with the `email` field.
 
 ### Templates
 
-`Templates.ini` exposes:
+- `[mail]` (and language-specific sections) for `alert_subject/body` and `recovery_subject/body`.
+- `[ui]` for status lines shown in the dashboard feed.
+- `[log]` for CSV header and text log entries.
 
-- `[mail]` (and optional `[mail[en_US]]`, etc.) – `alert_subject/body`, `recovery_subject/body`.
-- `[ui]` – strings rendered in the dashboard/log feed.
-- `[log]` – CSV header and textual log formatting.
-
-After editing, click **Restore/Reload configuration** in the GUI or restart the app to apply changes.
+Reload configuration from the GUI or restart the app after edits.
 
 ---
 
 ## Running the Desktop Client
 
 ```bash
-python main_frame.py
+python -m tkui.app
 ```
 
 Workflow:
 
-1. Configure SMTP + templates.
-2. Add monitors via the Configuration wizard.
-3. Start the scheduler from the Monitor view; the log feed echoes loaded monitors and runtime events.
-4. Adjust language/theme/timezone/logging in Preferences; changes apply instantly.
-
-Headless automation is possible via the `monitoring` package, but is outside the desktop scope.
+1. Configure SMTP and templates.
+2. Add monitors in **Configuration**.
+3. Start monitoring from the **Monitor** view; the log feed shows activity.
+4. Adjust language, theme, timezone, and logging in **Preferences**; changes apply live.
 
 ---
 
-## Versioning & Release Workflow
+## Versioning
 
-- The canonical version lives in `datamonitor/version.py` as `__version__`.
-- Runtime consumers import `datamonitor.__version__` (e.g., window titles, about dialogs, logging).
-- Documentation should reference the version via scripts or mention how to query it at runtime:
+- Canonical version: `datamonitor/version.py` (`__version__`).
+- Query at runtime: `python -c "import datamonitor; print(datamonitor.__version__)"`.
+- When bumping: update `datamonitor/version.py` and docs (README, CHANGELOG), then commit (e.g., `chore: bump version to v1.3.0`).
+
+---
+
+## Building Executables (v1.3.0)
+
+### Release build
 
 ```bash
-python -c "import datamonitor; print(datamonitor.__version__)"
+python -m PyInstaller build/build_spec.py --clean --noconfirm
 ```
 
-To bump a release:
-
-1. Update `datamonitor/version.py`.
-2. Regenerate or review documentation that mentions the version (README, CHANGELOG).
-3. Commit with a message such as `chore: bump version to vX.Y.Z`.
-
-## Building Executables
-
-DataMonitor can be packaged into standalone executables for Windows, macOS, and Linux using PyInstaller.
+- Windows installer: `pwsh build/installer/make_installer.ps1` (updates title/metadata to 1.3.0).
+- macOS/Linux: zip `dist/DataMonitor` if distributing the folder layout.
+- Tk builds rely on `build/build_spec.py` or `build/DataMonitor_Windows.spec`.
 
 ### Prerequisites
 
@@ -129,90 +135,18 @@ DataMonitor can be packaged into standalone executables for Windows, macOS, and 
 pip install pyinstaller
 ```
 
-### Windows Build
-
-On a Windows machine, run:
+### Windows build (manual)
 
 ```cmd
-build\build_windows.bat
+python -m PyInstaller build\\DataMonitor_Windows.spec --clean --noconfirm
 ```
 
-Or manually:
-
-```cmd
-python -m PyInstaller build\DataMonitor_Windows.spec --clean --noconfirm
-```
-
-The executable will be created in `dist\DataMonitor\DataMonitor.exe`
-
-### macOS Build
-
-On a macOS machine, run:
-
-```bash
-python -m PyInstaller build/DataMonitor.spec --clean --noconfirm
-```
-
-The application bundle will be created in `dist/DataMonitor.app`
-
-### Linux Build
-
-On a Linux machine, run:
-
-```bash
-python -m PyInstaller build/DataMonitor.spec --clean --noconfirm
-```
-
-The executable will be created in `dist/DataMonitor/DataMonitor`
-
-**Note**: PyInstaller does not support cross-compilation. You must build on the target platform.
-
-For detailed build instructions, troubleshooting, and release procedures, see `build/BUILD_INSTRUCTIONS.md`.
-
-### Icons & Resources
-
-Project icon resources are located in `resources/icons/`:
-
-- `datamonitor.ico` - Windows icon (256x256)
-- `datamonitor.icns` - macOS icon bundle
-- `datamonitor_logo_icon.png` - Source PNG (1024x1024)
-
-The build scripts automatically use the appropriate icon for each platform.
+Artifacts land in `dist\\DataMonitor\\`.
 
 ---
 
-## Testing
+## Support and Contributions
 
-```bash
-pip install -r requirements.txt
-pytest
-```
-
-- GUI tests rely on `pytest-qt`; they skip automatically when PySide6 is absent.
-- Prefer feature tests over mocks; the application already avoids legacy PyQt5 branches.
-
----
-
-## Documentation
-
-- `docs/manual_zh.md` – Chinese end-user manual (monitor setup, email/templates, troubleshooting).
-- `docs/manual_en.md` – English counterpart.
-- The in-app Documentation tab renders both manuals plus the Apache 2.0 summary.
-
----
-
-## License & Third-Party Notices
-
-- Source code: [Apache License 2.0](LICENSE).
-- UI runtime: [PySide6 / Qt for Python](https://doc.qt.io/qtforpython/) (LGPL v3). Distributions must keep the Qt libraries replaceable and bundle the LGPL notice.
-- Other dependencies (`requests`, `PyYAML`, etc.) retain their permissive licenses.
-
----
-
-## Support
-
-- File issues or feature requests with logs/config snippets via the project tracker.
-- Contributions are welcome—follow the style of existing controllers/UI modules and update documentation alongside code.
-- For security-sensitive matters (SMTP credentials, production data), reach out privately instead of filing public issues.
-
-Happy monitoring!
+- File issues or feature requests via your team tracker.
+- Keep code DRY and UI-agnostic; prefer shared helpers in `datamonitor/core` and `datamonitor/domain`.
+- Avoid mock data and hard-coded recipients in production paths.

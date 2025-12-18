@@ -61,6 +61,7 @@ ENV/
 # Explicit common venv names (some CI/tools create these)
 .venv/
 .env/
+.python-version
 
 # 项目特定
 Config/
@@ -68,6 +69,7 @@ Config/
 *.log
 *.qm.json
 data_monitor/
+config.workspaces.json
 
 # Generated icon artifacts (keep source PNGs tracked; ignore generated targets)
 resources/icons/*.ico
@@ -77,3 +79,6 @@ resources/icons/*.iconset/
 # 操作系统
 .DS_Store
 Thumbs.db
+*.bak
+*.orig
+*.tmp
