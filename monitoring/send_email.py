@@ -12,15 +12,15 @@ from email.mime.text import MIMEText
 from email.utils import formataddr, parseaddr
 from typing import Iterable, Mapping, Optional, Tuple
 
-from PySide6 import QtCore
-
-import configuration
+import configuration  # kept for tests/compat (tests patch module.configuration)
+from datamonitor.domain import settings, mail as mail_config
 
 LOGGER = logging.getLogger(__name__)
 
 
 def _translate(text: str) -> str:
-    return QtCore.QCoreApplication.translate("Email", text)
+    # Backend only: return raw text without framework translation.
+    return text
 
 
 MAIL_EVENT_MAP = {
@@ -53,8 +53,14 @@ def render_email(event: str,
         raise KeyError(
             _translate("Unknown mail event type: {event}").format(event=event))
 
+    normalized_context = dict(context)
+    normalized_context.setdefault("timezone_offset", 0)
+    normalized_context.setdefault("url", "")
+    normalized_context.setdefault("monitor_type", "")
+    normalized_context.setdefault("interval", "")
+
     missing_fields = [
-        field for field in REQUIRED_CONTEXT_FIELDS if field not in context
+        field for field in REQUIRED_CONTEXT_FIELDS if field not in normalized_context
     ]
     if missing_fields:
         raise ValueError(
@@ -62,14 +68,14 @@ def render_email(event: str,
             format(fields=", ".join(sorted(missing_fields))))
 
     mapping = MAIL_EVENT_MAP[event]
-    subject = configuration.render_template("mail",
-                                            mapping["subject"],
-                                            context,
-                                            language=language)
-    body = configuration.render_template("mail",
-                                         mapping["body"],
-                                         context,
-                                         language=language)
+    subject = settings.render_template("mail",
+                                       mapping["subject"],
+                                       normalized_context,
+                                       language=language)
+    body = settings.render_template("mail",
+                                    mapping["body"],
+                                    normalized_context,
+                                    language=language)
     return subject, body
 
 
@@ -90,6 +96,8 @@ def _build_notification(event: str,
     context = {
         "service_name": str(service_name) if service_name is not None else "",
         "event_timestamp": _normalise_timestamp(occurred_at),
+        "timezone_offset": int(settings.get_timezone()),
+        "url": "",
         **context_defaults,
     }
     return render_email(event, context, language=language)
@@ -161,7 +169,18 @@ def _extract_email(address: str) -> str:
 
 def send_email(subject: str, body: str, recipients=None):
     # Get Mail info
-    mailconfig = configuration.read_mail_configuration()
+    try:
+        # Prefer domain mail facade; fallback to configuration for test patches.
+        reader = getattr(configuration, "read_mail_configuration",
+                         mail_config.read_mail_configuration)
+        mailconfig = reader()
+    except Exception as exc:
+        LOGGER.warning(
+            "mail.config.invalid error=%s; skipping email send for subject=%s",
+            exc,
+            subject,
+        )
+        return
     smtp_server = mailconfig['smtp_server']
     try:
         smtp_port = int(mailconfig['smtp_port'])
@@ -181,16 +200,24 @@ def send_email(subject: str, body: str, recipients=None):
                 "Email settings use_starttls and use_ssl cannot both be enabled"
             ))
 
-    _, send_to_list = _normalize_recipients(recipients, to_addrs)
+    display_to, send_to_list = _normalize_recipients(recipients, to_addrs)
+
+    if recipients is not None:
+        smtp_to_list = send_to_list
+    else:
+        smtp_override = mailconfig.get("smtp_to_addrs")
+        target = smtp_override if smtp_override else to_addrs
+        _, smtp_to_list = _normalize_recipients(target, target)
+
     display_from = _format_address(from_addr)
-    display_to = ", ".join(_format_address(addr) for addr in send_to_list)
+    display_to_header = ", ".join(_format_address(addr) for addr in send_to_list)
     transmit_from = _extract_email(from_addr)
-    transmit_to = [_extract_email(addr) for addr in send_to_list]
+    transmit_to = [_extract_email(addr) for addr in smtp_to_list]
 
     # Create the message
     message = MIMEMultipart()
     message['From'] = display_from
-    message['To'] = display_to
+    message['To'] = display_to_header
     message['Subject'] = Header(subject, 'utf-8')
     message.attach(MIMEText(body, 'plain', 'utf-8'))
 

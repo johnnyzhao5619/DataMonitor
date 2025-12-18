@@ -56,7 +56,6 @@ def monitor_server(address, timeout=None):
     socket_success = network_probe.check_socket_connectivity(
         host, port, resolved_timeout)
     ping_success = network_probe.perform_ping_probe(host, resolved_timeout)
-    network_probe.perform_icmp_probe(host, resolved_timeout)
 
     http_success = http_probe.probe_http_service(url, resolved_timeout)
 

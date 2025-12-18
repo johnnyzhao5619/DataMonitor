@@ -9,10 +9,10 @@ from __future__ import annotations
 import datetime as _dt
 import logging
 import threading
-from typing import Callable, Dict, Hashable, Iterable, Optional, Tuple
+from typing import Any, Callable, Dict, Hashable, Iterable, Optional, Tuple
 from urllib.parse import urlsplit
 
-import configuration
+from datamonitor.domain import settings
 
 from . import api_monitor
 from . import http_probe
@@ -32,21 +32,19 @@ LOGGER = logging.getLogger(__name__)
 class MonitorStrategy:
     """Strategy interface that executes a single monitoring check."""
 
-    def run(
-        self, monitor: configuration.MonitorItem
-    ) -> bool:  # pragma: no cover - interface contract
+    def run(self, monitor: Any) -> bool:  # pragma: no cover - interface contract
         raise NotImplementedError
 
 
 class GetMonitorStrategy(MonitorStrategy):
 
-    def run(self, monitor: configuration.MonitorItem) -> bool:
+    def run(self, monitor: Any) -> bool:
         return http_probe.monitor_get(monitor.url)
 
 
 class PostMonitorStrategy(MonitorStrategy):
 
-    def run(self, monitor: configuration.MonitorItem) -> bool:
+    def run(self, monitor: Any) -> bool:
         return http_probe.monitor_post(
             monitor.url,
             monitor.payload,
@@ -82,7 +80,7 @@ class ServerMonitorStrategy(MonitorStrategy):
     def __init__(self) -> None:
         self._cache: Dict[str, Iterable[str]] = {}
 
-    def run(self, monitor: configuration.MonitorItem) -> bool:
+    def run(self, monitor: Any) -> bool:
         parsed = self._cache.get(monitor.url)
         if parsed is None:
             parsed = parse_network_address(monitor.url)
@@ -107,7 +105,8 @@ class MonitorScheduler:
         self._timezone_getter = timezone_getter or (lambda: 0)
 
         def _default_clock() -> _dt.datetime:
-            return _dt.datetime.now(_dt.UTC).replace(tzinfo=None)
+            # Python 3.10 compatibility: datetime.UTC is Python 3.11+, use timezone.utc.
+            return _dt.datetime.now(_dt.timezone.utc).replace(tzinfo=None)
 
         self._clock = clock or _default_clock
         self._templates = templates or default_notification_templates()
@@ -124,7 +123,7 @@ class MonitorScheduler:
                           strategy: MonitorStrategy) -> None:
         self._strategies[monitor_type.upper()] = strategy
 
-    def start(self, monitors: Iterable[configuration.MonitorItem]) -> None:
+    def start(self, monitors: Iterable[Any]) -> None:
         if self._threads:
             raise RuntimeError("Scheduler is already running")
 
@@ -146,14 +145,26 @@ class MonitorScheduler:
 
     def stop(self) -> None:
         self._stop_event.set()
+        try:
+            wait_budget = max(float(settings.get_request_timeout()), 5.0)
+        except Exception:
+            wait_budget = 5.0
+        wait_timeout = wait_budget + 2.0  # allow in-flight probe to return
+
         for thread in self._threads:
-            thread.join()
+            thread.join(timeout=wait_timeout)
+            if thread.is_alive():
+                LOGGER.warning(
+                    "monitor.stop.timeout thread=%s still running after %.1fs; it will exit when current probe ends",
+                    thread.name,
+                    wait_timeout,
+                )
         self._threads.clear()
         self._state_machines.clear()
 
     def run_single_cycle(
         self,
-        monitor: configuration.MonitorItem,
+        monitor: Any,
         *,
         strategy: Optional[MonitorStrategy] = None,
     ) -> MonitorEvent:
@@ -185,7 +196,7 @@ class MonitorScheduler:
 
     def _run_monitor(
         self,
-        monitor: configuration.MonitorItem,
+        monitor: Any,
         strategy: MonitorStrategy,
     ) -> None:
         key, state_machine = self._ensure_state_machine(monitor)
@@ -203,15 +214,20 @@ class MonitorScheduler:
                 self._handle_event(event)
 
                 interval_seconds = max(float(monitor.interval), 0.0)
-                if interval_seconds == 0:
-                    continue
+                if interval_seconds <= 0.0:
+                    LOGGER.warning(
+                        "monitor.interval.invalid monitor=%s interval=%s; using 1s fallback",
+                        monitor.name,
+                        monitor.interval,
+                    )
+                    interval_seconds = 1.0
                 if self._stop_event.wait(interval_seconds):
                     break
         finally:
             # Remove finished monitoring state machines to avoid leaking references.
             self._state_machines.pop(key, None)
 
-    def _monitor_key(self, monitor: configuration.MonitorItem) -> Hashable:
+    def _monitor_key(self, monitor: Any) -> Hashable:
         """Generate a hashable key for caching the state machine instance."""
 
         return (
@@ -220,9 +236,8 @@ class MonitorScheduler:
             monitor.monitor_type.upper(),
         )
 
-    def _ensure_state_machine(
-        self, monitor: configuration.MonitorItem
-    ) -> tuple[Hashable, MonitorStateMachine]:
+    def _ensure_state_machine(self, monitor: Any
+                              ) -> tuple[Hashable, MonitorStateMachine]:
         key = self._monitor_key(monitor)
         state_machine = self._state_machines.get(key)
         if state_machine is None:
@@ -232,8 +247,7 @@ class MonitorScheduler:
             state_machine.update_monitor(monitor)
         return key, state_machine
 
-    def prune_state_machines(
-            self, monitors: Iterable[configuration.MonitorItem]) -> None:
+    def prune_state_machines(self, monitors: Iterable[Any]) -> None:
         """Drop state machines that no longer belong to the active monitor set."""
 
         active_keys = {self._monitor_key(monitor) for monitor in monitors}
@@ -271,8 +285,15 @@ class MonitorScheduler:
             )
 
     def _write_logs(self, event: MonitorEvent) -> None:
-        log_recorder.record(event.log_action, event.log_detail)
-        log_recorder.saveToFile(list(event.csv_row), event.monitor.name)
+        try:
+            log_recorder.record(event.log_action, event.log_detail)
+            log_recorder.saveToFile(list(event.csv_row), event.monitor.name)
+        except Exception as exc:  # pragma: no cover - defensive safeguard
+            LOGGER.exception(
+                "monitor.scheduler.log_error monitor=%s error=%s",
+                getattr(event.monitor, "name", "<unknown>"),
+                exc,
+            )
 
     def _dispatch_notification(self, event: MonitorEvent) -> None:
         if not event.notification:
@@ -288,8 +309,7 @@ class MonitorScheduler:
                 exc,
             )
 
-    def _log_strategy_error(self, monitor: configuration.MonitorItem,
-                            exc: Exception) -> None:
+    def _log_strategy_error(self, monitor: Any, exc: Exception) -> None:
         LOGGER.exception(
             "monitor.scheduler.strategy_error monitor=%s type=%s error=%s",
             monitor.name,

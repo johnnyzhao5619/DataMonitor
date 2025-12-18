@@ -47,6 +47,8 @@ coverage.xml
 .pytest_cache/
 htmlcov/
 .tox/
+.mypy_cache/
+.ruff_cache/
 
 # 虚拟环境
 venv/
@@ -79,6 +81,14 @@ resources/icons/*.iconset/
 # 操作系统
 .DS_Store
 Thumbs.db
+*.bak
+*.orig
+*.tmp
+*.exe
+*.msi
+*.dmg
+*.whl
+*.tar.gz
 *.bak
 *.orig
 *.tmp
